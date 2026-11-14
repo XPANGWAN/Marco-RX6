@@ -52,7 +52,10 @@ internal class ResumableDownloadWorker(
             if (latest == null || latest.status == DownloadDatabase.STATUS_CANCELLED) {
                 val directory = File(applicationContext.filesDir, "MARCO_RX6_downloads")
                 File(directory, "$id.part").delete()
-                (0 until 4).forEach { File(directory, "$id.seg$it").delete() }
+                (0 until 4).forEach {
+                    File(directory, "$id.seg$it").delete()
+                    File(directory, "$id.seg$it.progress").delete()
+                }
                 Result.success()
             } else if (latest.status == DownloadManager.STATUS_PAUSED) {
                 Result.success()
@@ -83,7 +86,7 @@ internal class ResumableDownloadWorker(
             onProgress = { downloaded, total ->
                 updateProgressNotification(item.title, item.id, downloaded, total)
             },
-            onPreparing = { updatePreparingNotification(item.title, item.id) }
+            onPreparing = { percent -> updatePreparingNotification(item.title, item.id, percent) }
         )
         if (segmented) return Result.success()
         var offset = if (partial.exists()) partial.length() else 0L
@@ -221,17 +224,17 @@ internal class ResumableDownloadWorker(
         DownloadDestination.delete(applicationContext, location)
     }
 
-    private fun updatePreparingNotification(title: String, downloadId: Long) {
+    private fun updatePreparingNotification(title: String, downloadId: Long, percent: Int = 100) {
         val language = applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
             .getString("language", "ar") ?: "ar"
         val localize: (String) -> String = { LanguageTranslator.translate(it, language) }
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher)
             .setContentTitle(title.ifBlank { "MARCO" })
-            .setContentText(localize("جارٍ تجهيز الملف"))
+            .setContentText("${localize("جارٍ تجهيز الملف")} ${percent.coerceIn(0, 100)}%")
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setProgress(0, 0, true)
+            .setProgress(100, percent.coerceIn(0, 100), false)
             .setContentIntent(openAppPendingIntent(applicationContext, downloadId))
             .addAction(android.R.drawable.ic_media_pause, localize("إيقاف مؤقت"),
                 actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_PAUSE))
