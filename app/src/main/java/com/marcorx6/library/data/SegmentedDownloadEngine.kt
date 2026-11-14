@@ -155,38 +155,15 @@ internal object SegmentedDownloadEngine {
 
         database.renameTitle(item.id, safeName)
         database.progress(item.id, total, total, etag, modified)
-        val selectedTree = DownloadStoragePreferences(context).treeUri()
-        val savedLocation = if (selectedTree != null) {
-            val resolver = context.contentResolver
-            val parentUri = DocumentsContract.buildDocumentUriUsingTree(
-                selectedTree, DocumentsContract.getTreeDocumentId(selectedTree)
-            )
-            val targetUri = DocumentsContract.createDocument(
-                resolver, parentUri, mime.ifBlank { "application/octet-stream" }, safeName
-            ) ?: throw IOException("Could not create a file in the selected download folder")
-            try {
-                val copied = resolver.openOutputStream(targetUri, "w")?.use { destination ->
-                    target.inputStream().use { source -> source.copyTo(destination) }
-                } ?: throw IOException("Could not write to the selected download folder")
-                if (copied != total) throw IOException("Saved file size mismatch: $copied / $total")
-            } catch (error: Exception) {
-                runCatching { DocumentsContract.deleteDocument(resolver, targetUri) }
-                throw error
-            }
-            target.delete()
-            targetUri.toString()
-        } else {
-            val output = File(directory, "${item.id}_$safeName")
-            if (output.exists()) output.delete()
-            if (!target.renameTo(output)) {
-                target.copyTo(output, overwrite = true)
-                target.delete()
-            }
-            if (!output.isFile || output.length() != total) {
-                throw IOException("Saved file size mismatch: ${output.length()} / $total")
-            }
-            output.absolutePath
-        }
+        val savedLocation = DownloadDestination.save(
+            context,
+            DownloadStoragePreferences(context).treeUri(),
+            target,
+            safeName,
+            mime,
+            total
+        )
+        target.delete()
         if (!database.complete(item.id, savedLocation, mime)) {
             if (savedLocation.startsWith("content://")) {
                 runCatching { DocumentsContract.deleteDocument(context.contentResolver, android.net.Uri.parse(savedLocation)) }
