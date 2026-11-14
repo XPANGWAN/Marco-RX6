@@ -220,6 +220,7 @@ internal class DownloadRepository(context: Context) {
         }
         val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
         File(directory, "$id.part").delete()
+        DownloadDestination.removeDirectTarget(appContext, id)
         (0 until 4).forEach { index ->
             File(directory, "$id.seg$index").delete()
             File(directory, "$id.seg$index.progress").delete()
