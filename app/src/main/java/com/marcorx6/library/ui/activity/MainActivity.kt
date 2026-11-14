@@ -628,6 +628,26 @@ class MainActivity : ComponentActivity() {
         FirebasePushTokenRepository().syncCurrentToken()
         firebaseSessionCoordinator.ensureGuestSession()
         lifecycleCoordinator.onResume()
+        handleDownloadNotificationIntent()
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+            handleDownloadNotificationIntent()
+        }
+    }
+
+    private fun handleDownloadNotificationIntent() {
+        if (!intent.getBooleanExtra("open_download_manager", false)) return
+        intent.removeExtra("open_download_manager")
+        intent.removeExtra("download_id")
+        window.decorView.post {
+            if (!isFinishing && !isDestroyed) {
+                activityServicesRuntimeFeature.showDownloadManager()
+            }
+        }
     }
 
     override fun onPause() {
