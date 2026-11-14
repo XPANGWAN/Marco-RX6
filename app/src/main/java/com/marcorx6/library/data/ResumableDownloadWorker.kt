@@ -52,6 +52,7 @@ internal class ResumableDownloadWorker(
             if (latest == null || latest.status == DownloadDatabase.STATUS_CANCELLED) {
                 val directory = File(applicationContext.filesDir, "MARCO_RX6_downloads")
                 File(directory, "$id.part").delete()
+                DownloadDestination.removeDirectTarget(applicationContext, id)
                 (0 until 4).forEach {
                     File(directory, "$id.seg$it").delete()
                     File(directory, "$id.seg$it.progress").delete()
