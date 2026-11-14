@@ -101,7 +101,15 @@ internal object SegmentedDownloadEngine {
             try {
                 RandomAccessFile(target, "rw").use { file ->
                     file.setLength(total)
-                    Os.posix_fallocate(file.fd, 0L, total)
+                    var preparedBytes = 0L
+                    for (index in 0 until SEGMENT_COUNT) {
+                        val start = index * segmentSize
+                        if (start >= total) continue
+                        val segmentLength = minOf(total - start, segmentSize)
+                        Os.posix_fallocate(file.fd, start, segmentLength)
+                        preparedBytes += segmentLength
+                        onPreparing((preparedBytes.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
+                    }
                     file.fd.sync()
                 }
             } catch (error: Exception) {
@@ -109,16 +117,14 @@ internal object SegmentedDownloadEngine {
                 clearSegments(directory, item.id)
                 throw IOException("Could not reserve storage for this large download. Free space or the storage filesystem may not support preallocation.", error)
             }
+        } else {
+            onPreparing(100)
         }
-        var preparedBytes = 0L
         for (index in 0 until SEGMENT_COUNT) {
             val start = index * segmentSize
             if (start >= total) continue
-            val segmentLength = minOf(total - start, segmentSize)
             val progressFile = File(directory, "${item.id}.seg$index.progress")
             if (!progressFile.isFile) writeSegmentProgress(progressFile, 0L)
-            preparedBytes += segmentLength
-            onPreparing((preparedBytes.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
         }
 
         // Keep four stable byte ranges so interrupted segments remain reusable even
