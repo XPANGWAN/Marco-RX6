@@ -297,16 +297,16 @@ internal class ResumableDownloadWorker(
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setProgress(0, 0, true)
-            .setContentIntent(openAppPendingIntent(downloadId))
+            .setContentIntent(openAppPendingIntent(applicationContext, downloadId))
             .addAction(
                 android.R.drawable.ic_media_pause,
                 "إيقاف مؤقت",
-                actionPendingIntent(downloadId, DownloadNotificationActionReceiver.ACTION_PAUSE)
+                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_PAUSE)
             )
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
                 "إلغاء",
-                actionPendingIntent(downloadId, DownloadNotificationActionReceiver.ACTION_CANCEL)
+                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_CANCEL)
             )
             .build()
         return if (Build.VERSION.SDK_INT >= 29) {
