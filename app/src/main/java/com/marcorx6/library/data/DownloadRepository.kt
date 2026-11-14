@@ -109,8 +109,12 @@ internal class DownloadRepository(context: Context) {
             sourcePostUrl = item.sourcePostUrl,
             priority = item.priority,
             segmentBytes = (0 until 4).map { index ->
-                File(appContext.filesDir, "MARCO_RX6_downloads/${item.id}.seg$index").let { file ->
-                    if (file.isFile) file.length() else 0L
+                val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
+                val progress = File(directory, "${item.id}.seg$index.progress")
+                if (progress.isFile) progress.readText().trim().toLongOrNull() ?: 0L else {
+                    File(directory, "${item.id}.seg$index").let { file ->
+                        if (file.isFile) file.length() else 0L
+                    }
                 }
             }
         )
@@ -216,6 +220,10 @@ internal class DownloadRepository(context: Context) {
         }
         val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
         File(directory, "$id.part").delete()
+        (0 until 4).forEach { index ->
+            File(directory, "$id.seg$index").delete()
+            File(directory, "$id.seg$index.progress").delete()
+        }
         database.delete(id)
         DownloadWorkScheduler.schedule(appContext)
         return true
