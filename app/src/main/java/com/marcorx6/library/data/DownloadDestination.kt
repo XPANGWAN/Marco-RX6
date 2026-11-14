@@ -127,6 +127,28 @@ internal object DownloadDestination {
         }
     }
 
+    internal class DirectWriter(context: Context, uri: Uri) : java.io.Closeable {
+        private val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
+            ?: throw IOException("Could not open the visible download file for writing")
+
+        fun writeAt(bytes: ByteArray, count: Int, position: Long) {
+            var written = 0
+            while (written < count) {
+                val amount = android.system.Os.pwrite(
+                    descriptor.fileDescriptor, bytes, written, count - written, position + written
+                )
+                if (amount <= 0) throw IOException("Could not write to the preallocated destination")
+                written += amount
+            }
+        }
+
+        fun sync() = android.system.Os.fsync(descriptor.fileDescriptor)
+
+        override fun close() = descriptor.close()
+    }
+
+    fun openDirectWriter(context: Context, uri: Uri): DirectWriter = DirectWriter(context, uri)
+
     fun writeDirectAt(context: Context, uri: Uri, bytes: ByteArray, count: Int, position: Long) {
         val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
             ?: throw IOException("Could not open the visible download file for writing")
