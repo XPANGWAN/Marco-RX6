@@ -2,6 +2,9 @@ package com.marcorx6.library.data
 
 import android.app.DownloadManager
 import android.os.StatFs
+import android.os.Build
+import android.net.Uri
+import android.os.Environment
 import android.content.Context
 import java.io.File
 import java.io.FileOutputStream
@@ -76,49 +79,75 @@ internal object SegmentedDownloadEngine {
         ) {
             clearSegments(directory, item.id)
             target.delete()
+            DownloadDestination.removeDirectTarget(context, item.id)
             database.progress(item.id, 0L, total, etag, modified)
         }
 
-        // Keep one preallocated destination file for all byte ranges. Each worker writes
-        // directly at its absolute offset; this removes the old four-file merge and its
-        // extra full-size temporary copy (important for 100-300 GB downloads).
+        // Prefer a visible MediaStore file in Download/MARCO RX6 and write all
+        // byte ranges into it directly. SAF-selected folders and unsupported providers
+        // retain the private-file fallback because they may not support positional writes.
         val segmentSize = ((total - 1L) / SEGMENT_COUNT) + 1L
         val hasAllProgressSidecars = (0 until SEGMENT_COUNT).all { index ->
             val start = index * segmentSize
             start >= total || File(directory, "${item.id}.seg$index.progress").isFile
         }
-        val existingTargetIsReusable = target.isFile && target.length() == total && hasAllProgressSidecars
-        if (!existingTargetIsReusable) {
-            target.delete()
-            clearSegments(directory, item.id)
-        }
+        var directUri: Uri? = if (DownloadStoragePreferences(context).treeUri() == null &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        ) {
+            runCatching {
+                DownloadDestination.openDirectTarget(context, item.id, safeName, mime)
+            }.getOrNull()
+        } else null
+
+        var existingTargetIsReusable = if (directUri != null) {
+            runCatching { DownloadDestination.directTargetSize(context, directUri!!) == total }.getOrDefault(false) &&
+                hasAllProgressSidecars
+        } else target.isFile && target.length() == total && hasAllProgressSidecars
+
+        if (!existingTargetIsReusable) clearSegments(directory, item.id)
         onPreparing(0)
-        if (!existingTargetIsReusable) {
-            val availableBytes = StatFs(directory.absolutePath).availableBytes
-            if (availableBytes < total) {
-                throw IOException("Not enough free storage to prepare this file: need $total bytes, available $availableBytes bytes")
-            }
-            try {
-                RandomAccessFile(target, "rw").use { file ->
-                    file.setLength(total)
-                    var preparedBytes = 0L
-                    for (index in 0 until SEGMENT_COUNT) {
-                        val start = index * segmentSize
-                        if (start >= total) continue
-                        val segmentLength = minOf(total - start, segmentSize)
-                        Os.posix_fallocate(file.fd, start, segmentLength)
-                        preparedBytes += segmentLength
-                        onPreparing((preparedBytes.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
-                    }
-                    file.fd.sync()
+        if (directUri != null) {
+            if (!existingTargetIsReusable) {
+                try {
+                    val available = StatFs(Environment.getExternalStorageDirectory().absolutePath).availableBytes
+                    if (available < total) throw IOException("Not enough free space in Download storage")
+                    DownloadDestination.prepareDirectTarget(context, directUri!!, total, onPreparing)
+                } catch (error: Exception) {
+                    DownloadDestination.removeDirectTarget(context, item.id)
+                    directUri = null
+                    existingTargetIsReusable = false
                 }
-            } catch (error: Exception) {
+            } else onPreparing(100)
+        }
+        if (directUri == null) {
+            if (!existingTargetIsReusable) {
                 target.delete()
-                clearSegments(directory, item.id)
-                throw IOException("Could not reserve storage for this large download. Free space or the storage filesystem may not support preallocation.", error)
-            }
+                val availableBytes = StatFs(directory.absolutePath).availableBytes
+                if (availableBytes < total) {
+                    throw IOException("Not enough free storage to prepare this file: need $total bytes, available $availableBytes bytes")
+                }
+                try {
+                    RandomAccessFile(target, "rw").use { file ->
+                        file.setLength(total)
+                        var preparedBytes = 0L
+                        for (index in 0 until SEGMENT_COUNT) {
+                            val start = index * segmentSize
+                            if (start >= total) continue
+                            val segmentLength = minOf(total - start, segmentSize)
+                            Os.posix_fallocate(file.fd, start, segmentLength)
+                            preparedBytes += segmentLength
+                            onPreparing((preparedBytes.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
+                        }
+                        file.fd.sync()
+                    }
+                } catch (error: Exception) {
+                    target.delete()
+                    clearSegments(directory, item.id)
+                    throw IOException("Could not reserve storage for this large download. Free space or the storage filesystem may not support preallocation.", error)
+                }
+            } else onPreparing(100)
         } else {
-            onPreparing(100)
+            target.delete()
         }
         for (index in 0 until SEGMENT_COUNT) {
             val start = index * segmentSize
@@ -152,7 +181,7 @@ internal object SegmentedDownloadEngine {
                 val end = minOf(total - 1L, start + segmentSize - 1L)
                 Callable {
                     val progressFile = File(directory, "${item.id}.seg$index.progress")
-                    downloadRange(item, target, progressFile, start, end, total, etag, modified, isStopped, speedLimiter) { delta ->
+                    downloadRange(context, item, target, directUri, progressFile, start, end, total, etag, modified, isStopped, speedLimiter) { delta ->
                         val current = completedBytes.addAndGet(delta).coerceAtMost(total)
                         val now = System.currentTimeMillis()
                         val previous = lastProgressUpdate.get()
@@ -191,21 +220,27 @@ internal object SegmentedDownloadEngine {
             }
         }
         if (downloaded != total) throw IOException("Segmented download incomplete: $downloaded / $total")
-        if (target.length() != total) throw IOException("Preallocated destination size mismatch")
+        if (directUri != null) {
+            if (DownloadDestination.directTargetSize(context, directUri!!) != total) throw IOException("Visible preallocated destination size mismatch")
+        } else if (target.length() != total) throw IOException("Preallocated destination size mismatch")
         // All ranges already occupy their final offsets in this single file: no merge.
         onPreparing(100)
 
         database.renameTitle(item.id, safeName)
         database.progress(item.id, total, total, etag, modified)
-        val savedLocation = DownloadDestination.save(
-            context,
-            DownloadStoragePreferences(context).treeUri(),
-            target,
-            safeName,
-            mime,
-            total
-        )
-        target.delete()
+        val savedLocation = if (directUri != null) {
+            DownloadDestination.forgetDirectTarget(context, item.id)
+            directUri.toString()
+        } else {
+            DownloadDestination.save(
+                context,
+                DownloadStoragePreferences(context).treeUri(),
+                target,
+                safeName,
+                mime,
+                total
+            ).also { target.delete() }
+        }
         clearSegments(directory, item.id)
         if (!database.complete(item.id, savedLocation, mime)) {
             DownloadDestination.delete(context, savedLocation)
@@ -216,8 +251,10 @@ internal object SegmentedDownloadEngine {
     }
 
     private fun downloadRange(
+        context: Context,
         item: StoredDownload,
         target: File,
+        directUri: Uri?,
         progressFile: File,
         rangeStart: Long,
         rangeEnd: Long,
@@ -230,7 +267,9 @@ internal object SegmentedDownloadEngine {
     ) {
         val segmentLength = rangeEnd - rangeStart + 1L
         var offset = readSegmentProgress(progressFile, segmentLength)
-        if (target.length() != total) throw IOException("Preallocated download file is missing or truncated")
+        if (directUri != null) {
+            if (DownloadDestination.directTargetSize(context, directUri) != total) throw IOException("Visible preallocated download file is missing or truncated")
+        } else if (target.length() != total) throw IOException("Preallocated download file is missing or truncated")
         if (offset == segmentLength) return
 
         val connection = openConnection(item, rangeStart + offset, rangeEnd)
@@ -257,30 +296,52 @@ internal object SegmentedDownloadEngine {
                 throw IOException("File changed during segmented download; retry with a fresh source")
             }
             connection.inputStream.use { input ->
-                RandomAccessFile(target, "rw").use { output ->
-                    output.seek(rangeStart + offset)
-                    val buffer = ByteArray(BUFFER_SIZE)
-                    var lastSaved = offset
-                    try {
-                        while (true) {
-                            if (isStopped() || Thread.currentThread().isInterrupted) {
-                                throw InterruptedException("Segment download stopped")
+                val buffer = ByteArray(BUFFER_SIZE)
+                var lastSaved = offset
+                if (directUri != null) {
+                    DownloadDestination.openDirectWriter(context, directUri).use { output ->
+                        try {
+                            while (true) {
+                                if (isStopped() || Thread.currentThread().isInterrupted) throw InterruptedException("Segment download stopped")
+                                val count = input.read(buffer)
+                                if (count < 0) break
+                                speedLimiter.acquire(count)
+                                output.writeAt(buffer, count, rangeStart + offset)
+                                offset += count
+                                onBytes(count.toLong())
+                                if (offset - lastSaved >= 1024L * 1024L) {
+                                    output.sync()
+                                    writeSegmentProgress(progressFile, offset)
+                                    lastSaved = offset
+                                }
                             }
-                            val count = input.read(buffer)
-                            if (count < 0) break
-                            speedLimiter.acquire(count)
-                            output.write(buffer, 0, count)
-                            offset += count
-                            onBytes(count.toLong())
-                            if (offset - lastSaved >= 1024L * 1024L) {
-                                output.fd.sync()
-                                writeSegmentProgress(progressFile, offset)
-                                lastSaved = offset
-                            }
+                        } finally {
+                            output.sync()
+                            writeSegmentProgress(progressFile, offset)
                         }
-                    } finally {
-                        output.fd.sync()
-                        writeSegmentProgress(progressFile, offset)
+                    }
+                } else {
+                    RandomAccessFile(target, "rw").use { output ->
+                        output.seek(rangeStart + offset)
+                        try {
+                            while (true) {
+                                if (isStopped() || Thread.currentThread().isInterrupted) throw InterruptedException("Segment download stopped")
+                                val count = input.read(buffer)
+                                if (count < 0) break
+                                speedLimiter.acquire(count)
+                                output.write(buffer, 0, count)
+                                offset += count
+                                onBytes(count.toLong())
+                                if (offset - lastSaved >= 1024L * 1024L) {
+                                    output.fd.sync()
+                                    writeSegmentProgress(progressFile, offset)
+                                    lastSaved = offset
+                                }
+                            }
+                        } finally {
+                            output.fd.sync()
+                            writeSegmentProgress(progressFile, offset)
+                        }
                     }
                 }
             }
