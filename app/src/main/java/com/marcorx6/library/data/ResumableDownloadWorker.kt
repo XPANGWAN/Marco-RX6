@@ -198,44 +198,15 @@ internal class ResumableDownloadWorker(
             }
             // Network transfer is finished. Keep the item active while assembling/saving.
             updatePreparingNotification(item.title, item.id)
-            val selectedTree = DownloadStoragePreferences(applicationContext).treeUri()
-            val savedLocation = if (selectedTree != null) {
-                val resolver = applicationContext.contentResolver
-                val parentUri = DocumentsContract.buildDocumentUriUsingTree(
-                    selectedTree,
-                    DocumentsContract.getTreeDocumentId(selectedTree)
-                )
-                val targetUri = DocumentsContract.createDocument(
-                    resolver,
-                    parentUri,
-                    mime.ifBlank { "application/octet-stream" },
-                    safeName
-                ) ?: throw IOException("Could not create a file in the selected download folder")
-                try {
-                    val copied = resolver.openOutputStream(targetUri, "w")?.use { destination ->
-                        partial.inputStream().use { source -> source.copyTo(destination) }
-                    } ?: throw IOException("Could not write to the selected download folder")
-                    if (total > 0L && copied != total) {
-                        throw IOException("Saved file size mismatch: $copied / $total")
-                    }
-                } catch (error: Exception) {
-                    runCatching { DocumentsContract.deleteDocument(resolver, targetUri) }
-                    throw error
-                }
-                partial.delete()
-                targetUri.toString()
-            } else {
-                val output = File(directory, "${item.id}_$safeName")
-                if (output.exists()) output.delete()
-                if (!partial.renameTo(output)) {
-                    partial.copyTo(output, overwrite = true)
-                    partial.delete()
-                }
-                if (!output.isFile || (total > 0L && output.length() != total)) {
-                    throw IOException("Saved file size mismatch: ${output.length()} / $total")
-                }
-                output.absolutePath
-            }
+            val savedLocation = DownloadDestination.save(
+                applicationContext,
+                DownloadStoragePreferences(applicationContext).treeUri(),
+                partial,
+                safeName,
+                mime,
+                total
+            )
+            partial.delete()
             if (!database.complete(item.id, savedLocation, mime)) {
                 deleteSavedLocation(savedLocation)
                 throw InterruptedException("Download state changed before completion")
@@ -247,13 +218,7 @@ internal class ResumableDownloadWorker(
     }
 
     private fun deleteSavedLocation(location: String) {
-        if (location.startsWith("content://")) {
-            runCatching {
-                DocumentsContract.deleteDocument(applicationContext.contentResolver, android.net.Uri.parse(location))
-            }
-        } else if (location.isNotBlank()) {
-            File(location).delete()
-        }
+        DownloadDestination.delete(applicationContext, location)
     }
 
     private fun updatePreparingNotification(title: String, downloadId: Long) {
