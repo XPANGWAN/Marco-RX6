@@ -184,7 +184,7 @@ internal object SegmentedDownloadEngine {
         if (downloaded != total) throw IOException("Segmented download incomplete: $downloaded / $total")
 
         // All network bytes are present; merging and saving are local preparation work.
-        onPreparing()
+        onPreparing(100)
         FileOutputStream(target, false).use { output ->
             segmentFiles.forEach { segment ->
                 segment.inputStream().use { input -> input.copyTo(output, BUFFER_SIZE) }
