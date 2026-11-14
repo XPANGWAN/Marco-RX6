@@ -4,6 +4,7 @@ import android.app.DownloadManager
 import android.os.StatFs
 import android.content.Context
 import java.io.File
+import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import android.system.Os
 import java.io.IOException
@@ -82,26 +83,32 @@ internal object SegmentedDownloadEngine {
         // directly at its absolute offset; this removes the old four-file merge and its
         // extra full-size temporary copy (important for 100-300 GB downloads).
         val segmentSize = ((total - 1L) / SEGMENT_COUNT) + 1L
-        val existingTargetIsReusable = target.isFile && target.length() == total
+        val hasAllProgressSidecars = (0 until SEGMENT_COUNT).all { index ->
+            val start = index * segmentSize
+            start >= total || File(directory, "${item.id}.seg$index.progress").isFile
+        }
+        val existingTargetIsReusable = target.isFile && target.length() == total && hasAllProgressSidecars
         if (!existingTargetIsReusable) {
             target.delete()
             clearSegments(directory, item.id)
         }
-        val availableBytes = StatFs(directory.absolutePath).availableBytes
-        if (availableBytes < total) {
-            throw IOException("Not enough free storage to prepare this file: need $total bytes, available $availableBytes bytes")
-        }
         onPreparing(0)
-        try {
-            RandomAccessFile(target, "rw").use { file ->
-                file.setLength(total)
-                Os.posix_fallocate(file.fd, 0L, total)
-                file.fd.sync()
+        if (!existingTargetIsReusable) {
+            val availableBytes = StatFs(directory.absolutePath).availableBytes
+            if (availableBytes < total) {
+                throw IOException("Not enough free storage to prepare this file: need $total bytes, available $availableBytes bytes")
             }
-        } catch (error: Exception) {
-            target.delete()
-            clearSegments(directory, item.id)
-            throw IOException("Could not reserve storage for this large download. Free space or the storage filesystem may not support preallocation.", error)
+            try {
+                RandomAccessFile(target, "rw").use { file ->
+                    file.setLength(total)
+                    Os.posix_fallocate(file.fd, 0L, total)
+                    file.fd.sync()
+                }
+            } catch (error: Exception) {
+                target.delete()
+                clearSegments(directory, item.id)
+                throw IOException("Could not reserve storage for this large download. Free space or the storage filesystem may not support preallocation.", error)
+            }
         }
         var preparedBytes = 0L
         for (index in 0 until SEGMENT_COUNT) {
