@@ -260,16 +260,16 @@ internal class ResumableDownloadWorker(
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setProgress(100, percent, total <= 0L)
-            .setContentIntent(openAppPendingIntent(downloadId))
+            .setContentIntent(openAppPendingIntent(applicationContext, downloadId))
             .addAction(
                 android.R.drawable.ic_media_pause,
                 "إيقاف مؤقت",
-                actionPendingIntent(downloadId, DownloadNotificationActionReceiver.ACTION_PAUSE)
+                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_PAUSE)
             )
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
                 "إلغاء",
-                actionPendingIntent(downloadId, DownloadNotificationActionReceiver.ACTION_CANCEL)
+                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_CANCEL)
             )
             .build()
         val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -322,26 +322,26 @@ internal class ResumableDownloadWorker(
         private const val CHANNEL_ID = "marco_rx6_downloads"
         internal fun notificationId(downloadId: Long): Int = 1_000_000_000 + ((downloadId xor (downloadId ushr 32)).toInt() and 0x3fffffff)
 
-        private fun openAppPendingIntent(downloadId: Long): PendingIntent {
-            val intent = Intent(applicationContext, MainActivity::class.java).apply {
+        private fun openAppPendingIntent(context: Context, downloadId: Long): PendingIntent {
+            val intent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra("open_download_manager", true)
                 putExtra("download_id", downloadId)
             }
             return PendingIntent.getActivity(
-                applicationContext, notificationId(downloadId), intent,
+                context, notificationId(downloadId), intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
         }
 
-        private fun actionPendingIntent(downloadId: Long, action: String): PendingIntent {
-            val intent = Intent(applicationContext, DownloadNotificationActionReceiver::class.java).apply {
+        private fun actionPendingIntent(context: Context, downloadId: Long, action: String): PendingIntent {
+            val intent = Intent(context, DownloadNotificationActionReceiver::class.java).apply {
                 this.action = action
                 putExtra(DownloadNotificationActionReceiver.EXTRA_DOWNLOAD_ID, downloadId)
             }
             val requestCode = notificationId(downloadId) xor action.hashCode()
             return PendingIntent.getBroadcast(
-                applicationContext, requestCode, intent,
+                context, requestCode, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
         }
