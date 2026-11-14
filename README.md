@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/2simo/Marco-RX6/releases/tag/V8.18">Latest release · V8.18</a>
+  <a href="https://github.com/XPANGWAN/Marco-RX6/releases/tag/V8.19">Latest release · V8.19</a>
   ·
   <a href="https://t.me/MARCO_RX1">Telegram</a>
   ·
@@ -44,13 +44,13 @@
 
 ### ⬇️ تحميل التطبيق
 
-**أحدث إصدار: [MARCO RX6 V8.18](https://github.com/2simo/Marco-RX6/releases/tag/V8.18)**
+**أحدث إصدار: [MARCO RX6 V8.19](https://github.com/XPANGWAN/Marco-RX6/releases/tag/V8.19)**
 
 اختر الملف المناسب لجهازك من قسم **Assets** في صفحة الإصدار:
 
-- [ARM64 APK](https://github.com/2simo/Marco-RX6/releases/download/V8.18/app-arm64-v8a-release.apk) — لمعظم أجهزة Android الحديثة ذات معالجات 64-bit.
-- [ARM32 APK](https://github.com/2simo/Marco-RX6/releases/download/V8.18/app-armeabi-v7a-release.apk) — للأجهزة ذات معالجات 32-bit.
-- [Universal APK](https://github.com/2simo/Marco-RX6/releases/download/V8.18/app-universal-release.apk) — ملف شامل للأجهزة المتوافقة.
+- [ARM64 APK](https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.19/app-arm64-v8a-release.apk) — لمعظم أجهزة Android الحديثة ذات معالجات 64-bit.
+- [ARM32 APK](https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.19/app-armeabi-v7a-release.apk) — للأجهزة ذات معالجات 32-bit.
+- [Universal APK](https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.19/app-universal-release.apk) — ملف شامل للأجهزة المتوافقة.
 
 ### 💬 تابع MARCO RX6
 
@@ -90,13 +90,13 @@ The catalog features **PS2, PS3, and PS4** games.
 
 ### ⬇️ Download
 
-**Latest release: [MARCO RX6 V8.18](https://github.com/2simo/Marco-RX6/releases/tag/V8.18)**
+**Latest release: [MARCO RX6 V8.19](https://github.com/XPANGWAN/Marco-RX6/releases/tag/V8.19)**
 
 Choose the APK that matches your device from the release **Assets**:
 
-- [ARM64 APK](https://github.com/2simo/Marco-RX6/releases/download/V8.18/app-arm64-v8a-release.apk) — for most modern 64-bit Android devices.
-- [ARM32 APK](https://github.com/2simo/Marco-RX6/releases/download/V8.18/app-armeabi-v7a-release.apk) — for 32-bit Android devices.
-- [Universal APK](https://github.com/2simo/Marco-RX6/releases/download/V8.18/app-universal-release.apk) — a universal package for compatible devices.
+- [ARM64 APK](https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.19/app-arm64-v8a-release.apk) — for most modern 64-bit Android devices.
+- [ARM32 APK](https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.19/app-armeabi-v7a-release.apk) — for 32-bit Android devices.
+- [Universal APK](https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.19/app-universal-release.apk) — a universal package for compatible devices.
 
 ### 💬 Follow MARCO RX6
 
@@ -109,8 +109,8 @@ Feedback and suggestions are welcome and help us keep improving MARCO RX6.
 
 ## 🛠️ Project information
 
-- **Current release:** 8.18
-- **Version code:** 35
+- **Current release:** 8.19
+- **Version code:** 36
 - **Application ID:** `com.marcorx6.library`
 - **Language:** Kotlin
 - **Minimum Android version:** Android 7.0 (API 24)

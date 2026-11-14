@@ -530,7 +530,7 @@ internal class DownloadUiController(
                     }
                 }
                 if (segmentSpeeds.isNotEmpty()) {
-                    details.append("\\n").append(translate("سرعة الاتصالات")).append("  •  ")
+                    details.append("\n").append(translate("سرعة الاتصالات")).append("  •  ")
                         .append(segmentSpeeds.joinToString("  |  "))
                 }
             } else if (item.status != DownloadManager.STATUS_RUNNING) {

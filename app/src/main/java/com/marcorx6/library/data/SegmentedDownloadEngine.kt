@@ -29,7 +29,8 @@ internal object SegmentedDownloadEngine {
         item: StoredDownload,
         database: DownloadDatabase,
         isStopped: () -> Boolean,
-        onProgress: (Long, Long) -> Unit
+        onProgress: (Long, Long) -> Unit,
+        onPreparing: () -> Unit
     ): Boolean {
         val directory = File(context.filesDir, "MARCO_RX6_downloads").apply { mkdirs() }
         val target = File(directory, "${item.id}.part")
@@ -141,6 +142,8 @@ internal object SegmentedDownloadEngine {
         val downloaded = segmentFiles.sumOf { it.length() }
         if (downloaded != total) throw IOException("Segmented download incomplete: $downloaded / $total")
 
+        // All network bytes are present; merging and saving are local preparation work.
+        onPreparing()
         FileOutputStream(target, false).use { output ->
             segmentFiles.forEach { segment ->
                 segment.inputStream().use { input -> input.copyTo(output, BUFFER_SIZE) }
@@ -152,40 +155,17 @@ internal object SegmentedDownloadEngine {
 
         database.renameTitle(item.id, safeName)
         database.progress(item.id, total, total, etag, modified)
-        val selectedTree = DownloadStoragePreferences(context).treeUri()
-        val savedLocation = if (selectedTree != null) {
-            val resolver = context.contentResolver
-            val parentUri = DocumentsContract.buildDocumentUriUsingTree(
-                selectedTree, DocumentsContract.getTreeDocumentId(selectedTree)
-            )
-            val targetUri = DocumentsContract.createDocument(
-                resolver, parentUri, mime.ifBlank { "application/octet-stream" }, safeName
-            ) ?: throw IOException("Could not create a file in the selected download folder")
-            try {
-                resolver.openOutputStream(targetUri, "w")?.use { destination ->
-                    target.inputStream().use { source -> source.copyTo(destination) }
-                } ?: throw IOException("Could not write to the selected download folder")
-            } catch (error: Exception) {
-                runCatching { DocumentsContract.deleteDocument(resolver, targetUri) }
-                throw error
-            }
-            target.delete()
-            targetUri.toString()
-        } else {
-            val output = File(directory, "${item.id}_$safeName")
-            if (output.exists()) output.delete()
-            if (!target.renameTo(output)) {
-                target.copyTo(output, overwrite = true)
-                target.delete()
-            }
-            output.absolutePath
-        }
+        val savedLocation = DownloadDestination.save(
+            context,
+            DownloadStoragePreferences(context).treeUri(),
+            target,
+            safeName,
+            mime,
+            total
+        )
+        target.delete()
         if (!database.complete(item.id, savedLocation, mime)) {
-            if (savedLocation.startsWith("content://")) {
-                runCatching { DocumentsContract.deleteDocument(context.contentResolver, android.net.Uri.parse(savedLocation)) }
-            } else {
-                File(savedLocation).delete()
-            }
+            DownloadDestination.delete(context, savedLocation)
             throw InterruptedException("Download state changed before completion")
         }
         onProgress(total, total)

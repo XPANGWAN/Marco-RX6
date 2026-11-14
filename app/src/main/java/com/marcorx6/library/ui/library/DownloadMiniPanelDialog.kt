@@ -216,9 +216,11 @@ internal class DownloadMiniPanelDialog(
                             list.addView(row.card, index.coerceAtMost(list.childCount))
                         }
                         if (row.title.text.toString() != item.title) row.title.text = item.title
+                        val isPreparing = item.status == DownloadManager.STATUS_RUNNING &&
+                            item.totalBytes > 0L && item.downloadedBytes >= item.totalBytes
                         val statusLabel = when (item.status) {
                             DownloadManager.STATUS_PENDING, DownloadDatabase.STATUS_SCHEDULED -> translate("في الانتظار")
-                            DownloadManager.STATUS_RUNNING -> translate("قيد التنزيل")
+                            DownloadManager.STATUS_RUNNING -> if (isPreparing) translate("جارٍ تجهيز الملف") else translate("قيد التنزيل")
                             DownloadManager.STATUS_PAUSED -> translate("متوقف مؤقتاً")
                             DownloadManager.STATUS_SUCCESSFUL -> translate("اكتمل")
                             DownloadManager.STATUS_FAILED -> translate("فشل")
@@ -234,7 +236,7 @@ internal class DownloadMiniPanelDialog(
                         row.status.text = if (item.totalBytes > 0L) "$statusLabel • $percent%" else statusLabel
                         val downloaded = android.text.format.Formatter.formatFileSize(activity, item.downloadedBytes.coerceAtLeast(0L))
                         val total = if (item.totalBytes > 0L) android.text.format.Formatter.formatFileSize(activity, item.totalBytes) else translate("حجم غير معروف")
-                        val speedText = if (item.status == DownloadManager.STATUS_RUNNING) " • " + android.text.format.Formatter.formatFileSize(activity, speed) + "/s" else ""
+                        val speedText = if (item.status == DownloadManager.STATUS_RUNNING && !isPreparing) " • " + android.text.format.Formatter.formatFileSize(activity, speed) + "/s" else ""
                         val etaText = if (speed > 0L && item.totalBytes > item.downloadedBytes) {
                             val seconds = ((item.totalBytes - item.downloadedBytes) / speed).coerceAtLeast(0L)
                             val eta = if (seconds >= 3600L) "${seconds / 3600L}h ${(seconds % 3600L) / 60L}m"
@@ -242,7 +244,8 @@ internal class DownloadMiniPanelDialog(
                             " • " + translate("متبقي") + " " + eta
                         } else ""
                         row.details.text = "$downloaded / $total$speedText$etaText"
-                        row.progress.isIndeterminate = item.status == DownloadManager.STATUS_RUNNING && item.totalBytes <= 0L
+                        row.progress.isIndeterminate = isPreparing ||
+                            (item.status == DownloadManager.STATUS_RUNNING && item.totalBytes <= 0L)
                         if (!row.progress.isIndeterminate) row.progress.progress = percent
                         row.progress.visibility = if (item.status == DownloadManager.STATUS_SUCCESSFUL || item.status == DownloadManager.STATUS_FAILED) View.GONE else View.VISIBLE
                         row.actions.removeAllViews()

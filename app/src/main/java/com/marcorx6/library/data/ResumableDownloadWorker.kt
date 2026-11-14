@@ -5,6 +5,8 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
+import android.app.PendingIntent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.provider.DocumentsContract
@@ -13,6 +15,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import com.marcorx6.library.R
+import com.marcorx6.library.ui.activity.MainActivity
 import com.marcorx6.library.ui.LanguageTranslator
 import java.io.File
 import java.io.FileOutputStream
@@ -79,7 +82,8 @@ internal class ResumableDownloadWorker(
                 database.get(item.id)?.status == DownloadDatabase.STATUS_CANCELLED },
             onProgress = { downloaded, total ->
                 updateProgressNotification(item.title, item.id, downloaded, total)
-            }
+            },
+            onPreparing = { updatePreparingNotification(item.title, item.id) }
         )
         if (segmented) return Result.success()
         var offset = if (partial.exists()) partial.length() else 0L
@@ -192,38 +196,17 @@ internal class ResumableDownloadWorker(
             if (total > 0L && offset != total) {
                 throw IOException("Incomplete file: $offset / $total")
             }
-            val selectedTree = DownloadStoragePreferences(applicationContext).treeUri()
-            val savedLocation = if (selectedTree != null) {
-                val resolver = applicationContext.contentResolver
-                val parentUri = DocumentsContract.buildDocumentUriUsingTree(
-                    selectedTree,
-                    DocumentsContract.getTreeDocumentId(selectedTree)
-                )
-                val targetUri = DocumentsContract.createDocument(
-                    resolver,
-                    parentUri,
-                    mime.ifBlank { "application/octet-stream" },
-                    safeName
-                ) ?: throw IOException("Could not create a file in the selected download folder")
-                try {
-                    resolver.openOutputStream(targetUri, "w")?.use { destination ->
-                        partial.inputStream().use { source -> source.copyTo(destination) }
-                    } ?: throw IOException("Could not write to the selected download folder")
-                } catch (error: Exception) {
-                    runCatching { DocumentsContract.deleteDocument(resolver, targetUri) }
-                    throw error
-                }
-                partial.delete()
-                targetUri.toString()
-            } else {
-                val output = File(directory, "${item.id}_$safeName")
-                if (output.exists()) output.delete()
-                if (!partial.renameTo(output)) {
-                    partial.copyTo(output, overwrite = true)
-                    partial.delete()
-                }
-                output.absolutePath
-            }
+            // Network transfer is finished. Keep the item active while assembling/saving.
+            updatePreparingNotification(item.title, item.id)
+            val savedLocation = DownloadDestination.save(
+                applicationContext,
+                DownloadStoragePreferences(applicationContext).treeUri(),
+                partial,
+                safeName,
+                mime,
+                total
+            )
+            partial.delete()
             if (!database.complete(item.id, savedLocation, mime)) {
                 deleteSavedLocation(savedLocation)
                 throw InterruptedException("Download state changed before completion")
@@ -235,13 +218,28 @@ internal class ResumableDownloadWorker(
     }
 
     private fun deleteSavedLocation(location: String) {
-        if (location.startsWith("content://")) {
-            runCatching {
-                DocumentsContract.deleteDocument(applicationContext.contentResolver, android.net.Uri.parse(location))
-            }
-        } else if (location.isNotBlank()) {
-            File(location).delete()
-        }
+        DownloadDestination.delete(applicationContext, location)
+    }
+
+    private fun updatePreparingNotification(title: String, downloadId: Long) {
+        val language = applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            .getString("language", "ar") ?: "ar"
+        val localize: (String) -> String = { LanguageTranslator.translate(it, language) }
+        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_launcher)
+            .setContentTitle(title.ifBlank { "MARCO" })
+            .setContentText(localize("جارٍ تجهيز الملف"))
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setProgress(0, 0, true)
+            .setContentIntent(openAppPendingIntent(applicationContext, downloadId))
+            .addAction(android.R.drawable.ic_media_pause, localize("إيقاف مؤقت"),
+                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_PAUSE))
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, localize("إلغاء"),
+                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_CANCEL))
+            .build()
+        val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(notificationId(downloadId), notification)
     }
 
     private fun updateProgressNotification(title: String, downloadId: Long, downloaded: Long, total: Long) {
@@ -257,6 +255,17 @@ internal class ResumableDownloadWorker(
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setProgress(100, percent, total <= 0L)
+            .setContentIntent(openAppPendingIntent(applicationContext, downloadId))
+            .addAction(
+                android.R.drawable.ic_media_pause,
+                "إيقاف مؤقت",
+                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_PAUSE)
+            )
+            .addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                "إلغاء",
+                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_CANCEL)
+            )
             .build()
         val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(notificationId(downloadId), notification)
@@ -283,6 +292,17 @@ internal class ResumableDownloadWorker(
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setProgress(0, 0, true)
+            .setContentIntent(openAppPendingIntent(applicationContext, downloadId))
+            .addAction(
+                android.R.drawable.ic_media_pause,
+                "إيقاف مؤقت",
+                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_PAUSE)
+            )
+            .addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                "إلغاء",
+                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_CANCEL)
+            )
             .build()
         return if (Build.VERSION.SDK_INT >= 29) {
             ForegroundInfo(notificationId(downloadId), notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
@@ -295,6 +315,30 @@ internal class ResumableDownloadWorker(
         const val KEY_ID = "download_id"
         private const val MAX_AUTOMATIC_RETRIES = 5
         private const val CHANNEL_ID = "marco_rx6_downloads"
-        private fun notificationId(downloadId: Long): Int = 1_000_000_000 + ((downloadId xor (downloadId ushr 32)).toInt() and 0x3fffffff)
+        internal fun notificationId(downloadId: Long): Int = 1_000_000_000 + ((downloadId xor (downloadId ushr 32)).toInt() and 0x3fffffff)
+
+        private fun openAppPendingIntent(context: Context, downloadId: Long): PendingIntent {
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra("open_download_manager", true)
+                putExtra("download_id", downloadId)
+            }
+            return PendingIntent.getActivity(
+                context, notificationId(downloadId), intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+
+        private fun actionPendingIntent(context: Context, downloadId: Long, action: String): PendingIntent {
+            val intent = Intent(context, DownloadNotificationActionReceiver::class.java).apply {
+                this.action = action
+                putExtra(DownloadNotificationActionReceiver.EXTRA_DOWNLOAD_ID, downloadId)
+            }
+            val requestCode = notificationId(downloadId) xor action.hashCode()
+            return PendingIntent.getBroadcast(
+                context, requestCode, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
     }
 }

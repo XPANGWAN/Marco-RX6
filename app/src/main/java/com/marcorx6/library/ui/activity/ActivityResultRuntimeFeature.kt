@@ -61,5 +61,19 @@ internal class ActivityResultRuntimeFeature(
     fun launchFirebaseGoogleSignIn(intent: Intent) = firebaseGoogleSignInLauncher.launch(intent)
     fun launchCoverPicker(intent: Intent) = coverPickerLauncher.launch(intent)
     fun launchProfileAvatar(intent: Intent) = profileAvatarLauncher.launch(intent)
-    fun launchDownloadFolderPicker() = downloadFolderPickerLauncher.launch(null)
+    fun launchDownloadFolderPicker() {
+        // Ask Android's document picker to start inside Download/MARCO RX6
+        // instead of showing the storage root. The user can still choose another folder.
+        val initialFolder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            runCatching {
+                DocumentsContract.buildDocumentUri(
+                    "com.android.externalstorage.documents",
+                    "primary:Download/MARCO RX6"
+                )
+            }.getOrNull()
+        } else {
+            null
+        }
+        downloadFolderPickerLauncher.launch(initialFolder)
+    }
 }
