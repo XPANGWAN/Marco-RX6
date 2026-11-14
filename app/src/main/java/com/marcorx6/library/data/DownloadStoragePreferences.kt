@@ -21,7 +21,7 @@ internal class DownloadStoragePreferences(context: Context) {
     fun treeUri(): Uri? = preferences.getString(KEY_TREE_URI, null)?.let(Uri::parse)
 
     fun displayName(): String {
-        val uri = treeUri() ?: return "تخزين التطبيق"
+        val uri = treeUri() ?: return "Download/MARCO RX6"
         return try {
             DocumentsContract.getTreeDocumentId(uri)
                 .substringAfter(':')
