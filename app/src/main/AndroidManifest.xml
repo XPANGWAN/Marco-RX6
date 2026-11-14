@@ -15,6 +15,10 @@
         android:supportsRtl="true"
         android:theme="@style/MarcoAppTheme">
 
+        <receiver
+            android:name=".data.DownloadNotificationActionReceiver"
+            android:exported="false" />
+
         <service
             android:name=".data.auth.MarcoFirebaseMessagingService"
             android:exported="false">
