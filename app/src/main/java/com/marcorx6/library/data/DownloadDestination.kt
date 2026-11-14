@@ -17,7 +17,7 @@ import java.io.IOException
  */
 internal object DownloadDestination {
     private const val DEFAULT_FOLDER = "MARCO RX6"
-    private const val MARKER_NAME = ".marco_rx6_folder"
+    private const val MARKER_NAME = "MARCO RX6 folder.txt"
 
     fun ensureDefaultFolder(context: Context): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -43,7 +43,9 @@ internal object DownloadDestination {
             }
             val marker = resolver.insert(collection, values) ?: return false
             return try {
-                resolver.openOutputStream(marker, "w")?.use { } 
+                resolver.openOutputStream(marker, "w")?.use { stream ->
+                    stream.write("This folder is used by MARCO RX6 for downloaded files.".toByteArray(Charsets.UTF_8))
+                } 
                     ?: throw IOException("Could not create the default download folder marker")
                 val publish = ContentValues().apply {
                     put(MediaStore.MediaColumns.IS_PENDING, 0)
