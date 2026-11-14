@@ -5,6 +5,8 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
+import android.app.PendingIntent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.provider.DocumentsContract
@@ -13,6 +15,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import com.marcorx6.library.R
+import com.marcorx6.library.ui.activity.MainActivity
 import com.marcorx6.library.ui.LanguageTranslator
 import java.io.File
 import java.io.FileOutputStream
@@ -257,6 +260,17 @@ internal class ResumableDownloadWorker(
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setProgress(100, percent, total <= 0L)
+            .setContentIntent(openAppPendingIntent(downloadId))
+            .addAction(
+                android.R.drawable.ic_media_pause,
+                "إيقاف مؤقت",
+                actionPendingIntent(downloadId, DownloadNotificationActionReceiver.ACTION_PAUSE)
+            )
+            .addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                "إلغاء",
+                actionPendingIntent(downloadId, DownloadNotificationActionReceiver.ACTION_CANCEL)
+            )
             .build()
         val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(notificationId(downloadId), notification)
@@ -283,6 +297,17 @@ internal class ResumableDownloadWorker(
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setProgress(0, 0, true)
+            .setContentIntent(openAppPendingIntent(downloadId))
+            .addAction(
+                android.R.drawable.ic_media_pause,
+                "إيقاف مؤقت",
+                actionPendingIntent(downloadId, DownloadNotificationActionReceiver.ACTION_PAUSE)
+            )
+            .addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                "إلغاء",
+                actionPendingIntent(downloadId, DownloadNotificationActionReceiver.ACTION_CANCEL)
+            )
             .build()
         return if (Build.VERSION.SDK_INT >= 29) {
             ForegroundInfo(notificationId(downloadId), notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
@@ -295,6 +320,30 @@ internal class ResumableDownloadWorker(
         const val KEY_ID = "download_id"
         private const val MAX_AUTOMATIC_RETRIES = 5
         private const val CHANNEL_ID = "marco_rx6_downloads"
-        private fun notificationId(downloadId: Long): Int = 1_000_000_000 + ((downloadId xor (downloadId ushr 32)).toInt() and 0x3fffffff)
+        internal fun notificationId(downloadId: Long): Int = 1_000_000_000 + ((downloadId xor (downloadId ushr 32)).toInt() and 0x3fffffff)
+
+        private fun openAppPendingIntent(downloadId: Long): PendingIntent {
+            val intent = Intent(applicationContext, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra("open_download_manager", true)
+                putExtra("download_id", downloadId)
+            }
+            return PendingIntent.getActivity(
+                applicationContext, notificationId(downloadId), intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+
+        private fun actionPendingIntent(downloadId: Long, action: String): PendingIntent {
+            val intent = Intent(applicationContext, DownloadNotificationActionReceiver::class.java).apply {
+                this.action = action
+                putExtra(DownloadNotificationActionReceiver.EXTRA_DOWNLOAD_ID, downloadId)
+            }
+            val requestCode = notificationId(downloadId) xor action.hashCode()
+            return PendingIntent.getBroadcast(
+                applicationContext, requestCode, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
     }
 }
