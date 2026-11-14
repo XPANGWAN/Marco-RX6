@@ -66,6 +66,94 @@ internal object DownloadDestination {
         return fallback.exists() || fallback.mkdirs()
     }
 
+    /**
+     * Creates or reopens the visible MediaStore file used as the actual download target.
+     * The URI is kept in app-private metadata so paused downloads can resume in place.
+     */
+    fun openDirectTarget(context: Context, id: Long, displayName: String, mimeType: String): Uri? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        val resolver = context.applicationContext.contentResolver
+        val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
+        sidecar.parentFile?.mkdirs()
+        val previous = runCatching { if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null }.getOrNull()
+        if (previous != null && previous.scheme == "content" &&
+            runCatching { resolver.openFileDescriptor(previous, "rw")?.use { true } ?: false }.getOrDefault(false)
+        ) return previous
+
+        sidecar.delete()
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+            put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$DEFAULT_FOLDER/")
+            // Publish immediately so the user can see the reserved file in the file manager.
+            put(MediaStore.MediaColumns.IS_PENDING, 0)
+        }
+        val uri = resolver.insert(
+            MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), values
+        ) ?: throw IOException("Could not create the visible preallocated download file")
+        return try {
+            resolver.openFileDescriptor(uri, "rw")?.close()
+                ?: throw IOException("Could not open the destination file for random access")
+            sidecar.writeText(uri.toString())
+            uri
+        } catch (error: Exception) {
+            runCatching { resolver.delete(uri, null, null) }
+            throw error
+        }
+    }
+
+    fun directTargetSize(context: Context, uri: Uri): Long {
+        val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
+            ?: throw IOException("Could not reopen the preallocated download file")
+        return descriptor.use { android.system.Os.fstat(it.fileDescriptor).st_size }
+    }
+
+    fun prepareDirectTarget(context: Context, uri: Uri, total: Long, onPreparing: (Int) -> Unit) {
+        val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
+            ?: throw IOException("Could not open the visible download file")
+        descriptor.use { pfd ->
+            android.system.Os.ftruncate(pfd.fileDescriptor, total)
+            var prepared = 0L
+            val segmentSize = ((total - 1L) / 4L) + 1L
+            for (index in 0 until 4) {
+                val start = index * segmentSize
+                if (start >= total) continue
+                val length = minOf(total - start, segmentSize)
+                android.system.Os.posix_fallocate(pfd.fileDescriptor, start, length)
+                prepared += length
+                onPreparing((prepared.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
+            }
+            android.system.Os.fsync(pfd.fileDescriptor)
+        }
+    }
+
+    fun writeDirectAt(context: Context, uri: Uri, bytes: ByteArray, count: Int, position: Long) {
+        val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
+            ?: throw IOException("Could not open the visible download file for writing")
+        descriptor.use { pfd ->
+            var written = 0
+            while (written < count) {
+                val amount = android.system.Os.pwrite(
+                    pfd.fileDescriptor, bytes, written, count - written, position + written
+                )
+                if (amount <= 0) throw IOException("Could not write to the preallocated destination")
+                written += amount
+            }
+            android.system.Os.fsync(pfd.fileDescriptor)
+        }
+    }
+
+    fun removeDirectTarget(context: Context, id: Long) {
+        val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
+        val uri = runCatching { if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null }.getOrNull()
+        if (uri != null) runCatching { context.contentResolver.delete(uri, null, null) }
+        sidecar.delete()
+    }
+
+    fun forgetDirectTarget(context: Context, id: Long) {
+        File(context.filesDir, "MARCO_RX6_downloads/$id.destination").delete()
+    }
+
     fun save(
         context: Context,
         selectedTree: Uri?,
