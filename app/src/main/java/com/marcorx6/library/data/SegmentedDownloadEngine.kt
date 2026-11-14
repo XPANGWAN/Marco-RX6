@@ -165,11 +165,7 @@ internal object SegmentedDownloadEngine {
         )
         target.delete()
         if (!database.complete(item.id, savedLocation, mime)) {
-            if (savedLocation.startsWith("content://")) {
-                runCatching { DocumentsContract.deleteDocument(context.contentResolver, android.net.Uri.parse(savedLocation)) }
-            } else {
-                File(savedLocation).delete()
-            }
+            DownloadDestination.delete(context, savedLocation)
             throw InterruptedException("Download state changed before completion")
         }
         onProgress(total, total)
