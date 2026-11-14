@@ -20,22 +20,42 @@ internal class DownloadNotificationActionReceiver : BroadcastReceiver() {
         val app = context.applicationContext
         val repository = DownloadRepository(app)
         val manager = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        ensureNotificationChannel(app, manager)
+        val activeNotificationId = ResumableDownloadWorker.notificationId(id)
+        val pausedId = pausedNotificationId(id)
         when (intent.action) {
             ACTION_PAUSE -> {
                 if (repository.pauseDownload(id)) {
-                    manager.notify(ResumableDownloadWorker.notificationId(id), pausedNotification(app, id))
+                    // WorkManager removes its foreground notification when the worker stops.
+                    // Use a separate ID so that teardown cannot also remove the paused notice.
+                    manager.notify(pausedId, pausedNotification(app, id))
                 }
             }
             ACTION_RESUME -> {
-                manager.cancel(ResumableDownloadWorker.notificationId(id))
+                manager.cancel(pausedId)
+                manager.cancel(activeNotificationId)
                 repository.resumeDownload(id)
             }
             ACTION_CANCEL -> {
                 repository.deleteDownload(id)
-                manager.cancel(ResumableDownloadWorker.notificationId(id))
+                manager.cancel(pausedId)
+                manager.cancel(activeNotificationId)
             }
         }
     }
+
+    private fun ensureNotificationChannel(context: Context, manager: NotificationManager) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            manager.getNotificationChannel(CHANNEL_ID) == null
+        ) {
+            manager.createNotificationChannel(
+                NotificationChannel(CHANNEL_ID, "تنزيلات MARCO", NotificationManager.IMPORTANCE_LOW)
+            )
+        }
+    }
+
+    private fun pausedNotificationId(id: Long): Int =
+        ResumableDownloadWorker.notificationId(id) xor Int.MIN_VALUE
 
     private fun pausedNotification(context: Context, id: Long) =
         NotificationCompat.Builder(context, CHANNEL_ID)
