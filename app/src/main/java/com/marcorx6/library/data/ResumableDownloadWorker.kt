@@ -82,7 +82,8 @@ internal class ResumableDownloadWorker(
                 database.get(item.id)?.status == DownloadDatabase.STATUS_CANCELLED },
             onProgress = { downloaded, total ->
                 updateProgressNotification(item.title, item.id, downloaded, total)
-            }
+            },
+            onPreparing = { updatePreparingNotification(item.title, item.id) }
         )
         if (segmented) return Result.success()
         var offset = if (partial.exists()) partial.length() else 0L
@@ -195,6 +196,8 @@ internal class ResumableDownloadWorker(
             if (total > 0L && offset != total) {
                 throw IOException("Incomplete file: $offset / $total")
             }
+            // Network transfer is finished. Keep the item active while assembling/saving.
+            updatePreparingNotification(item.title, item.id)
             val selectedTree = DownloadStoragePreferences(applicationContext).treeUri()
             val savedLocation = if (selectedTree != null) {
                 val resolver = applicationContext.contentResolver
@@ -209,9 +212,12 @@ internal class ResumableDownloadWorker(
                     safeName
                 ) ?: throw IOException("Could not create a file in the selected download folder")
                 try {
-                    resolver.openOutputStream(targetUri, "w")?.use { destination ->
+                    val copied = resolver.openOutputStream(targetUri, "w")?.use { destination ->
                         partial.inputStream().use { source -> source.copyTo(destination) }
                     } ?: throw IOException("Could not write to the selected download folder")
+                    if (total > 0L && copied != total) {
+                        throw IOException("Saved file size mismatch: $copied / $total")
+                    }
                 } catch (error: Exception) {
                     runCatching { DocumentsContract.deleteDocument(resolver, targetUri) }
                     throw error
@@ -224,6 +230,9 @@ internal class ResumableDownloadWorker(
                 if (!partial.renameTo(output)) {
                     partial.copyTo(output, overwrite = true)
                     partial.delete()
+                }
+                if (!output.isFile || (total > 0L && output.length() != total)) {
+                    throw IOException("Saved file size mismatch: ${output.length()} / $total")
                 }
                 output.absolutePath
             }
@@ -245,6 +254,27 @@ internal class ResumableDownloadWorker(
         } else if (location.isNotBlank()) {
             File(location).delete()
         }
+    }
+
+    private fun updatePreparingNotification(title: String, downloadId: Long) {
+        val language = applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            .getString("language", "ar") ?: "ar"
+        val localize: (String) -> String = { LanguageTranslator.translate(it, language) }
+        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_launcher)
+            .setContentTitle(title.ifBlank { "MARCO" })
+            .setContentText(localize("جارٍ تجهيز الملف"))
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setProgress(0, 0, true)
+            .setContentIntent(openAppPendingIntent(applicationContext, downloadId))
+            .addAction(android.R.drawable.ic_media_pause, localize("إيقاف مؤقت"),
+                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_PAUSE))
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, localize("إلغاء"),
+                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_CANCEL))
+            .build()
+        val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(notificationId(downloadId), notification)
     }
 
     private fun updateProgressNotification(title: String, downloadId: Long, downloaded: Long, total: Long) {
