@@ -5,6 +5,8 @@ import android.provider.DocumentsContract
 import android.content.Context
 import java.io.File
 import java.io.FileOutputStream
+import java.io.RandomAccessFile
+import android.system.Os
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -30,7 +32,7 @@ internal object SegmentedDownloadEngine {
         database: DownloadDatabase,
         isStopped: () -> Boolean,
         onProgress: (Long, Long) -> Unit,
-        onPreparing: () -> Unit
+        onPreparing: (Int) -> Unit
     ): Boolean {
         val directory = File(context.filesDir, "MARCO_RX6_downloads").apply { mkdirs() }
         val target = File(directory, "${item.id}.part")
@@ -78,6 +80,39 @@ internal object SegmentedDownloadEngine {
         }
 
         val segmentSize = (total + SEGMENT_COUNT - 1L) / SEGMENT_COUNT
+
+        // Reserve the actual storage for every range before requesting its data.
+        // Downloaded-byte offsets live in sidecar files; the preallocated file length
+        // must never be mistaken for completed network bytes.
+        onPreparing(0)
+        var preparedBytes = 0L
+        for (index in 0 until SEGMENT_COUNT) {
+            val start = index * segmentSize
+            if (start >= total) continue
+            val segmentLength = minOf(total - start, segmentSize)
+            val segment = File(directory, "${item.id}.seg$index")
+            val progressFile = File(directory, "${item.id}.seg$index.progress")
+            val previousBytes = if (progressFile.isFile) {
+                progressFile.readText().trim().toLongOrNull()?.coerceIn(0L, segmentLength) ?: 0L
+            } else {
+                segment.length().coerceIn(0L, segmentLength)
+            }
+            if (!progressFile.isFile) writeSegmentProgress(progressFile, previousBytes)
+            try {
+                RandomAccessFile(segment, "rw").use { file ->
+                    file.setLength(segmentLength)
+                    Os.posix_fallocate(file.fd, 0L, segmentLength)
+                }
+            } catch (_: Exception) {
+                // Some external/document-backed filesystems do not support fallocate.
+                // Avoid pretending that a sparse setLength() reserved physical space.
+                clearSegments(directory, item.id)
+                return false
+            }
+            preparedBytes += segmentLength
+            onPreparing(((preparedBytes * 100L) / total).toInt().coerceIn(1, 100))
+        }
+
         // Keep four stable byte ranges so interrupted segments remain reusable even
         // when the user changes the number of simultaneous HTTP connections.
         val activeConnections = DownloadConcurrencyPreferences(context).segmentConnections().coerceIn(1, SEGMENT_COUNT)
@@ -88,9 +123,10 @@ internal object SegmentedDownloadEngine {
                 val start = index * segmentSize
                 if (start >= total) 0L else {
                     val segment = File(directory, "${item.id}.seg$index")
+                    val progressFile = File(directory, "${item.id}.seg$index.progress")
                     val limit = minOf(total - start, segmentSize)
-                    if (segment.length() > limit) segment.delete()
-                    segment.length()
+                    if (segment.length() != limit) throw IOException("Preallocated segment size mismatch")
+                    readSegmentProgress(progressFile, limit)
                 }
             }
         )
@@ -104,7 +140,8 @@ internal object SegmentedDownloadEngine {
                 val end = minOf(total - 1L, start + segmentSize - 1L)
                 val segment = File(directory, "${item.id}.seg$index")
                 Callable {
-                    downloadRange(item, segment, start, end, total, etag, modified, isStopped, speedLimiter) { delta ->
+                    val progressFile = File(directory, "${item.id}.seg$index.progress")
+                    downloadRange(item, segment, progressFile, start, end, total, etag, modified, isStopped, speedLimiter) { delta ->
                         val current = completedBytes.addAndGet(delta).coerceAtMost(total)
                         val now = System.currentTimeMillis()
                         val previous = lastProgressUpdate.get()
@@ -139,7 +176,11 @@ internal object SegmentedDownloadEngine {
             val start = index * segmentSize
             if (start >= total) null else File(directory, "${item.id}.seg$index")
         }
-        val downloaded = segmentFiles.sumOf { it.length() }
+        val downloaded = segmentFiles.sumOf { segment ->
+            val index = segment.name.substringAfterLast(".seg").toInt()
+            val segmentLength = segment.length()
+            readSegmentProgress(File(directory, "${item.id}.seg$index.progress"), segmentLength)
+        }
         if (downloaded != total) throw IOException("Segmented download incomplete: $downloaded / $total")
 
         // All network bytes are present; merging and saving are local preparation work.
@@ -151,7 +192,10 @@ internal object SegmentedDownloadEngine {
             output.fd.sync()
         }
         if (target.length() != total) throw IOException("Merged file size mismatch")
-        segmentFiles.forEach { it.delete() }
+        segmentFiles.forEach { segment ->
+            segment.delete()
+            File(directory, segment.name + ".progress").delete()
+        }
 
         database.renameTitle(item.id, safeName)
         database.progress(item.id, total, total, etag, modified)
@@ -175,6 +219,7 @@ internal object SegmentedDownloadEngine {
     private fun downloadRange(
         item: StoredDownload,
         segment: File,
+        progressFile: File,
         rangeStart: Long,
         rangeEnd: Long,
         total: Long,
@@ -184,12 +229,9 @@ internal object SegmentedDownloadEngine {
         speedLimiter: DownloadSpeedLimiter,
         onBytes: (Long) -> Unit
     ) {
-        var offset = segment.length()
         val segmentLength = rangeEnd - rangeStart + 1L
-        if (offset > segmentLength) {
-            segment.delete()
-            offset = 0L
-        }
+        var offset = readSegmentProgress(progressFile, segmentLength)
+        if (segment.length() != segmentLength) throw IOException("Preallocated segment is missing or truncated")
         if (offset == segmentLength) return
 
         val connection = openConnection(item, rangeStart + offset, rangeEnd)
@@ -216,22 +258,34 @@ internal object SegmentedDownloadEngine {
                 throw IOException("File changed during segmented download; retry with a fresh source")
             }
             connection.inputStream.use { input ->
-                FileOutputStream(segment, offset > 0L).use { output ->
+                RandomAccessFile(segment, "rw").use { output ->
+                    output.seek(offset)
                     val buffer = ByteArray(BUFFER_SIZE)
-                    while (true) {
-                        if (isStopped() || Thread.currentThread().isInterrupted) {
-                            throw InterruptedException("Segment download stopped")
+                    var lastSaved = offset
+                    try {
+                        while (true) {
+                            if (isStopped() || Thread.currentThread().isInterrupted) {
+                                throw InterruptedException("Segment download stopped")
+                            }
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            speedLimiter.acquire(count)
+                            output.write(buffer, 0, count)
+                            offset += count
+                            onBytes(count.toLong())
+                            if (offset - lastSaved >= 1024L * 1024L) {
+                                output.fd.sync()
+                                writeSegmentProgress(progressFile, offset)
+                                lastSaved = offset
+                            }
                         }
-                        val count = input.read(buffer)
-                        if (count < 0) break
-                        speedLimiter.acquire(count)
-                        output.write(buffer, 0, count)
-                        onBytes(count.toLong())
+                    } finally {
+                        output.fd.sync()
+                        writeSegmentProgress(progressFile, offset)
                     }
-                    output.fd.sync()
                 }
             }
-            if (segment.length() != segmentLength) {
+            if (readSegmentProgress(progressFile, segmentLength) != segmentLength) {
                 throw IOException("Segment length mismatch for bytes $rangeStart-$rangeEnd")
             }
         } finally {
@@ -253,7 +307,20 @@ internal object SegmentedDownloadEngine {
             if (item.referrer.isNotBlank()) setRequestProperty("Referer", item.referrer)
         }
 
+    private fun readSegmentProgress(file: File, maximum: Long): Long =
+        if (!file.isFile) 0L else file.readText().trim().toLongOrNull()?.coerceIn(0L, maximum) ?: 0L
+
+    private fun writeSegmentProgress(file: File, bytes: Long) {
+        FileOutputStream(file, false).use { output ->
+            output.write(bytes.toString().toByteArray(Charsets.UTF_8))
+            output.fd.sync()
+        }
+    }
+
     private fun clearSegments(directory: File, id: Long) {
-        (0 until SEGMENT_COUNT).forEach { File(directory, "$id.seg$it").delete() }
+        (0 until SEGMENT_COUNT).forEach { index ->
+            File(directory, "$id.seg$index").delete()
+            File(directory, "$id.seg$index.progress").delete()
+        }
     }
 }
