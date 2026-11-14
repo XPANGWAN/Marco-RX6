@@ -19,6 +19,7 @@ import com.marcorx6.library.ui.library.MainLibraryViewState
 import com.marcorx6.library.data.Game
 import com.marcorx6.library.data.GameEngagementRepository
 import com.marcorx6.library.data.DownloadStoragePreferences
+import com.marcorx6.library.data.DownloadDestination
 import com.marcorx6.library.data.auth.FirebaseSessionCoordinator
 import com.marcorx6.library.data.auth.FirebaseAuthRepository
 import com.marcorx6.library.data.auth.FirebasePushTokenRepository
@@ -588,6 +589,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Create Download/MARCO RX6 on first launch, without replacing a folder
+        // the user may have selected later in Settings. Keep filesystem work off the UI thread.
+        if (downloadStoragePreferences.treeUri() == null) {
+            Thread({
+                val created = DownloadDestination.ensureDefaultFolder(applicationContext)
+                if (!created) com.marcorx6.library.AppDiagnostics.log(
+                    "WARN", "Downloads", "Could not pre-create the default download folder"
+                )
+            }, "marco-download-folder").start()
+        }
         com.marcorx6.library.ui.UiDiagnosticsMonitor.install(this)
         com.marcorx6.library.AppDiagnostics.recordAction("MainActivity onCreate")
         com.marcorx6.library.ui.UiDiagnosticsMonitor.logLifecycle(this, "onCreate")
