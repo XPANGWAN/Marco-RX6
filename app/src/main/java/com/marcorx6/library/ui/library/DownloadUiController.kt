@@ -466,13 +466,17 @@ internal class DownloadUiController(
             val statusLabel = when (item.status) {
                 DownloadManager.STATUS_PENDING, com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED -> translate("في الانتظار")
                 DownloadManager.STATUS_RUNNING -> translate("قيد التنزيل")
+                com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING -> translate("جارٍ تجهيز الملف")
                 DownloadManager.STATUS_PAUSED -> translate("متوقف مؤقتاً")
                 DownloadManager.STATUS_SUCCESSFUL -> translate("اكتمل")
                 DownloadManager.STATUS_FAILED -> translate("فشل")
                 else -> translate("غير معروف")
             }
-            val percent = if (item.totalBytes > 0L)
-                (item.downloadedBytes * 100L / item.totalBytes).coerceIn(0L, 100L).toInt() else 0
+            val percent = if (item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING) {
+                item.preparationPercent.coerceIn(0, 100)
+            } else if (item.totalBytes > 0L) {
+                (item.downloadedBytes * 100L / item.totalBytes).coerceIn(0L, 100L).toInt()
+            } else 0
             val now = SystemClock.elapsedRealtime()
             val previous = lastSpeedSample[item.id]
             val speed = if (item.status == DownloadManager.STATUS_RUNNING && previous != null &&
@@ -485,7 +489,8 @@ internal class DownloadUiController(
                 lastSpeedSample.remove(item.id)
             }
             if (views.title.text.toString() != item.title) views.title.text = item.title
-            val statusText = if (item.totalBytes > 0L) "$statusLabel  •  $percent%" else statusLabel
+            val statusText = if (item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
+                item.totalBytes > 0L) "$statusLabel  •  $percent%" else statusLabel
             if (views.status.text.toString() != statusText) views.status.text = statusText
             val statusColor = when (item.status) {
                 DownloadManager.STATUS_SUCCESSFUL -> Color.rgb(36, 170, 112)
@@ -494,10 +499,14 @@ internal class DownloadUiController(
             }
             if (views.status.currentTextColor != statusColor) views.status.setTextColor(statusColor)
             val downloaded = android.text.format.Formatter.formatFileSize(activity, item.downloadedBytes.coerceAtLeast(0L))
-            val details = StringBuilder(downloaded)
-            if (item.totalBytes > 0L) {
+            val details = if (item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING) {
+                StringBuilder(translate("جارٍ حجز مساحة التخزين قبل بدء التنزيل"))
+            } else StringBuilder(downloaded)
+            if (item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING && item.totalBytes > 0L) {
                 details.append(" / ").append(android.text.format.Formatter.formatFileSize(activity, item.totalBytes))
-            } else details.append(" / ").append(translate("الحجم غير معروف"))
+            } else if (item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING) {
+                details.append(" / ").append(translate("الحجم غير معروف"))
+            }
             if (item.status == DownloadManager.STATUS_RUNNING) {
                 details.append("  •  ")
                     .append(android.text.format.Formatter.formatFileSize(activity, speed))
@@ -543,6 +552,7 @@ internal class DownloadUiController(
             if (views.details.text.toString() != detailsText) views.details.text = detailsText
             // Avoid invalidating the progress widget when the polled value did not change.
             val hasProgress = item.status == DownloadManager.STATUS_RUNNING ||
+                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
                 item.status == DownloadManager.STATUS_PENDING || item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED || item.status == DownloadManager.STATUS_PAUSED
             val progressVisibility = if (hasProgress) View.VISIBLE else View.GONE
             if (views.progress.visibility != progressVisibility) views.progress.visibility = progressVisibility
@@ -651,6 +661,7 @@ internal class DownloadUiController(
                     DownloadManager.STATUS_PENDING,
                     com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED -> translate("في الانتظار")
                     DownloadManager.STATUS_RUNNING -> translate("قيد التنزيل")
+                    com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING -> translate("جارٍ تجهيز الملف")
                     DownloadManager.STATUS_PAUSED -> translate("متوقف مؤقتاً")
                     DownloadManager.STATUS_SUCCESSFUL -> translate("اكتمل")
                     DownloadManager.STATUS_FAILED -> translate("فشل")
@@ -686,7 +697,8 @@ internal class DownloadUiController(
                     .setPositiveButton(translate("حسناً"), null)
                     .show().also(styleDialog)
             })
-            if (item.status == DownloadManager.STATUS_RUNNING || item.status == DownloadManager.STATUS_PENDING || item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED) {
+            if (item.status == DownloadManager.STATUS_RUNNING || item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
+                item.status == DownloadManager.STATUS_PENDING || item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED) {
                 addAction(smallAction(translate("إيقاف مؤقت")) {
                     if (downloadRepository.pauseDownload(item.id)) {
                         lastSpeedSample.remove(item.id); render?.invoke()
@@ -708,7 +720,8 @@ internal class DownloadUiController(
                     } else Toast.makeText(activity, translate("تعذرت إعادة محاولة التنزيل"), Toast.LENGTH_SHORT).show()
                 })
             }
-            if (item.status == DownloadManager.STATUS_RUNNING || item.status == DownloadManager.STATUS_PENDING ||
+            if (item.status == DownloadManager.STATUS_RUNNING || item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
+                item.status == DownloadManager.STATUS_PENDING ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED || item.status == DownloadManager.STATUS_PAUSED) {
                 addAction(smallAction(translate("إلغاء التنزيل")) {
                     if (downloadRepository.deleteDownload(item.id)) {
@@ -807,12 +820,14 @@ internal class DownloadUiController(
                     }
             refreshIntervalMillis = if (allEntries.any {
                 it.status == DownloadManager.STATUS_RUNNING ||
+                    it.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
                     it.status == DownloadManager.STATUS_PENDING ||
                     it.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED
             }) 1_200L else 5_000L
             val activeStatuses = setOf(
                 DownloadManager.STATUS_PENDING,
                 DownloadManager.STATUS_RUNNING,
+                com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING,
                 DownloadManager.STATUS_PAUSED,
                 com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED
             )
