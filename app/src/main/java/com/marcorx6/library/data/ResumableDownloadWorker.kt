@@ -104,12 +104,20 @@ internal class ResumableDownloadWorker(
         )
         if (segmented) return Result.success()
         val durableProgress = File(directory, "${item.id}.part.progress")
-        var offset = if (partial.exists()) {
+        val directUri = if (DownloadStoragePreferences(applicationContext).treeUri() == null &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        ) DownloadDestination.openDirectTarget(applicationContext, item.id, item.title, item.mimeType) else null
+        val directSize = directUri?.let {
+            runCatching { DownloadDestination.directTargetSize(applicationContext, it) }.getOrDefault(0L)
+        } ?: 0L
+        var offset = if (directUri != null) {
+            readDurableOffset(durableProgress, item.downloadedBytes, directSize)
+        } else if (partial.exists()) {
             readDurableOffset(durableProgress, item.downloadedBytes, partial.length())
         } else 0L
         // Discard bytes written after the last fsynced checkpoint. They will be
         // downloaded again rather than trusting data that was never committed.
-        if (partial.exists() && partial.length() != offset) {
+        if (directUri == null && partial.exists() && partial.length() != offset) {
             RandomAccessFile(partial, "rw").use { it.setLength(offset); it.fd.sync() }
         }
         val speedLimiter = DownloadSpeedLimiter(DownloadConcurrencyPreferences(applicationContext).speedLimitBytesPerSecond())
@@ -180,6 +188,15 @@ internal class ResumableDownloadWorker(
                 else -> -1L
             }
             val responseStartOffset = offset
+            if (directUri != null && total > 0L && (directSize != total || (responseStartOffset == 0L && item.downloadedBytes > 0L))) {
+                database.preparing(item.id, 0, total, etag, modified)
+                DownloadDestination.prepareDirectTarget(applicationContext, directUri, total) { percent ->
+                    database.preparing(item.id, percent, total, etag, modified)
+                    updatePreparingNotification(item.title, item.id, percent)
+                }
+                database.finishPreparing(item.id)
+            }
+            if (directUri != null) DownloadDestination.renameDirectTarget(applicationContext, directUri, safeName)
             val integrityVerifier = DownloadIntegrityVerifier.from(connection)
             val etag = connection.getHeaderField("ETag") ?: item.etag
             val modified = connection.getHeaderField("Last-Modified") ?: item.lastModified
