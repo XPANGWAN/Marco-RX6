@@ -193,7 +193,9 @@ internal class ResumableDownloadWorker(
             database.progress(item.id, offset, total, etag, modified)
             var responseBytes = 0L
             connection.inputStream.use { input ->
-                FileOutputStream(partial, append).use { sink ->
+                val directWriter = directUri?.let { DownloadDestination.openDirectWriter(applicationContext, it) }
+                val fileSink = if (directWriter == null) FileOutputStream(partial, append) else null
+                try {
                     val buffer = ByteArray(64 * 1024)
                     var lastUpdate = System.currentTimeMillis()
                     var lastNotificationUpdate = 0L
@@ -206,14 +208,14 @@ internal class ResumableDownloadWorker(
                         }
                         integrityVerifier?.update(buffer, count)
                         speedLimiter.acquire(count)
-                        sink.write(buffer, 0, count)
+                        if (directWriter != null) directWriter.writeAt(buffer, count, offset)
+                        else fileSink!!.write(buffer, 0, count)
                         offset += count
                         responseBytes += count
                         val now = System.currentTimeMillis()
-                        // Commit the file bytes first, then the durable checkpoint and DB state.
                         if (now - lastUpdate >= 1_000L) {
-                            sink.flush()
-                            sink.fd.sync()
+                            fileSink?.flush()
+                            if (directWriter != null) directWriter.sync() else fileSink!!.fd.sync()
                             writeDurableOffset(durableProgress, offset)
                             database.progress(item.id, offset, total, etag, modified)
                             lastUpdate = now
@@ -223,8 +225,11 @@ internal class ResumableDownloadWorker(
                             }
                         }
                     }
-                    sink.fd.sync()
+                    if (directWriter != null) directWriter.sync() else fileSink!!.fd.sync()
                     writeDurableOffset(durableProgress, offset)
+                } finally {
+                    runCatching { fileSink?.close() }
+                    runCatching { directWriter?.close() }
                 }
             }
             if (responseLength >= 0L && responseBytes != responseLength) {
@@ -234,9 +239,13 @@ internal class ResumableDownloadWorker(
                 try {
                     integrityVerifier.verify()
                 } catch (error: IOException) {
-                    RandomAccessFile(partial, "rw").use { file ->
-                        file.setLength(responseStartOffset)
-                        file.fd.sync()
+                    if (directUri != null) {
+                        DownloadDestination.truncateDirectTarget(applicationContext, directUri, responseStartOffset)
+                    } else {
+                        RandomAccessFile(partial, "rw").use { file ->
+                            file.setLength(responseStartOffset)
+                            file.fd.sync()
+                        }
                     }
                     writeDurableOffset(durableProgress, responseStartOffset)
                     database.progress(item.id, responseStartOffset, total, etag, modified)
@@ -254,14 +263,19 @@ internal class ResumableDownloadWorker(
             // Network transfer is finished. Keep the item active while assembling/saving.
             database.preparing(item.id, 100, total, etag, modified)
             updatePreparingNotification(item.title, item.id)
-            val savedLocation = DownloadDestination.save(
-                applicationContext,
-                DownloadStoragePreferences(applicationContext).treeUri(),
-                partial,
-                safeName,
-                mime,
-                total
-            )
+            val savedLocation = if (directUri != null) {
+                DownloadDestination.forgetDirectTarget(applicationContext, item.id)
+                directUri.toString()
+            } else {
+                DownloadDestination.save(
+                    applicationContext,
+                    DownloadStoragePreferences(applicationContext).treeUri(),
+                    partial,
+                    safeName,
+                    mime,
+                    total
+                )
+            }
             partial.delete()
             durableProgress.delete()
             File(directory, durableProgress.name + ".tmp").delete()
