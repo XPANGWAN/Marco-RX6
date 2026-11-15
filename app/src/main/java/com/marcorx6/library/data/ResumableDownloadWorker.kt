@@ -88,7 +88,13 @@ internal class ResumableDownloadWorker(
                 updateProgressNotification(item.title, item.id, downloaded, total)
             },
             onPreparing = { percent ->
-                database.preparing(item.id, percent, item.totalBytes, item.etag, item.lastModified)
+                val latest = database.get(item.id)
+                database.preparing(
+                    item.id, percent,
+                    latest?.totalBytes ?: item.totalBytes,
+                    latest?.etag ?: item.etag,
+                    latest?.lastModified ?: item.lastModified
+                )
                 updatePreparingNotification(item.title, item.id, percent)
             }
         )
