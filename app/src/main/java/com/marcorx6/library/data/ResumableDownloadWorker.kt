@@ -54,6 +54,7 @@ internal class ResumableDownloadWorker(
                 val directory = File(applicationContext.filesDir, "MARCO_RX6_downloads")
                 File(directory, "$id.part").delete()
                 File(directory, "$id.part.progress").delete()
+                File(directory, "$id.part.progress.tmp").delete()
                 DownloadDestination.removeDirectTarget(applicationContext, id)
                 (0 until 4).forEach {
                     File(directory, "$id.seg$it").delete()
@@ -247,6 +248,7 @@ internal class ResumableDownloadWorker(
             )
             partial.delete()
             durableProgress.delete()
+            File(directory, durableProgress.name + ".tmp").delete()
             database.finishPreparing(item.id)
             if (!database.complete(item.id, savedLocation, mime)) {
                 deleteSavedLocation(savedLocation)
