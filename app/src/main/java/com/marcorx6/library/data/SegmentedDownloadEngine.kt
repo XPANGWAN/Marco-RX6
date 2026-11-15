@@ -52,6 +52,7 @@ internal object SegmentedDownloadEngine {
             val parsedTotal = Regex("""bytes 0-0/(\d+)""").find(contentRange)
                 ?.groupValues?.getOrNull(1)?.toLongOrNull()
             if (code != HttpURLConnection.HTTP_PARTIAL || parsedTotal == null || parsedTotal < MIN_FILE_SIZE) {
+                discardSegmentedArtifactsIfPresent(context, directory, target, item, database)
                 clearSegments(directory, item.id)
                 return false
             }
@@ -59,6 +60,7 @@ internal object SegmentedDownloadEngine {
             etag = probe.getHeaderField("ETag").orEmpty()
             modified = probe.getHeaderField("Last-Modified").orEmpty()
             if (etag.isBlank() && modified.isBlank()) {
+                discardSegmentedArtifactsIfPresent(context, directory, target, item, database)
                 clearSegments(directory, item.id)
                 return false
             }
@@ -255,6 +257,29 @@ internal object SegmentedDownloadEngine {
         }
         onProgress(total, total)
         return true
+    }
+
+    private fun discardSegmentedArtifactsIfPresent(
+        context: Context,
+        directory: File,
+        target: File,
+        item: StoredDownload,
+        database: DownloadDatabase
+    ) {
+        val hasSegmentSidecars = (0 until SEGMENT_COUNT).any { index ->
+            File(directory, "${item.id}.seg$index.progress").isFile
+        }
+        val hasDirectTarget = File(directory, "${item.id}.destination").isFile
+        val hasPreallocatedPrivateTarget = target.isFile &&
+            item.totalBytes > 0L &&
+            target.length() == item.totalBytes &&
+            item.downloadedBytes < item.totalBytes
+        if (!hasSegmentSidecars && !hasDirectTarget && !hasPreallocatedPrivateTarget) return
+
+        clearSegments(directory, item.id)
+        target.delete()
+        DownloadDestination.removeDirectTarget(context, item.id)
+        database.progress(item.id, 0L, -1L, "", "")
     }
 
     private fun downloadRange(
