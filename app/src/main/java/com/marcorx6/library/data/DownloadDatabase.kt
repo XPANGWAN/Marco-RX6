@@ -76,6 +76,7 @@ internal class DownloadDatabase private constructor(context: Context) :
             DownloadManager.STATUS_PENDING,
             DownloadManager.STATUS_RUNNING,
             STATUS_SCHEDULED,
+            STATUS_PREPARING,
             DownloadManager.STATUS_PAUSED
         )
         val byUrl = readableDatabase.query(
