@@ -177,7 +177,7 @@ internal class DownloadDatabase private constructor(context: Context) :
             put("status", DownloadManager.STATUS_PENDING); put("error", "")
             put("downloaded", 0L); put("total", -1L)
             put("etag", ""); put("last_modified", "")
-            put("local_path", "")
+            put("local_path", ""); put("preparation_percent", 0)
         }, "id=?", arrayOf(id.toString()))
     }
 
@@ -284,7 +284,8 @@ internal class DownloadDatabase private constructor(context: Context) :
         val changed = writableDatabase.update("downloads", ContentValues().apply {
             put("local_path", path); put("mime_type", mime)
             put("status", DownloadManager.STATUS_SUCCESSFUL); put("error", "")
-        }, "id=? AND status=?", arrayOf(id.toString(), DownloadManager.STATUS_RUNNING.toString()))
+        }, "id=? AND status=? AND (total<=0 OR downloaded=total)",
+            arrayOf(id.toString(), DownloadManager.STATUS_RUNNING.toString()))
         return changed > 0
     }
 
