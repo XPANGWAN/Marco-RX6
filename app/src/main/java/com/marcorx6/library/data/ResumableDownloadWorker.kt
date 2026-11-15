@@ -219,6 +219,9 @@ internal class ResumableDownloadWorker(
             if (directUri != null) DownloadDestination.renameDirectTarget(applicationContext, directUri, safeName)
             database.renameTitle(item.id, safeName)
             database.progress(item.id, offset, total, etag, modified)
+            // Persist even a zero-byte checkpoint so retries and pauses keep using
+            // this same visible target instead of restarting through the range probe.
+            writeDurableOffset(durableProgress, offset)
             var responseBytes = 0L
             connection.inputStream.use { input ->
                 val directWriter = directUri?.let { DownloadDestination.openDirectWriter(applicationContext, it) }
