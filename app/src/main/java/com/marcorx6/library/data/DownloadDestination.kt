@@ -108,6 +108,15 @@ internal object DownloadDestination {
         return descriptor.use { android.system.Os.fstat(it.fileDescriptor).st_size }
     }
 
+    fun truncateDirectTarget(context: Context, uri: Uri, length: Long) {
+        val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
+            ?: throw IOException("Could not reopen the visible download file")
+        descriptor.use {
+            android.system.Os.ftruncate(it.fileDescriptor, length)
+            android.system.Os.fsync(it.fileDescriptor)
+        }
+    }
+
     fun prepareDirectTarget(context: Context, uri: Uri, total: Long, onPreparing: (Int) -> Unit) {
         val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
             ?: throw IOException("Could not open the visible download file")
