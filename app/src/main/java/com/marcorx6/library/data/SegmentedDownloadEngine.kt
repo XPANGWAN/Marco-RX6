@@ -73,9 +73,13 @@ internal object SegmentedDownloadEngine {
             probe.disconnect()
         }
 
-        if ((item.etag.isNotBlank() && etag.isNotBlank() && item.etag != etag) ||
-            (item.totalBytes > 0L && item.totalBytes != total) ||
-            (item.lastModified.isNotBlank() && modified.isNotBlank() && item.lastModified != modified)
+        val sourceValidatorChanged = when {
+            item.etag.isNotBlank() -> etag != item.etag
+            item.lastModified.isNotBlank() -> modified != item.lastModified
+            else -> false
+        }
+        if (sourceValidatorChanged ||
+            (item.totalBytes > 0L && item.totalBytes != total)
         ) {
             clearSegments(directory, item.id)
             target.delete()
