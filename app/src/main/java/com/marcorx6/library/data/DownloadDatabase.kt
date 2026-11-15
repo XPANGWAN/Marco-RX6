@@ -22,11 +22,12 @@ internal data class StoredDownload(
     val localPath: String,
     val error: String,
     val sourcePostUrl: String,
-    val priority: Int
+    val priority: Int,
+    val preparationPercent: Int
 )
 
 internal class DownloadDatabase private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "marco_downloads.db", null, 3) {
+    SQLiteOpenHelper(context.applicationContext, "marco_downloads.db", null, 4) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -46,7 +47,8 @@ internal class DownloadDatabase private constructor(context: Context) :
                 local_path TEXT NOT NULL DEFAULT '',
                 error TEXT NOT NULL DEFAULT '',
                 source_post_url TEXT NOT NULL DEFAULT '',
-                priority INTEGER NOT NULL DEFAULT 0
+                priority INTEGER NOT NULL DEFAULT 0,
+                preparation_percent INTEGER NOT NULL DEFAULT 0
             )"""
         )
     }
@@ -54,6 +56,7 @@ internal class DownloadDatabase private constructor(context: Context) :
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) db.execSQL("ALTER TABLE downloads ADD COLUMN source_post_url TEXT NOT NULL DEFAULT ''")
         if (oldVersion < 3) db.execSQL("ALTER TABLE downloads ADD COLUMN priority INTEGER NOT NULL DEFAULT 0")
+        if (oldVersion < 4) db.execSQL("ALTER TABLE downloads ADD COLUMN preparation_percent INTEGER NOT NULL DEFAULT 0")
     }
 
     @Synchronized
@@ -103,8 +106,8 @@ internal class DownloadDatabase private constructor(context: Context) :
         db.beginTransaction()
         try {
             val active = db.rawQuery(
-                "SELECT COUNT(*) FROM downloads WHERE status IN (?,?)",
-                arrayOf(DownloadManager.STATUS_RUNNING.toString(), STATUS_SCHEDULED.toString())
+                "SELECT COUNT(*) FROM downloads WHERE status IN (?,?,?)",
+                arrayOf(DownloadManager.STATUS_RUNNING.toString(), STATUS_SCHEDULED.toString(), STATUS_PREPARING.toString())
             ).use { if (it.moveToFirst()) it.getInt(0) else 0 }
             val available = (maxConcurrent.coerceIn(1, 5) - active).coerceAtLeast(0)
             if (available == 0) {
@@ -192,11 +195,12 @@ internal class DownloadDatabase private constructor(context: Context) :
         db.beginTransaction()
         try {
             val ids = db.query(
-                "downloads", arrayOf("id"), "status IN (?,?,?)",
+                "downloads", arrayOf("id"), "status IN (?,?,?,?)",
                 arrayOf(
                     DownloadManager.STATUS_PENDING.toString(),
                     DownloadManager.STATUS_RUNNING.toString(),
-                    STATUS_SCHEDULED.toString()
+                    STATUS_SCHEDULED.toString(),
+                    STATUS_PREPARING.toString()
                 ), null, null, "id ASC"
             ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getLong(0)) } }
             db.update(
@@ -245,6 +249,24 @@ internal class DownloadDatabase private constructor(context: Context) :
     }
 
     @Synchronized
+    fun preparing(id: Long, percent: Int, total: Long, etag: String, modified: String) {
+        writableDatabase.update("downloads", ContentValues().apply {
+            put("status", STATUS_PREPARING)
+            put("preparation_percent", percent.coerceIn(0, 100))
+            if (total > 0L) put("total", total)
+            put("etag", etag); put("last_modified", modified)
+        }, "id=?", arrayOf(id.toString()))
+    }
+
+    @Synchronized
+    fun finishPreparing(id: Long) {
+        writableDatabase.update("downloads", ContentValues().apply {
+            put("status", DownloadManager.STATUS_RUNNING)
+            put("preparation_percent", 0)
+        }, "id=?", arrayOf(id.toString()))
+    }
+
+    @Synchronized
     fun progress(id: Long, downloaded: Long, total: Long, etag: String, modified: String) {
         writableDatabase.update("downloads", ContentValues().apply {
             put("downloaded", downloaded); put("total", total)
@@ -289,12 +311,14 @@ internal class DownloadDatabase private constructor(context: Context) :
         localPath = getString(getColumnIndexOrThrow("local_path")),
         error = getString(getColumnIndexOrThrow("error")),
         sourcePostUrl = getString(getColumnIndexOrThrow("source_post_url")),
-        priority = getInt(getColumnIndexOrThrow("priority"))
+        priority = getInt(getColumnIndexOrThrow("priority")),
+        preparationPercent = getInt(getColumnIndexOrThrow("preparation_percent"))
     )
 
     companion object {
         const val STATUS_CANCELLED = 6
         const val STATUS_SCHEDULED = 7
+        const val STATUS_PREPARING = 8
         @Volatile private var instance: DownloadDatabase? = null
         fun get(context: Context): DownloadDatabase =
             instance ?: synchronized(this) {
