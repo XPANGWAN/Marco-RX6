@@ -598,16 +598,32 @@ internal class DownloadUiController(
                 })
             }
             if (item.status == DownloadManager.STATUS_SUCCESSFUL) {
-                addAction(smallAction(translate("فتح الملف"), true) {
+                addAction(smallAction(translate("فتح المجلد"), true) {
                     try {
-                        val uri = downloadRepository.openDownloadedFile(item.id)
-                            ?: throw IllegalStateException("File URI unavailable")
-                        activity.startActivity(Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(uri, item.mimeType?.takeIf { it.isNotBlank() } ?: "*/*")
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        })
+                        // Downloads created by MARCO RX6 are stored in Download/MARCO RX6.
+                        // Ask Android's document UI to open that directory, not the downloaded file.
+                        val folderUri = android.provider.DocumentsContract.buildDocumentUri(
+                            "com.android.externalstorage.documents",
+                            "primary:Download/MARCO RX6"
+                        )
+                        try {
+                            activity.startActivity(Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(folderUri, "vnd.android.document/directory")
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            })
+                        } catch (_: android.content.ActivityNotFoundException) {
+                            // Some file managers don't expose a direct directory viewer.
+                            // Fall back to the system folder picker at the same location.
+                            activity.startActivity(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+                                putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, folderUri)
+                            })
+                        }
                     } catch (_: Exception) {
-                        Toast.makeText(activity, translate("تعذر فتح الملف؛ تحقق من وجود تطبيق مناسب لفتحه"), Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            activity,
+                            translate("تعذر فتح مجلد التنزيلات؛ افتح Download/MARCO RX6 من مدير الملفات"),
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                 })
                 addAction(smallAction(translate("مشاركة")) {
