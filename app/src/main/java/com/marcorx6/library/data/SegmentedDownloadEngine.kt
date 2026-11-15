@@ -298,55 +298,64 @@ internal object SegmentedDownloadEngine {
             ) {
                 throw IOException("File changed during segmented download; retry with a fresh source")
             }
+            val expectedBytes = segmentLength - offset
+            val responseLength = connection.getHeaderFieldLong("Content-Length", -1L)
+            if (responseLength >= 0L && responseLength != expectedBytes) {
+                throw IOException("Server returned an unexpected segment length: $responseLength / $expectedBytes")
+            }
+            var receivedBytes = 0L
             connection.inputStream.use { input ->
                 val buffer = ByteArray(BUFFER_SIZE)
                 var lastSaved = offset
+                fun receive(
+                    output: (ByteArray, Int) -> Unit,
+                    checkpoint: () -> Unit
+                ) {
+                    while (true) {
+                        if (isStopped() || Thread.currentThread().isInterrupted) {
+                            throw InterruptedException("Segment download stopped")
+                        }
+                        val remaining = expectedBytes - receivedBytes
+                        if (remaining == 0L) {
+                            if (input.read() != -1) throw IOException("Server sent data beyond the requested byte range")
+                            break
+                        }
+                        val count = input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+                        if (count < 0) break
+                        speedLimiter.acquire(count)
+                        output(buffer, count)
+                        offset += count
+                        receivedBytes += count
+                        onBytes(count.toLong())
+                        if (offset - lastSaved >= 1024L * 1024L) {
+                            lastSaved = offset
+                            checkpoint()
+                        }
+                    }
+                }
                 if (directUri != null) {
                     DownloadDestination.openDirectWriter(context, directUri).use { output ->
-                        try {
-                            while (true) {
-                                if (isStopped() || Thread.currentThread().isInterrupted) throw InterruptedException("Segment download stopped")
-                                val count = input.read(buffer)
-                                if (count < 0) break
-                                speedLimiter.acquire(count)
-                                output.writeAt(buffer, count, rangeStart + offset)
-                                offset += count
-                                onBytes(count.toLong())
-                                if (offset - lastSaved >= 1024L * 1024L) {
-                                    output.sync()
-                                    writeSegmentProgress(progressFile, offset)
-                                    lastSaved = offset
-                                }
-                            }
-                        } finally {
+                        fun checkpoint() {
                             output.sync()
                             writeSegmentProgress(progressFile, offset)
                         }
+                        receive({ bytes, count -> output.writeAt(bytes, count, rangeStart + offset) }, ::checkpoint)
+                        checkpoint()
                     }
                 } else {
                     RandomAccessFile(target, "rw").use { output ->
                         output.seek(rangeStart + offset)
-                        try {
-                            while (true) {
-                                if (isStopped() || Thread.currentThread().isInterrupted) throw InterruptedException("Segment download stopped")
-                                val count = input.read(buffer)
-                                if (count < 0) break
-                                speedLimiter.acquire(count)
-                                output.write(buffer, 0, count)
-                                offset += count
-                                onBytes(count.toLong())
-                                if (offset - lastSaved >= 1024L * 1024L) {
-                                    output.fd.sync()
-                                    writeSegmentProgress(progressFile, offset)
-                                    lastSaved = offset
-                                }
-                            }
-                        } finally {
+                        fun checkpoint() {
                             output.fd.sync()
                             writeSegmentProgress(progressFile, offset)
                         }
+                        receive({ bytes, count -> output.write(bytes, 0, count) }, ::checkpoint)
+                        checkpoint()
                     }
                 }
+            }
+            if (receivedBytes != expectedBytes) {
+                throw IOException("Segment response was truncated: $receivedBytes / $expectedBytes bytes")
             }
             if (readSegmentProgress(progressFile, segmentLength) != segmentLength) {
                 throw IOException("Segment length mismatch for bytes $rangeStart-$rangeEnd")
@@ -371,20 +380,28 @@ internal object SegmentedDownloadEngine {
         }
 
     private fun readSegmentProgress(file: File, maximum: Long): Long =
-        if (!file.isFile) 0L else file.readText().trim().toLongOrNull()?.coerceIn(0L, maximum) ?: 0L
+        if (!file.isFile) 0L else runCatching {
+            file.readText().trim().toLongOrNull()?.coerceIn(0L, maximum) ?: 0L
+        }.getOrDefault(0L)
 
     private fun writeSegmentProgress(file: File, bytes: Long) {
-        FileOutputStream(file, false).use { output ->
+        val temporary = File(file.parentFile, file.name + ".tmp")
+        FileOutputStream(temporary, false).use { output ->
             output.write(bytes.toString().toByteArray(Charsets.UTF_8))
             output.fd.sync()
+        }
+        if (!temporary.renameTo(file)) {
+            temporary.delete()
+            throw IOException("Could not commit a segment resume checkpoint")
         }
     }
 
     private fun clearSegments(directory: File, id: Long) {
         (0 until SEGMENT_COUNT).forEach { index ->
-            // Remove legacy per-segment data files and the current progress sidecars.
+            // Remove legacy per-segment data files and current/temporary checkpoints.
             File(directory, "$id.seg$index").delete()
             File(directory, "$id.seg$index.progress").delete()
+            File(directory, "$id.seg$index.progress.tmp").delete()
         }
     }
 }
