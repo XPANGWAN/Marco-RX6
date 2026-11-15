@@ -264,8 +264,8 @@ internal class ResumableDownloadWorker(
         val saved = runCatching { if (file.isFile) file.readText().trim().toLongOrNull() else null }.getOrNull()
         return when {
             saved != null && saved in 0L..maximum -> saved
-            saved != null -> fallback.coerceIn(0L, maximum)
-            else -> fallback.coerceIn(0L, maximum)
+            fallback in 0L..maximum -> fallback
+            else -> 0L
         }
     }
 
