@@ -19,6 +19,7 @@ import com.marcorx6.library.ui.activity.MainActivity
 import com.marcorx6.library.ui.LanguageTranslator
 import java.io.File
 import java.io.FileOutputStream
+import java.io.RandomAccessFile
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -57,6 +58,7 @@ internal class ResumableDownloadWorker(
                 (0 until 4).forEach {
                     File(directory, "$id.seg$it").delete()
                     File(directory, "$id.seg$it.progress").delete()
+                    File(directory, "$id.seg$it.progress.tmp").delete()
                 }
                 Result.success()
             } else if (latest.status == DownloadManager.STATUS_PAUSED) {
@@ -258,7 +260,11 @@ internal class ResumableDownloadWorker(
 
     private fun readDurableOffset(file: File, fallback: Long, maximum: Long): Long {
         val saved = runCatching { if (file.isFile) file.readText().trim().toLongOrNull() else null }.getOrNull()
-        return (saved ?: fallback).coerceIn(0L, maximum)
+        return when {
+            saved != null && saved in 0L..maximum -> saved
+            saved != null -> fallback.coerceIn(0L, maximum)
+            else -> fallback.coerceIn(0L, maximum)
+        }
     }
 
     private fun writeDurableOffset(file: File, offset: Long) {
