@@ -412,7 +412,8 @@ internal object SegmentedDownloadEngine {
 
     private fun readSegmentProgress(file: File, maximum: Long): Long =
         if (!file.isFile) 0L else runCatching {
-            file.readText().trim().toLongOrNull()?.coerceIn(0L, maximum) ?: 0L
+            val saved = file.readText().trim().toLongOrNull()
+            if (saved != null && saved in 0L..maximum) saved else 0L
         }.getOrDefault(0L)
 
     private fun writeSegmentProgress(file: File, bytes: Long) {
