@@ -36,8 +36,8 @@ internal class DownloadIntegrityVerifier private constructor(
                 ?.removeSuffix(":")
             val contentMd5 = connection.getHeaderField("Content-MD5")?.trim()
             val (algorithm, encoded) = when {
-                !sha256.isNullOrBlank() -> "SHA-256" to sha256
-                !contentMd5.isNullOrBlank() -> "MD5" to contentMd5
+                !sha256.isNullOrBlank() -> "SHA-256" to sha256.orEmpty()
+                !contentMd5.isNullOrBlank() -> "MD5" to contentMd5.orEmpty()
                 else -> return null
             }
             val expected = runCatching { Base64.decode(encoded, Base64.DEFAULT) }.getOrNull()
