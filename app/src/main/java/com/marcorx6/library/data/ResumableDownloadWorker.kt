@@ -107,6 +107,7 @@ internal class ResumableDownloadWorker(
             }
         )
         if (segmented) return Result.success()
+        // Build verification checkpoint for the visible sequential-download path.
         val directUri = if (DownloadStoragePreferences(applicationContext).treeUri() == null &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         ) DownloadDestination.openDirectTarget(applicationContext, item.id, item.title, item.mimeType) else null
