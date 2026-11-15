@@ -105,6 +105,7 @@ internal object SegmentedDownloadEngine {
         } else target.isFile && target.length() == total && hasAllProgressSidecars
 
         if (!existingTargetIsReusable) clearSegments(directory, item.id)
+        database.preparing(item.id, 0, total, etag, modified)
         onPreparing(0)
         if (directUri != null) {
             if (!existingTargetIsReusable) {
