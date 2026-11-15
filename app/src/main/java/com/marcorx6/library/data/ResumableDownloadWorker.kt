@@ -87,7 +87,10 @@ internal class ResumableDownloadWorker(
             onProgress = { downloaded, total ->
                 updateProgressNotification(item.title, item.id, downloaded, total)
             },
-            onPreparing = { percent -> updatePreparingNotification(item.title, item.id, percent) }
+            onPreparing = { percent ->
+                database.preparing(item.id, percent, item.totalBytes, item.etag, item.lastModified)
+                updatePreparingNotification(item.title, item.id, percent)
+            }
         )
         if (segmented) return Result.success()
         var offset = if (partial.exists()) partial.length() else 0L
@@ -96,8 +99,8 @@ internal class ResumableDownloadWorker(
         try {
             connection = (URL(item.url).openConnection() as HttpURLConnection).apply {
                 instanceFollowRedirects = true
-                connectTimeout = 20000
-                readTimeout = 30000
+                connectTimeout = 30000
+                readTimeout = 120000
                 requestMethod = "GET"
                 setRequestProperty("Accept", "*/*")
                 setRequestProperty("Accept-Encoding", "identity")
@@ -201,6 +204,7 @@ internal class ResumableDownloadWorker(
                 throw IOException("Incomplete file: $offset / $total")
             }
             // Network transfer is finished. Keep the item active while assembling/saving.
+            database.preparing(item.id, 100, total, etag, modified)
             updatePreparingNotification(item.title, item.id)
             val savedLocation = DownloadDestination.save(
                 applicationContext,
@@ -211,6 +215,7 @@ internal class ResumableDownloadWorker(
                 total
             )
             partial.delete()
+            database.finishPreparing(item.id)
             if (!database.complete(item.id, savedLocation, mime)) {
                 deleteSavedLocation(savedLocation)
                 throw InterruptedException("Download state changed before completion")
@@ -317,7 +322,7 @@ internal class ResumableDownloadWorker(
 
     companion object {
         const val KEY_ID = "download_id"
-        private const val MAX_AUTOMATIC_RETRIES = 5
+        private const val MAX_AUTOMATIC_RETRIES = 8
         private const val CHANNEL_ID = "marco_rx6_downloads"
         internal fun notificationId(downloadId: Long): Int = 1_000_000_000 + ((downloadId xor (downloadId ushr 32)).toInt() and 0x3fffffff)
 
