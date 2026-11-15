@@ -21,7 +21,8 @@ internal data class DownloadEntry(
     val mimeType: String?,
     val sourcePostUrl: String,
     val priority: Int,
-    val segmentBytes: List<Long>
+    val segmentBytes: List<Long>,
+    val preparationPercent: Int
 )
 
 internal sealed class DownloadStartResult {
@@ -108,6 +109,7 @@ internal class DownloadRepository(context: Context) {
             mimeType = item.mimeType,
             sourcePostUrl = item.sourcePostUrl,
             priority = item.priority,
+            preparationPercent = item.preparationPercent,
             segmentBytes = (0 until 4).map { index ->
                 val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
                 val progress = File(directory, "${item.id}.seg$index.progress")
@@ -246,8 +248,8 @@ internal class DownloadRepository(context: Context) {
     ): DownloadProbe {
         val connection = (URL(link).openConnection() as HttpURLConnection).apply {
             instanceFollowRedirects = true
-            connectTimeout = 12000
-            readTimeout = 12000
+            connectTimeout = 30000
+            readTimeout = 60000
             requestMethod = "GET"
             setRequestProperty("Range", "bytes=0-0")
             setRequestProperty("Accept", "*/*")
