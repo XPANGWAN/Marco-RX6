@@ -108,6 +108,13 @@ internal object DownloadDestination {
         return descriptor.use { android.system.Os.fstat(it.fileDescriptor).st_size }
     }
 
+    fun renameDirectTarget(context: Context, uri: Uri, displayName: String) {
+        val values = ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, displayName) }
+        if (context.contentResolver.update(uri, values, null, null) <= 0) {
+            throw IOException("Could not update the visible download filename")
+        }
+    }
+
     fun truncateDirectTarget(context: Context, uri: Uri, length: Long) {
         val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
             ?: throw IOException("Could not reopen the visible download file")
