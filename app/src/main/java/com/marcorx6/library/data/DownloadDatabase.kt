@@ -206,11 +206,12 @@ internal class DownloadDatabase private constructor(context: Context) :
             db.update(
                 "downloads",
                 ContentValues().apply { put("status", DownloadManager.STATUS_PAUSED) },
-                "status IN (?,?,?)",
+                "status IN (?,?,?,?)",
                 arrayOf(
                     DownloadManager.STATUS_PENDING.toString(),
                     DownloadManager.STATUS_RUNNING.toString(),
-                    STATUS_SCHEDULED.toString()
+                    STATUS_SCHEDULED.toString(),
+                    STATUS_PREPARING.toString()
                 )
             )
             db.setTransactionSuccessful()
