@@ -179,6 +179,8 @@ internal class ResumableDownloadWorker(
                 responseLength >= 0L -> responseLength
                 else -> -1L
             }
+            val responseStartOffset = offset
+            val integrityVerifier = DownloadIntegrityVerifier.from(connection)
             val etag = connection.getHeaderField("ETag") ?: item.etag
             val modified = connection.getHeaderField("Last-Modified") ?: item.lastModified
             val mime = connection.contentType?.substringBefore(';')?.trim().orEmpty().ifBlank { item.mimeType }
@@ -202,6 +204,7 @@ internal class ResumableDownloadWorker(
                         if (total > 0L && count.toLong() > total - offset) {
                             throw IOException("The server sent more bytes than the declared file size")
                         }
+                        integrityVerifier?.update(buffer, count)
                         speedLimiter.acquire(count)
                         sink.write(buffer, 0, count)
                         offset += count
@@ -226,6 +229,19 @@ internal class ResumableDownloadWorker(
             }
             if (responseLength >= 0L && responseBytes != responseLength) {
                 throw IOException("Truncated response body: $responseBytes / $responseLength bytes")
+            }
+            if (integrityVerifier != null) {
+                try {
+                    integrityVerifier.verify()
+                } catch (error: IOException) {
+                    RandomAccessFile(partial, "rw").use { file ->
+                        file.setLength(responseStartOffset)
+                        file.fd.sync()
+                    }
+                    writeDurableOffset(durableProgress, responseStartOffset)
+                    database.progress(item.id, responseStartOffset, total, etag, modified)
+                    throw error
+                }
             }
             if (isStopped || database.get(item.id)?.status == DownloadDatabase.STATUS_CANCELLED ||
                 database.get(item.id)?.status == DownloadManager.STATUS_PAUSED) {
