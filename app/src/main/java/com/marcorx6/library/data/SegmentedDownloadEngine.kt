@@ -335,22 +335,22 @@ internal object SegmentedDownloadEngine {
                 }
                 if (directUri != null) {
                     DownloadDestination.openDirectWriter(context, directUri).use { output ->
-                        fun checkpoint() {
+                        receive({ bytes, count -> output.writeAt(bytes, count, rangeStart + offset) }) {
                             output.sync()
                             writeSegmentProgress(progressFile, offset)
                         }
-                        receive({ bytes, count -> output.writeAt(bytes, count, rangeStart + offset) }, ::checkpoint)
-                        checkpoint()
+                        output.sync()
+                        writeSegmentProgress(progressFile, offset)
                     }
                 } else {
                     RandomAccessFile(target, "rw").use { output ->
                         output.seek(rangeStart + offset)
-                        fun checkpoint() {
+                        receive({ bytes, count -> output.write(bytes, 0, count) }) {
                             output.fd.sync()
                             writeSegmentProgress(progressFile, offset)
                         }
-                        receive({ bytes, count -> output.write(bytes, 0, count) }, ::checkpoint)
-                        checkpoint()
+                        output.fd.sync()
+                        writeSegmentProgress(progressFile, offset)
                     }
                 }
             }
