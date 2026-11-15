@@ -149,6 +149,7 @@ internal object SegmentedDownloadEngine {
         } else {
             target.delete()
         }
+        database.finishPreparing(item.id)
         for (index in 0 until SEGMENT_COUNT) {
             val start = index * segmentSize
             if (start >= total) continue
@@ -242,6 +243,7 @@ internal object SegmentedDownloadEngine {
             ).also { target.delete() }
         }
         clearSegments(directory, item.id)
+        database.finishPreparing(item.id)
         if (!database.complete(item.id, savedLocation, mime)) {
             DownloadDestination.delete(context, savedLocation)
             throw InterruptedException("Download state changed before completion")
@@ -356,8 +358,8 @@ internal object SegmentedDownloadEngine {
     private fun openConnection(item: StoredDownload, start: Long, end: Long): HttpURLConnection =
         (URL(item.url).openConnection() as HttpURLConnection).apply {
             instanceFollowRedirects = true
-            connectTimeout = 20000
-            readTimeout = 30000
+            connectTimeout = 30000
+            readTimeout = 120000
             requestMethod = "GET"
             setRequestProperty("Accept", "*/*")
             setRequestProperty("Accept-Encoding", "identity")
