@@ -81,6 +81,7 @@ internal class DownloadRepository(context: Context) {
                                 val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
                                 File(directory, "${previous.id}.part").delete()
                                 File(directory, "${previous.id}.part.progress").delete()
+                                File(directory, "${previous.id}.part.progress.tmp").delete()
                                 DownloadDestination.removeDirectTarget(appContext, previous.id)
                                 (0 until 4).forEach { index ->
                                     File(directory, "${previous.id}.seg$index").delete()
@@ -231,6 +232,7 @@ internal class DownloadRepository(context: Context) {
         val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
         File(directory, "$id.part").delete()
         File(directory, "$id.part.progress").delete()
+        File(directory, "$id.part.progress.tmp").delete()
         DownloadDestination.removeDirectTarget(appContext, id)
         (0 until 4).forEach { index ->
             File(directory, "$id.seg$index").delete()
