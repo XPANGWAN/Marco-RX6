@@ -142,12 +142,13 @@ internal class DownloadDatabase private constructor(context: Context) :
         val changed = writableDatabase.update(
             "downloads",
             ContentValues().apply { put("status", DownloadManager.STATUS_RUNNING) },
-            "id=? AND status IN (?,?,?)",
+            "id=? AND status IN (?,?,?,?)",
             arrayOf(
                 id.toString(),
                 DownloadManager.STATUS_PENDING.toString(),
                 STATUS_SCHEDULED.toString(),
-                DownloadManager.STATUS_RUNNING.toString()
+                DownloadManager.STATUS_RUNNING.toString(),
+                STATUS_PREPARING.toString()
             )
         )
         return changed > 0
