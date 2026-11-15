@@ -330,6 +330,8 @@ internal object SegmentedDownloadEngine {
                 throw IOException("File changed during segmented download; retry with a fresh source")
             }
             val expectedBytes = segmentLength - offset
+            val segmentResumeOffset = offset
+            val integrityVerifier = DownloadIntegrityVerifier.from(connection)
             val responseLength = connection.getHeaderFieldLong("Content-Length", -1L)
             if (responseLength >= 0L && responseLength != expectedBytes) {
                 throw IOException("Server returned an unexpected segment length: $responseLength / $expectedBytes")
@@ -353,6 +355,7 @@ internal object SegmentedDownloadEngine {
                         }
                         val count = input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
                         if (count < 0) break
+                        integrityVerifier?.update(buffer, count)
                         speedLimiter.acquire(count)
                         output(buffer, count)
                         offset += count
@@ -387,6 +390,15 @@ internal object SegmentedDownloadEngine {
             }
             if (receivedBytes != expectedBytes) {
                 throw IOException("Segment response was truncated: $receivedBytes / $expectedBytes bytes")
+            }
+            if (integrityVerifier != null) {
+                try {
+                    integrityVerifier.verify()
+                } catch (error: IOException) {
+                    runCatching { writeSegmentProgress(progressFile, segmentResumeOffset) }
+                        .onFailure { progressFile.delete() }
+                    throw error
+                }
             }
             if (readSegmentProgress(progressFile, segmentLength) != segmentLength) {
                 throw IOException("Segment length mismatch for bytes $rangeStart-$rangeEnd")
