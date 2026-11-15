@@ -78,7 +78,15 @@ internal class DownloadRepository(context: Context) {
                             val previous = database.findFailedBySource(sourcePostUrl)
                             if (previous != null) {
                                 database.refreshSource(previous.id, probe.finalUrl, userAgent, cookie, referrer, probe.mimeType)
-                                File(appContext.filesDir, "MARCO_RX6_downloads/${previous.id}.part").delete()
+                                val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
+                                File(directory, "${previous.id}.part").delete()
+                                File(directory, "${previous.id}.part.progress").delete()
+                                DownloadDestination.removeDirectTarget(appContext, previous.id)
+                                (0 until 4).forEach { index ->
+                                    File(directory, "${previous.id}.seg$index").delete()
+                                    File(directory, "${previous.id}.seg$index.progress").delete()
+                                    File(directory, "${previous.id}.seg$index.progress.tmp").delete()
+                                }
                             } else {
                                 val id = database.nextId()
                                 database.insert(id, probe.finalUrl, finalTitle, userAgent, cookie, referrer, probe.mimeType, sourcePostUrl)
@@ -113,7 +121,7 @@ internal class DownloadRepository(context: Context) {
             segmentBytes = (0 until 4).map { index ->
                 val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
                 val progress = File(directory, "${item.id}.seg$index.progress")
-                if (progress.isFile) progress.readText().trim().toLongOrNull() ?: 0L else {
+                if (progress.isFile) runCatching { progress.readText().trim().toLongOrNull() ?: 0L }.getOrDefault(0L) else {
                     File(directory, "${item.id}.seg$index").let { file ->
                         if (file.isFile) file.length() else 0L
                     }
@@ -222,10 +230,12 @@ internal class DownloadRepository(context: Context) {
         }
         val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
         File(directory, "$id.part").delete()
+        File(directory, "$id.part.progress").delete()
         DownloadDestination.removeDirectTarget(appContext, id)
         (0 until 4).forEach { index ->
             File(directory, "$id.seg$index").delete()
             File(directory, "$id.seg$index.progress").delete()
+            File(directory, "$id.seg$index.progress.tmp").delete()
         }
         database.delete(id)
         DownloadWorkScheduler.schedule(appContext)
