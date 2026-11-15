@@ -196,15 +196,6 @@ internal class ResumableDownloadWorker(
                 else -> -1L
             }
             val responseStartOffset = offset
-            if (directUri != null && total > 0L && (directSize != total || (responseStartOffset == 0L && item.downloadedBytes > 0L))) {
-                database.preparing(item.id, 0, total, etag, modified)
-                DownloadDestination.prepareDirectTarget(applicationContext, directUri, total) { percent ->
-                    database.preparing(item.id, percent, total, etag, modified)
-                    updatePreparingNotification(item.title, item.id, percent)
-                }
-                database.finishPreparing(item.id)
-            }
-            if (directUri != null) DownloadDestination.renameDirectTarget(applicationContext, directUri, safeName)
             val integrityVerifier = DownloadIntegrityVerifier.from(connection)
             val etag = connection.getHeaderField("ETag") ?: item.etag
             val modified = connection.getHeaderField("Last-Modified") ?: item.lastModified
@@ -214,6 +205,15 @@ internal class ResumableDownloadWorker(
                 connection.url.toString()
             )
             val safeName = DownloadFileNames.safeName(responseName ?: item.title, mime, item.id)
+            if (directUri != null && total > 0L && (directSize != total || (responseStartOffset == 0L && item.downloadedBytes > 0L))) {
+                database.preparing(item.id, 0, total, etag, modified)
+                DownloadDestination.prepareDirectTarget(applicationContext, directUri, total) { percent ->
+                    database.preparing(item.id, percent, total, etag, modified)
+                    updatePreparingNotification(item.title, item.id, percent)
+                }
+                database.finishPreparing(item.id)
+            }
+            if (directUri != null) DownloadDestination.renameDirectTarget(applicationContext, directUri, safeName)
             database.renameTitle(item.id, safeName)
             database.progress(item.id, offset, total, etag, modified)
             var responseBytes = 0L
