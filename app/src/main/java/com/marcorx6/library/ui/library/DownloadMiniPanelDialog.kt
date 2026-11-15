@@ -219,6 +219,7 @@ internal class DownloadMiniPanelDialog(
                         // Preparing is an explicit database state set before preallocation.
                         // Never infer it from downloadedBytes reaching totalBytes: that labels
                         // a finished transfer as "Preparing" and hides the real pre-download phase.
+                        // Keep the mini panel aligned with the full download list state machine.
                         val isPreparing = item.status == DownloadDatabase.STATUS_PREPARING
                         val statusLabel = when (item.status) {
                             DownloadManager.STATUS_PENDING, DownloadDatabase.STATUS_SCHEDULED -> translate("في الانتظار")
