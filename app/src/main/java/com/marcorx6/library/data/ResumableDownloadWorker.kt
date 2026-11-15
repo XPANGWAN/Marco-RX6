@@ -52,6 +52,7 @@ internal class ResumableDownloadWorker(
             if (latest == null || latest.status == DownloadDatabase.STATUS_CANCELLED) {
                 val directory = File(applicationContext.filesDir, "MARCO_RX6_downloads")
                 File(directory, "$id.part").delete()
+                File(directory, "$id.part.progress").delete()
                 DownloadDestination.removeDirectTarget(applicationContext, id)
                 (0 until 4).forEach {
                     File(directory, "$id.seg$it").delete()
@@ -99,7 +100,15 @@ internal class ResumableDownloadWorker(
             }
         )
         if (segmented) return Result.success()
-        var offset = if (partial.exists()) partial.length() else 0L
+        val durableProgress = File(directory, "${item.id}.part.progress")
+        var offset = if (partial.exists()) {
+            readDurableOffset(durableProgress, item.downloadedBytes, partial.length())
+        } else 0L
+        // Discard bytes written after the last fsynced checkpoint. They will be
+        // downloaded again rather than trusting data that was never committed.
+        if (partial.exists() && partial.length() != offset) {
+            RandomAccessFile(partial, "rw").use { it.setLength(offset); it.fd.sync() }
+        }
         val speedLimiter = DownloadSpeedLimiter(DownloadConcurrencyPreferences(applicationContext).speedLimitBytesPerSecond())
         var connection: HttpURLConnection? = null
         try {
@@ -131,27 +140,40 @@ internal class ResumableDownloadWorker(
             if (code !in 200..299) throw IllegalStateException("HTTP $code")
             val append = offset > 0L && code == HttpURLConnection.HTTP_PARTIAL
             val responseEtag = connection.getHeaderField("ETag").orEmpty()
-            if (append && item.etag.isNotBlank() && responseEtag.isNotBlank() && item.etag != responseEtag) {
-                // A changed validator proves this is a different entity. Discard only now,
-                // after proving the old partial cannot safely be appended to the new file.
-                partial.delete()
-                database.progress(item.id, 0L, -1L, "", "")
-                throw IOException("The file version changed; restarting safely from byte zero")
+            val responseModified = connection.getHeaderField("Last-Modified").orEmpty()
+            val responseLength = connection.getHeaderFieldLong("Content-Length", -1L)
+            val contentRange = Regex("""bytes (\d+)-(\d+)/(\d+)""")
+                .find(connection.getHeaderField("Content-Range").orEmpty())
+            val rangeStart = contentRange?.groupValues?.getOrNull(1)?.toLongOrNull()
+            val rangeEnd = contentRange?.groupValues?.getOrNull(2)?.toLongOrNull()
+            val rangeTotal = contentRange?.groupValues?.getOrNull(3)?.toLongOrNull()
+
+            if (append) {
+                val validatorMatches = when {
+                    item.etag.isNotBlank() -> responseEtag == item.etag
+                    item.lastModified.isNotBlank() -> responseModified == item.lastModified
+                    else -> false
+                }
+                val rangeMatches = rangeStart == offset &&
+                    rangeEnd != null && rangeTotal != null &&
+                    rangeEnd >= offset && rangeEnd < rangeTotal &&
+                    (responseLength < 0L || responseLength == rangeEnd - offset + 1L)
+                if (!validatorMatches || !rangeMatches) {
+                    partial.delete()
+                    durableProgress.delete()
+                    database.progress(item.id, 0L, -1L, "", "")
+                    throw IOException("The server could not verify the previous file version and resume range; restarting safely is required")
+                }
             }
             if (offset > 0L && !append) {
-                // The server ignored Range or the entity changed. Restart safely instead of
-                // appending a full response to an old partial file.
+                // The server ignored Range. Never append a full response to old bytes.
                 partial.delete()
+                durableProgress.delete()
                 offset = 0L
             }
-            val responseLength = connection.getHeaderFieldLong("Content-Length", -1L)
-            val rangeTotal = Regex("""bytes \d+-\d+/(\d+)""")
-                .find(connection.getHeaderField("Content-Range").orEmpty())
-                ?.groupValues?.getOrNull(1)?.toLongOrNull()
             val total = when {
-                append && responseLength >= 0L -> offset + responseLength
+                append && rangeTotal != null -> rangeTotal
                 responseLength >= 0L -> responseLength
-                rangeTotal != null -> rangeTotal
                 else -> -1L
             }
             val etag = connection.getHeaderField("ETag") ?: item.etag
@@ -163,15 +185,8 @@ internal class ResumableDownloadWorker(
             )
             val safeName = DownloadFileNames.safeName(responseName ?: item.title, mime, item.id)
             database.renameTitle(item.id, safeName)
-            if (append) {
-                val rangeStart = Regex("^bytes (\\d+)-").find(connection.getHeaderField("Content-Range").orEmpty())
-                    ?.groupValues?.getOrNull(1)?.toLongOrNull()
-                if (rangeStart != offset) {
-                    partial.delete()
-                    throw IOException("Server returned an invalid resume range")
-                }
-            }
             database.progress(item.id, offset, total, etag, modified)
+            var responseBytes = 0L
             connection.inputStream.use { input ->
                 FileOutputStream(partial, append).use { sink ->
                     val buffer = ByteArray(64 * 1024)
@@ -181,15 +196,19 @@ internal class ResumableDownloadWorker(
                         if (isStopped) throw InterruptedException("Download paused or cancelled")
                         val count = input.read(buffer)
                         if (count < 0) break
+                        if (total > 0L && count.toLong() > total - offset) {
+                            throw IOException("The server sent more bytes than the declared file size")
+                        }
                         speedLimiter.acquire(count)
                         sink.write(buffer, 0, count)
                         offset += count
+                        responseBytes += count
                         val now = System.currentTimeMillis()
-                        // Persist progress once per second rather than forcing a disk sync
-                        // every 500 ms; this reduces flash I/O and wakeups during long downloads.
+                        // Commit the file bytes first, then the durable checkpoint and DB state.
                         if (now - lastUpdate >= 1_000L) {
                             sink.flush()
                             sink.fd.sync()
+                            writeDurableOffset(durableProgress, offset)
                             database.progress(item.id, offset, total, etag, modified)
                             lastUpdate = now
                             if (now - lastNotificationUpdate >= 1_500L) {
@@ -199,7 +218,11 @@ internal class ResumableDownloadWorker(
                         }
                     }
                     sink.fd.sync()
+                    writeDurableOffset(durableProgress, offset)
                 }
+            }
+            if (responseLength >= 0L && responseBytes != responseLength) {
+                throw IOException("Truncated response body: $responseBytes / $responseLength bytes")
             }
             if (isStopped || database.get(item.id)?.status == DownloadDatabase.STATUS_CANCELLED ||
                 database.get(item.id)?.status == DownloadManager.STATUS_PAUSED) {
@@ -221,6 +244,7 @@ internal class ResumableDownloadWorker(
                 total
             )
             partial.delete()
+            durableProgress.delete()
             database.finishPreparing(item.id)
             if (!database.complete(item.id, savedLocation, mime)) {
                 deleteSavedLocation(savedLocation)
@@ -229,6 +253,23 @@ internal class ResumableDownloadWorker(
             return Result.success()
         } finally {
             connection?.disconnect()
+        }
+    }
+
+    private fun readDurableOffset(file: File, fallback: Long, maximum: Long): Long {
+        val saved = runCatching { if (file.isFile) file.readText().trim().toLongOrNull() else null }.getOrNull()
+        return (saved ?: fallback).coerceIn(0L, maximum)
+    }
+
+    private fun writeDurableOffset(file: File, offset: Long) {
+        val temporary = File(file.parentFile, file.name + ".tmp")
+        FileOutputStream(temporary, false).use { output ->
+            output.write(offset.toString().toByteArray(Charsets.UTF_8))
+            output.fd.sync()
+        }
+        if (!temporary.renameTo(file)) {
+            temporary.delete()
+            throw IOException("Could not commit the download resume checkpoint")
         }
     }
 
