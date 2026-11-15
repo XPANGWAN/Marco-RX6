@@ -80,7 +80,7 @@ internal class DownloadDatabase private constructor(context: Context) :
         )
         val byUrl = readableDatabase.query(
             "downloads", null,
-            "url=? AND status IN (?,?,?,?)",
+            "url=? AND status IN (?,?,?,?,?)",
             arrayOf(url, *activeStatuses.map(Int::toString).toTypedArray()),
             null, null, "id DESC", "1"
         ).use { if (it.moveToFirst()) it.toRecord() else null }
@@ -88,7 +88,7 @@ internal class DownloadDatabase private constructor(context: Context) :
         if (sourcePostUrl.isBlank()) return null
         return readableDatabase.query(
             "downloads", null,
-            "source_post_url=? AND status IN (?,?,?,?)",
+            "source_post_url=? AND status IN (?,?,?,?,?)",
             arrayOf(sourcePostUrl, *activeStatuses.map(Int::toString).toTypedArray()),
             null, null, "id DESC", "1"
         ).use { if (it.moveToFirst()) it.toRecord() else null }
@@ -255,7 +255,9 @@ internal class DownloadDatabase private constructor(context: Context) :
             put("preparation_percent", percent.coerceIn(0, 100))
             if (total > 0L) put("total", total)
             put("etag", etag); put("last_modified", modified)
-        }, "id=?", arrayOf(id.toString()))
+        }, "id=? AND status IN (?,?)", arrayOf(
+            id.toString(), DownloadManager.STATUS_RUNNING.toString(), STATUS_PREPARING.toString()
+        ))
     }
 
     @Synchronized
@@ -263,7 +265,7 @@ internal class DownloadDatabase private constructor(context: Context) :
         writableDatabase.update("downloads", ContentValues().apply {
             put("status", DownloadManager.STATUS_RUNNING)
             put("preparation_percent", 0)
-        }, "id=?", arrayOf(id.toString()))
+        }, "id=? AND status=?", arrayOf(id.toString(), STATUS_PREPARING.toString()))
     }
 
     @Synchronized
