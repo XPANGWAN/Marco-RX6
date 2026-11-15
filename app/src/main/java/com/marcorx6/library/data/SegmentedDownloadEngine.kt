@@ -80,7 +80,9 @@ internal object SegmentedDownloadEngine {
             item.lastModified.isNotBlank() -> modified != item.lastModified
             else -> false
         }
-        if (sourceValidatorChanged ||
+        val previousVersionCannotBeVerified = item.totalBytes > 0L &&
+            item.etag.isBlank() && item.lastModified.isBlank()
+        if (sourceValidatorChanged || previousVersionCannotBeVerified ||
             (item.totalBytes > 0L && item.totalBytes != total)
         ) {
             clearSegments(directory, item.id)
