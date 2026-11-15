@@ -107,7 +107,7 @@ internal class ResumableDownloadWorker(
         val directUri = if (DownloadStoragePreferences(applicationContext).treeUri() == null &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         ) DownloadDestination.openDirectTarget(applicationContext, item.id, item.title, item.mimeType) else null
-        val directSize = directUri?.let {
+        var directSize = directUri?.let {
             runCatching { DownloadDestination.directTargetSize(applicationContext, it) }.getOrDefault(0L)
         } ?: 0L
         var offset = if (directUri != null) {
@@ -115,6 +115,10 @@ internal class ResumableDownloadWorker(
         } else if (partial.exists()) {
             readDurableOffset(durableProgress, item.downloadedBytes, partial.length())
         } else 0L
+        if (directUri != null && offset == 0L && directSize > 0L) {
+            DownloadDestination.truncateDirectTarget(applicationContext, directUri, 0L)
+            directSize = 0L
+        }
         // Discard bytes written after the last fsynced checkpoint. They will be
         // downloaded again rather than trusting data that was never committed.
         if (directUri == null && partial.exists() && partial.length() != offset) {
@@ -180,6 +184,10 @@ internal class ResumableDownloadWorker(
                 // The server ignored Range. Never append a full response to old bytes.
                 partial.delete()
                 durableProgress.delete()
+                if (directUri != null) {
+                    DownloadDestination.truncateDirectTarget(applicationContext, directUri, 0L)
+                    directSize = 0L
+                }
                 offset = 0L
             }
             val total = when {
