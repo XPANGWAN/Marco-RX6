@@ -82,7 +82,11 @@ internal class ResumableDownloadWorker(
     private fun download(item: StoredDownload, database: DownloadDatabase): Result {
         val directory = File(applicationContext.filesDir, "MARCO_RX6_downloads").apply { mkdirs() }
         val partial = File(directory, "${item.id}.part")
-        val segmented = SegmentedDownloadEngine.download(
+        val durableProgress = File(directory, "${item.id}.part.progress")
+        // A sequential checkpoint means the visible destination is already the
+        // resumable target; do not let the range probe discard it on retry.
+        val hasSequentialCheckpoint = durableProgress.isFile
+        val segmented = if (hasSequentialCheckpoint) false else SegmentedDownloadEngine.download(
             applicationContext,
             item,
             database,
@@ -103,7 +107,6 @@ internal class ResumableDownloadWorker(
             }
         )
         if (segmented) return Result.success()
-        val durableProgress = File(directory, "${item.id}.part.progress")
         val directUri = if (DownloadStoragePreferences(applicationContext).treeUri() == null &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         ) DownloadDestination.openDirectTarget(applicationContext, item.id, item.title, item.mimeType) else null
