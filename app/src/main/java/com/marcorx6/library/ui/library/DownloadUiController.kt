@@ -475,10 +475,9 @@ internal class DownloadUiController(
                 DownloadManager.STATUS_PENDING -> translate("في الانتظار")
                 com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED,
                 com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING,
-                com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING -> translate("جارٍ تجهيز الملف")
+                com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING,
+                com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING -> translate("جارٍ تجهيز الملف")
                 DownloadManager.STATUS_RUNNING -> translate("قيد التنزيل")
-                com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING,
-                com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING -> translate("جارٍ تجهيز الملف")
                 DownloadManager.STATUS_PAUSED -> translate("متوقف مؤقتاً")
                 DownloadManager.STATUS_SUCCESSFUL -> translate("اكتمل")
                 DownloadManager.STATUS_FAILED -> translate("فشل")
@@ -486,7 +485,9 @@ internal class DownloadUiController(
             }
             val percent = if ((item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
-                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING)) {
+                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
+                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING ||
+                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING)) {
                 item.preparationPercent.coerceIn(0, 100)
             } else if (item.totalBytes > 0L) {
                 (item.downloadedBytes * 100L / item.totalBytes).coerceIn(0L, 100L).toInt()
@@ -511,6 +512,7 @@ internal class DownloadUiController(
             val statusText = if (item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
+                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING ||
                 item.totalBytes > 0L) "$statusLabel  •  $percent%" else statusLabel
             if (views.status.text.toString() != statusText) views.status.text = statusText
             val statusColor = when (item.status) {
@@ -522,11 +524,14 @@ internal class DownloadUiController(
             val downloaded = android.text.format.Formatter.formatFileSize(activity, item.downloadedBytes.coerceAtLeast(0L))
             val details = if ((item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
-                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING)) {
+                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
+                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING ||
+                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING)) {
                 StringBuilder(translate("جارٍ حجز مساحة التخزين قبل بدء التنزيل"))
             } else StringBuilder(downloaded)
             if (item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING &&
-                item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING && item.totalBytes > 0L) {
+                item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING &&
+                item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING && item.totalBytes > 0L) {
                 details.append(" / ").append(android.text.format.Formatter.formatFileSize(activity, item.totalBytes))
             } else if (item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING) {
                 details.append(" / ").append(translate("الحجم غير معروف"))
@@ -587,6 +592,7 @@ internal class DownloadUiController(
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
+                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING ||
                 item.status == DownloadManager.STATUS_PENDING || item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED || item.status == DownloadManager.STATUS_PAUSED
             val progressVisibility = if (hasProgress) View.VISIBLE else View.GONE
             if (views.progress.visibility != progressVisibility) views.progress.visibility = progressVisibility
@@ -702,7 +708,8 @@ internal class DownloadUiController(
                     com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED -> translate("في الانتظار")
                     DownloadManager.STATUS_RUNNING -> translate("قيد التنزيل")
                     com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING,
-                    com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING -> translate("جارٍ تجهيز الملف")
+                    com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING,
+                    com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING -> translate("جارٍ تجهيز الملف")
                     DownloadManager.STATUS_PAUSED -> translate("متوقف مؤقتاً")
                     DownloadManager.STATUS_SUCCESSFUL -> translate("اكتمل")
                     DownloadManager.STATUS_FAILED -> translate("فشل")
@@ -741,6 +748,7 @@ internal class DownloadUiController(
             if (item.status == DownloadManager.STATUS_RUNNING || item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
+                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING ||
                 item.status == DownloadManager.STATUS_PENDING || item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED) {
                 addAction(smallAction(translate("إيقاف مؤقت")) {
                     if (downloadRepository.pauseDownload(item.id)) {
@@ -766,6 +774,7 @@ internal class DownloadUiController(
             if (item.status == DownloadManager.STATUS_RUNNING || item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
+                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING ||
                 item.status == DownloadManager.STATUS_PENDING ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED || item.status == DownloadManager.STATUS_PAUSED) {
                 addAction(smallAction(translate("إلغاء التنزيل")) {
@@ -889,6 +898,7 @@ internal class DownloadUiController(
                 it.status == DownloadManager.STATUS_RUNNING ||
                     it.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
                     it.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
+                    it.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING ||
                     it.status == DownloadManager.STATUS_PENDING ||
                     it.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED
             }) 250L else 5_000L
@@ -897,6 +907,7 @@ internal class DownloadUiController(
                 DownloadManager.STATUS_RUNNING,
                 com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING,
                 com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING,
+                com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING,
                 DownloadManager.STATUS_PAUSED,
                 com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED
             )
