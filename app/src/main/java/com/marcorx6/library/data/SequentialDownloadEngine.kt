@@ -124,14 +124,12 @@ internal object SequentialDownloadEngine {
                     }
                 }
                 if (offset > 0L && !append) {
-                    // The server ignored Range. Never append a full response to old bytes.
-                    partial.delete()
-                    durableProgress.delete()
-                    if (directUri != null) {
-                        DownloadDestination.truncateDirectTarget(context, directUri, 0L)
-                        directSize = 0L
-                    }
-                    offset = 0L
+                    // A server that ignores Range cannot safely resume this transfer.
+                    // Preserve the original file and checkpoint instead of silently
+                    // truncating it and downloading the entire payload again.
+                    throw IOException(
+                        "The server ignored the resume Range request. The existing file and its progress were preserved; a fresh source link or a server with byte-range support is required."
+                    )
                 }
                 val total = when {
                     append && rangeTotal != null -> rangeTotal
