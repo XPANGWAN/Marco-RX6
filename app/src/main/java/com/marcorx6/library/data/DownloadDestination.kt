@@ -148,8 +148,14 @@ internal object DownloadDestination {
                 ?: throw IOException("The selected folder does not allow writing to the destination")
             return target
         } catch (error: Exception) {
-            runCatching { DocumentsContract.deleteDocument(resolver, target) }
-            sidecar.delete()
+            // Clear the durable identity only after the provider confirms deletion.
+            // If deletion fails, retain the URI so the next attempt cannot create a
+            // second document with an automatically suffixed filename.
+            if (deleteTarget(context, target)) {
+                DownloadDatabase.get(context).clearDestinationUri(id)
+                sidecar.delete()
+                File(sidecar.parentFile, sidecar.name + ".tmp").delete()
+            }
             throw error
         }
     }
