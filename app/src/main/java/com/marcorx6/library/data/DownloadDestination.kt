@@ -95,10 +95,19 @@ internal object DownloadDestination {
         val resolver = context.applicationContext.contentResolver
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
         sidecar.parentFile?.mkdirs()
-        val previous = runCatching {
-            if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null
-        }.getOrNull()
-        if (previous != null && previous.scheme == "content") {
+        val previous = try {
+            if (sidecar.isFile) {
+                val saved = sidecar.readText().trim()
+                Uri.parse(saved).takeIf { saved.isNotBlank() }
+                    ?: throw IOException("The saved download destination checkpoint is empty")
+            } else null
+        } catch (error: Exception) {
+            throw IOException("The original download destination could not be recovered; no duplicate file was created", error)
+        }
+        if (previous != null) {
+            if (previous.scheme != "content") {
+                throw IOException("The original download destination is invalid; it was preserved for recovery")
+            }
             val belongsToSelectedTree = runCatching {
                 previous.authority == tree.authority &&
                     DocumentsContract.getDocumentId(previous).let { documentId ->
@@ -106,21 +115,19 @@ internal object DownloadDestination {
                         documentId == treeId || documentId.startsWith("$treeId/")
                     }
             }.getOrDefault(false)
-            if (belongsToSelectedTree) {
-                val reusable = runCatching {
-                    resolver.openFileDescriptor(previous, "rw")?.use { true } ?: false
-                }.getOrDefault(false)
-                if (!reusable) {
-                    // Never replace a known destination just because a provider
-                    // temporarily refuses an append-open. That creates a second
-                    // visible file and loses the user's resume target.
-                    throw IOException("The existing download file in the selected folder cannot be reopened; its original destination was preserved")
-                }
-                return previous
+            if (!belongsToSelectedTree) {
+                // A folder preference change must never silently move a paused
+                // download into a new document and leave the original behind.
+                throw IOException("This download belongs to its original folder. Restore that folder to resume the same file.")
             }
-            deleteTarget(context, previous)
+            val reusable = runCatching {
+                resolver.openFileDescriptor(previous, "rw")?.use { true } ?: false
+            }.getOrDefault(false)
+            if (!reusable) {
+                throw IOException("The existing download file in the selected folder cannot be reopened; its original destination was preserved")
+            }
+            return previous
         }
-        sidecar.delete()
         val parent = DocumentsContract.buildDocumentUriUsingTree(
             tree,
             DocumentsContract.getTreeDocumentId(tree)
