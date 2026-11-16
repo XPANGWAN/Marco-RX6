@@ -131,7 +131,7 @@ internal object DownloadDestination {
             displayName
         ) ?: throw IOException("Could not create the download in the selected folder")
         try {
-            sidecar.writeText(target.toString())
+            persistDestinationUri(context, id, target)
             resolver.openOutputStream(target, "wt")?.close()
                 ?: throw IOException("The selected folder does not allow writing to the destination")
             return target
@@ -198,7 +198,7 @@ internal object DownloadDestination {
         return try {
             // Persist the URI before opening the descriptor so a process death
             // cannot leave an untracked MediaStore row behind.
-            sidecar.writeText(uri.toString())
+            persistDestinationUri(context, id, uri)
             resolver.openFileDescriptor(uri, "rw")?.close()
                 ?: throw IOException("Could not open the destination file for random access")
             publishAndVerify(context, uri, displayName, mimeType)
@@ -299,7 +299,7 @@ internal object DownloadDestination {
             runCatching { DocumentsContract.renameDocument(resolver, uri, displayName) }
                 .getOrNull() ?: uri
         }
-        File(context.filesDir, "MARCO_RX6_downloads/$id.destination").writeText(renamed.toString())
+        persistDestinationUri(context, id, renamed)
         return renamed
     }
 
@@ -455,6 +455,25 @@ internal object DownloadDestination {
     }
 
     fun openDirectWriter(context: Context, uri: Uri): DirectWriter = DirectWriter(context, uri)
+
+    /**
+     * Persist the destination URI with a same-directory atomic rename. A process
+     * death must not leave a half-written checkpoint that causes resume to create
+     * another visible MediaStore/SAF file.
+     */
+    private fun persistDestinationUri(context: Context, id: Long, uri: Uri) {
+        val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
+        sidecar.parentFile?.mkdirs()
+        val temporary = File(sidecar.parentFile, sidecar.name + ".tmp")
+        java.io.FileOutputStream(temporary, false).use { output ->
+            output.write(uri.toString().toByteArray(Charsets.UTF_8))
+            output.fd.sync()
+        }
+        if (!temporary.renameTo(sidecar)) {
+            temporary.delete()
+            throw IOException("Could not commit the download destination checkpoint")
+        }
+    }
 
     private fun deleteTarget(context: Context, uri: Uri) {
         runCatching {
