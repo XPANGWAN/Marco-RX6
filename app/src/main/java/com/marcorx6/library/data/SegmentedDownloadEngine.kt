@@ -53,6 +53,12 @@ internal object SegmentedDownloadEngine {
         try {
             val code = probe.responseCode
             if (!probe.url.protocol.equals("https", true)) throw SecurityException("Download redirect did not use HTTPS")
+            val probeMime = probe.contentType?.substringBefore(';')?.trim().orEmpty()
+            if (probeMime.equals("text/html", true) || probeMime.equals("application/xhtml+xml", true)) {
+                discardSegmentedArtifactsIfPresent(context, directory, target, item, database)
+                clearSegments(directory, item.id)
+                return false
+            }
             val contentRange = probe.getHeaderField("Content-Range").orEmpty()
             val parsedTotal = Regex("""bytes 0-0/(\d+)""").find(contentRange)
                 ?.groupValues?.getOrNull(1)?.toLongOrNull()
@@ -325,6 +331,12 @@ internal object SegmentedDownloadEngine {
             if (code == 408 || code == 429 || code in 500..599) throw IOException("Temporary server error: HTTP $code")
             if (code != HttpURLConnection.HTTP_PARTIAL) {
                 throw IOException("Server stopped supporting byte ranges (HTTP $code)")
+            }
+            val responseMime = connection.contentType?.substringBefore(';')?.trim().orEmpty()
+            if (responseMime.equals("text/html", true) ||
+                responseMime.equals("application/xhtml+xml", true)
+            ) {
+                throw IOException("Server returned a web page instead of a file segment")
             }
             val returnedRange = connection.getHeaderField("Content-Range").orEmpty()
             val returnedStart = Regex("""bytes (\d+)-(\d+)/(\d+)""").find(returnedRange)
