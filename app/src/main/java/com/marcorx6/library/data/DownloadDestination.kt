@@ -348,7 +348,7 @@ internal object DownloadDestination {
                     try {
                         android.system.Os.posix_fallocate(pfd.fileDescriptor, start, length)
                         prepared += (start + length - maxOf(start, preserveBytes.coerceIn(0L, total))).coerceAtLeast(0L)
-                        onPreparing((prepared.toDouble() * 100.0 / total).toInt().coerceIn(1, 100))
+                        onPreparing((prepared.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
                         continue
                     } catch (error: android.system.ErrnoException) {
                         val unsupported = error.errno == android.system.OsConstants.EOPNOTSUPP ||
