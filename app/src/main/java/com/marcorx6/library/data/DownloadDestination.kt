@@ -509,7 +509,14 @@ internal object DownloadDestination {
     fun delete(context: Context, location: String) {
         if (location.isBlank()) return
         if (location.startsWith("content://")) {
-            runCatching { context.contentResolver.delete(Uri.parse(location), null, null) }
+            val uri = Uri.parse(location)
+            runCatching {
+                if (uri.authority == MediaStore.AUTHORITY) {
+                    context.contentResolver.delete(uri, null, null)
+                } else {
+                    DocumentsContract.deleteDocument(context.contentResolver, uri)
+                }
+            }
         } else {
             runCatching { File(location).delete() }
         }
