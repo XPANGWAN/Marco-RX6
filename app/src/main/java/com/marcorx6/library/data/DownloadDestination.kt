@@ -319,7 +319,14 @@ internal object DownloadDestination {
         val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
             ?: throw IOException("Could not open the visible download file")
         descriptor.use { pfd ->
+            // Set the final visible length before reserving blocks. This makes the
+            // complete file size visible in Download/MARCO RX6 during Preparing,
+            // rather than letting the directory entry grow with incoming bytes.
             android.system.Os.ftruncate(pfd.fileDescriptor, total)
+            val initialSize = android.system.Os.fstat(pfd.fileDescriptor).st_size
+            if (initialSize != total) {
+                throw IOException("Could not establish the final download file size: $initialSize / $total")
+            }
             val zeroes = ByteArray(1024 * 1024)
             var prepared = preserveBytes.coerceIn(0L, total)
             var fallocateSupported = true
@@ -362,6 +369,13 @@ internal object DownloadDestination {
                 if (zeroStart < start + length) zeroRange(zeroStart, start + length - zeroStart)
             }
             android.system.Os.fsync(pfd.fileDescriptor)
+            // Do not start network transfer unless the provider still exposes the
+            // exact reserved length after fallocate/zero-fill and fsync.
+            val preparedSize = android.system.Os.fstat(pfd.fileDescriptor).st_size
+            if (preparedSize != total) {
+                throw IOException("Preallocated download size verification failed: $preparedSize / $total")
+            }
+            onPreparing(100)
         }
     }
 
