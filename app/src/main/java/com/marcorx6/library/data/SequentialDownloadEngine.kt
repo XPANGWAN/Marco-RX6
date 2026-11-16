@@ -3,6 +3,7 @@ package com.marcorx6.library.data
 import android.app.DownloadManager
 import android.content.Context
 import android.os.Build
+import android.webkit.CookieManager
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -69,12 +70,22 @@ internal object SequentialDownloadEngine {
             val speedLimiter = DownloadSpeedLimiter(DownloadConcurrencyPreferences(context).speedLimitBytesPerSecond())
             var connection: HttpURLConnection? = null
             try {
-                connection = com.marcorx6.library.network.RedirectingHttpConnection.open(item.url) { request, currentUrl, isInitial ->
+                connection = com.marcorx6.library.network.RedirectingHttpConnection.open(
+                    item.url,
+                    onResponse = { response, responseUrl ->
+                        response.getHeaderFields().entries
+                            .filter { it.key.equals("Set-Cookie", ignoreCase = true) }
+                            .flatMap { it.value.orEmpty() }
+                            .forEach { CookieManager.getInstance().setCookie(responseUrl.toString(), it) }
+                    }
+                ) { request, currentUrl, isInitial ->
                     request.requestMethod = "GET"
                     request.setRequestProperty("Accept", "*/*")
                     request.setRequestProperty("Accept-Encoding", "identity")
                     if (item.userAgent.isNotBlank()) request.setRequestProperty("User-Agent", item.userAgent)
-                    if (isInitial && item.cookie.isNotBlank()) request.setRequestProperty("Cookie", item.cookie)
+                    val cookies = if (isInitial && item.cookie.isNotBlank()) item.cookie
+                        else CookieManager.getInstance().getCookie(currentUrl.toString()).orEmpty()
+                    if (cookies.isNotBlank()) request.setRequestProperty("Cookie", cookies)
                     if (isInitial && item.referrer.isNotBlank()) request.setRequestProperty("Referer", item.referrer)
                     if (offset > 0L) {
                         request.setRequestProperty("Range", "bytes=$offset-")
