@@ -23,11 +23,12 @@ internal data class StoredDownload(
     val error: String,
     val sourcePostUrl: String,
     val priority: Int,
-    val preparationPercent: Int
+    val preparationPercent: Int,
+    val destinationUri: String
 )
 
 internal class DownloadDatabase private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "marco_downloads.db", null, 4) {
+    SQLiteOpenHelper(context.applicationContext, "marco_downloads.db", null, 5) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -48,7 +49,8 @@ internal class DownloadDatabase private constructor(context: Context) :
                 error TEXT NOT NULL DEFAULT '',
                 source_post_url TEXT NOT NULL DEFAULT '',
                 priority INTEGER NOT NULL DEFAULT 0,
-                preparation_percent INTEGER NOT NULL DEFAULT 0
+                preparation_percent INTEGER NOT NULL DEFAULT 0,
+                destination_uri TEXT NOT NULL DEFAULT ''
             )"""
         )
     }
@@ -57,6 +59,7 @@ internal class DownloadDatabase private constructor(context: Context) :
         if (oldVersion < 2) db.execSQL("ALTER TABLE downloads ADD COLUMN source_post_url TEXT NOT NULL DEFAULT ''")
         if (oldVersion < 3) db.execSQL("ALTER TABLE downloads ADD COLUMN priority INTEGER NOT NULL DEFAULT 0")
         if (oldVersion < 4) db.execSQL("ALTER TABLE downloads ADD COLUMN preparation_percent INTEGER NOT NULL DEFAULT 0")
+        if (oldVersion < 5) db.execSQL("ALTER TABLE downloads ADD COLUMN destination_uri TEXT NOT NULL DEFAULT ''")
     }
 
     @Synchronized
@@ -307,6 +310,23 @@ internal class DownloadDatabase private constructor(context: Context) :
     fun deleteCompleted(): Int = writableDatabase.delete("downloads", "status=?", arrayOf(DownloadManager.STATUS_SUCCESSFUL.toString()))
 
     @Synchronized
+    fun setDestinationUri(id: Long, uri: String) {
+        writableDatabase.update("downloads", ContentValues().apply { put("destination_uri", uri) }, "id=?", arrayOf(id.toString()))
+    }
+
+    @Synchronized
+    fun destinationUri(id: Long): String? = readableDatabase.query(
+        "downloads", arrayOf("destination_uri"), "id=?", arrayOf(id.toString()), null, null, null
+    ).use { cursor ->
+        if (cursor.moveToFirst()) cursor.getString(0)?.takeIf { it.isNotBlank() } else null
+    }
+
+    @Synchronized
+    fun clearDestinationUri(id: Long) {
+        writableDatabase.update("downloads", ContentValues().apply { put("destination_uri", "") }, "id=?", arrayOf(id.toString()))
+    }
+
+    @Synchronized
     fun renameTitle(id: Long, title: String) {
         writableDatabase.update("downloads", ContentValues().apply { put("title", title) }, "id=?", arrayOf(id.toString()))
     }
@@ -377,7 +397,8 @@ internal class DownloadDatabase private constructor(context: Context) :
         error = getString(getColumnIndexOrThrow("error")),
         sourcePostUrl = getString(getColumnIndexOrThrow("source_post_url")),
         priority = getInt(getColumnIndexOrThrow("priority")),
-        preparationPercent = getInt(getColumnIndexOrThrow("preparation_percent"))
+        preparationPercent = getInt(getColumnIndexOrThrow("preparation_percent")),
+        destinationUri = getString(getColumnIndexOrThrow("destination_uri"))
     )
 
     companion object {
