@@ -59,9 +59,12 @@ internal object SegmentedDownloadEngine {
                 clearSegments(directory, item.id)
                 return false
             }
-            val contentRange = probe.getHeaderField("Content-Range").orEmpty()
-            val parsedTotal = Regex("""bytes 0-0/(\d+)""").find(contentRange)
-                ?.groupValues?.getOrNull(1)?.toLongOrNull()
+            val contentRange = DownloadTransferProtocol.parseContentRange(
+                probe.getHeaderField("Content-Range").orEmpty()
+            )
+            val parsedTotal = contentRange?.takeIf {
+                it.start == 0L && it.endInclusive == 0L
+            }?.total
             if (code != HttpURLConnection.HTTP_PARTIAL || parsedTotal == null || parsedTotal < MIN_FILE_SIZE) {
                 discardSegmentedArtifactsIfPresent(context, directory, target, item, database)
                 clearSegments(directory, item.id)
@@ -360,28 +363,31 @@ internal object SegmentedDownloadEngine {
             ) {
                 throw IOException("Server returned a web page instead of a file segment")
             }
-            val returnedRange = connection.getHeaderField("Content-Range").orEmpty()
-            val returnedStart = Regex("""bytes (\d+)-(\d+)/(\d+)""").find(returnedRange)
-            val actualStart = returnedStart?.groupValues?.getOrNull(1)?.toLongOrNull()
-            val actualEnd = returnedStart?.groupValues?.getOrNull(2)?.toLongOrNull()
-            val actualTotal = returnedStart?.groupValues?.getOrNull(3)?.toLongOrNull()
-            if (actualStart != rangeStart + offset || actualEnd != rangeEnd || actualTotal != total) {
-                throw IOException("Server returned an invalid byte range")
-            }
+            val returnedRange = DownloadTransferProtocol.parseContentRange(
+                connection.getHeaderField("Content-Range").orEmpty()
+            )
             val responseEtag = connection.getHeaderField("ETag").orEmpty()
             val responseModified = connection.getHeaderField("Last-Modified").orEmpty()
-            if ((expectedEtag.isNotBlank() && responseEtag != expectedEtag) ||
-                (expectedEtag.isBlank() && expectedModified.isNotBlank() && responseModified != expectedModified)
+            val responseLength = connection.getHeaderFieldLong("Content-Length", -1L)
+            val expectedStart = rangeStart + offset
+            if (returnedRange == null || returnedRange.endInclusive != rangeEnd ||
+                returnedRange.total != total ||
+                !DownloadTransferProtocol.canAppend(
+                    requestedOffset = expectedStart,
+                    responseStatus = code,
+                    range = returnedRange,
+                    contentLength = responseLength,
+                    expectedEtag = expectedEtag,
+                    responseEtag = responseEtag,
+                    expectedLastModified = expectedModified,
+                    responseLastModified = responseModified
+                )
             ) {
-                throw IOException("File changed during segmented download; retry with a fresh source")
+                throw IOException("Server returned an invalid or unverifiable byte range")
             }
             val expectedBytes = segmentLength - offset
             val segmentResumeOffset = offset
             val integrityVerifier = DownloadIntegrityVerifier.from(connection)
-            val responseLength = connection.getHeaderFieldLong("Content-Length", -1L)
-            if (responseLength >= 0L && responseLength != expectedBytes) {
-                throw IOException("Server returned an unexpected segment length: $responseLength / $expectedBytes")
-            }
             var receivedBytes = 0L
             connection.inputStream.use { input ->
                 val buffer = ByteArray(BUFFER_SIZE)
