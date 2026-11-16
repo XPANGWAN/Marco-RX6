@@ -272,12 +272,18 @@ internal object SegmentedDownloadEngine {
         val hasSegmentSidecars = (0 until SEGMENT_COUNT).any { index ->
             File(directory, "${item.id}.seg$index.progress").isFile
         }
-        val hasDirectTarget = File(directory, "${item.id}.destination").isFile
         val hasPreallocatedPrivateTarget = target.isFile &&
             item.totalBytes > 0L &&
             target.length() == item.totalBytes &&
             item.downloadedBytes < item.totalBytes
-        if (!hasSegmentSidecars && !hasDirectTarget && !hasPreallocatedPrivateTarget) return
+        // A visible MediaStore target is now created by DownloadRepository before
+        // this HTTP capability probe. Its sidecar alone does not mean that old
+        // segmented data exists: deleting it here would make the file disappear
+        // whenever the server declines byte ranges and we switch to sequential mode.
+        val hasReusableDownloadData = hasSegmentSidecars ||
+            hasPreallocatedPrivateTarget ||
+            item.downloadedBytes > 0L
+        if (!hasReusableDownloadData) return
 
         clearSegments(directory, item.id)
         target.delete()
