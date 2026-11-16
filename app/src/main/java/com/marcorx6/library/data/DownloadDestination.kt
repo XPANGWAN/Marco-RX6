@@ -216,10 +216,10 @@ internal object DownloadDestination {
             }
         }
 
-        // Recover the original MediaStore row if its small private URI checkpoint
-        // was lost or became stale. Each row receives an app-owned marker, so this
-        // lookup cannot accidentally adopt another download with the same filename.
-        val recovered = findRecoverableDirectTarget(context, id, displayName)
+        // Legacy recovery when an older app version has no SQLite URI checkpoint:
+        // adopt only one exact-name match in the app's download folder. If the name
+        // is ambiguous, fail closed rather than guessing or creating a "(1)" copy.
+        val recovered = findRecoverableDirectTarget(context, displayName)
         if (recovered != null) {
             persistDestinationUri(context, id, recovered)
             publishAndVerify(context, id, recovered, displayName, mimeType)
@@ -250,7 +250,7 @@ internal object DownloadDestination {
     }
 
     @SuppressLint("NewApi")
-    private fun findRecoverableDirectTarget(context: Context, id: Long, displayName: String): Uri? {
+    private fun findRecoverableDirectTarget(context: Context, displayName: String): Uri? {
         val resolver = context.applicationContext.contentResolver
         val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         val relativePath = "${Environment.DIRECTORY_DOWNLOADS}/$DEFAULT_FOLDER/"
