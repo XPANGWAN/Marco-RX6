@@ -182,6 +182,38 @@ internal class DownloadDatabase private constructor(context: Context) :
         }, "id=?", arrayOf(id.toString()))
     }
 
+    /**
+     * Updates the probed source metadata without changing the queue state.
+     * This lets a download remain INITIALIZING (or PAUSED if the user paused it)
+     * while the network probe resolves redirects and the final filename.
+     */
+    @Synchronized
+    fun updateSourceDetails(
+        id: Long,
+        url: String,
+        title: String,
+        userAgent: String,
+        cookie: String,
+        referrer: String,
+        mime: String
+    ) {
+        writableDatabase.update("downloads", ContentValues().apply {
+            put("url", url)
+            put("title", title)
+            put("user_agent", userAgent)
+            put("cookie", cookie)
+            put("referrer", referrer)
+            put("mime_type", mime)
+            put("error", "")
+            put("downloaded", 0L)
+            put("total", -1L)
+            put("etag", "")
+            put("last_modified", "")
+            put("local_path", "")
+            put("preparation_percent", 0)
+        }, "id=?", arrayOf(id.toString()))
+    }
+
     @Synchronized
     fun get(id: Long): StoredDownload? =
         readableDatabase.query("downloads", null, "id=?", arrayOf(id.toString()), null, null, null)
