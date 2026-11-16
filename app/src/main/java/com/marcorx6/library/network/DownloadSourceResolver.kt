@@ -104,7 +104,7 @@ internal object DownloadSourceResolver {
         .replace("&quot;", "\"")
 
     private fun stripTags(value: String): String =
-        value.replace(Regex("<[^>]*>"), " ").replace(Regex("\s+"), " ").trim()
+        value.replace(Regex("<[^>]*>"), " ").replace(Regex("\\s+"), " ").trim()
 
     private fun queryParameter(query: String, name: String): String? =
         query.split('&').firstNotNullOfOrNull { part ->
