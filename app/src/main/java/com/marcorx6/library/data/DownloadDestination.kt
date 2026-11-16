@@ -357,7 +357,8 @@ internal object DownloadDestination {
         private val descriptor: android.os.ParcelFileDescriptor,
         offset: Long
     ) : java.io.OutputStream() {
-        private val stream = java.io.FileOutputStream(descriptor.fileDescriptor)
+        // AutoCloseOutputStream owns the ParcelFileDescriptor and closes it exactly once.
+        private val stream = android.os.ParcelFileDescriptor.AutoCloseOutputStream(descriptor)
 
         init {
             try {
@@ -367,7 +368,7 @@ internal object DownloadDestination {
                     android.system.OsConstants.SEEK_SET
                 )
             } catch (error: Exception) {
-                runCatching { stream.close() }
+                // The factory closes the descriptor if construction fails.
                 throw IOException("The selected folder cannot safely resume at byte $offset; the original file was preserved", error)
             }
         }
@@ -379,20 +380,7 @@ internal object DownloadDestination {
             stream.flush()
             android.system.Os.fsync(descriptor.fileDescriptor)
         }
-        override fun close() {
-            var failure: IOException? = null
-            try {
-                stream.close()
-            } catch (error: IOException) {
-                failure = error
-            }
-            try {
-                descriptor.close()
-            } catch (error: IOException) {
-                if (failure == null) failure = error else failure.addSuppressed(error)
-            }
-            failure?.let { throw it }
-        }
+        override fun close() = stream.close()
     }
 
     fun openSequentialTargetWriter(context: Context, uri: Uri, offset: Long): SeekableTargetWriter {
