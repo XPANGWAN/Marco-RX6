@@ -45,9 +45,15 @@ internal class ResumableDownloadWorker(
                 Result.success()
             } else {
                 setForeground(createForegroundInfo(item.title, id))
-                // Enter the preparation state before either download-engine probe.
-                // This makes the phase observable while the server is inspected and
-                // storage is reserved, rather than switching straight to RUNNING.
+                // Ensure legacy and newly queued jobs both have a published final
+                // MediaStore row before any network capability probe starts.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                    DownloadStoragePreferences(applicationContext).treeUri() == null
+                ) {
+                    val visibleName = DownloadFileNames.safeName(item.title, item.mimeType, item.id)
+                    DownloadDestination.openDirectTarget(applicationContext, id, visibleName, item.mimeType)
+                }
+                // Enter preparation only after the visible destination exists.
                 database.preparing(id, 0, item.totalBytes, item.etag, item.lastModified)
                 updatePreparingNotification(item.title, id, 0)
                 download(item, database)
@@ -111,11 +117,10 @@ internal class ResumableDownloadWorker(
             }
         )
         if (segmented) return Result.success()
-        // Build verification checkpoint for the visible sequential-download path.
-        // If MediaStore cannot create or reopen the visible destination, keep the
-        // sequential engine usable through its existing private-file fallback.
-        // The default Android 10+ destination is the visible MediaStore file.
-        // Surface failures instead of silently switching to an invisible private copy.
+        // The default Android 10+ destination is always the visible MediaStore
+        // file. SAF-selected folders and pre-Android-10 devices retain the private
+        // staging path because their providers do not guarantee positional writes.
+        // Never hide a default-folder failure by switching to app-private storage.
         val directUri = if (DownloadStoragePreferences(applicationContext).treeUri() == null &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         ) {
