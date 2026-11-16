@@ -160,11 +160,20 @@ internal object DownloadDestination {
         val resolver = context.applicationContext.contentResolver
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
         sidecar.parentFile?.mkdirs()
-        val previous = runCatching {
-            if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null
-        }.getOrNull()
+        val previous = try {
+            if (!sidecar.isFile) null else {
+                val saved = sidecar.readText().trim()
+                val parsed = Uri.parse(saved)
+                if (saved.isBlank() || parsed.scheme != "content") {
+                    throw IOException("The saved download destination checkpoint is invalid; refusing to create a duplicate file")
+                }
+                parsed
+            }
+        } catch (error: Exception) {
+            throw IOException("The original download destination could not be recovered; refusing to create another file", error)
+        }
 
-        if (previous != null && previous.scheme == "content") {
+        if (previous != null) {
             if (previous.authority != MediaStore.AUTHORITY) {
                 // The user changed storage destinations while this item was paused.
                 // Never delete the old document or silently create a second copy.
@@ -241,7 +250,12 @@ internal object DownloadDestination {
             )?.use { cursor ->
                 if (!cursor.moveToFirst()) return@use null
                 val rowId = cursor.getLong(0)
-                if (cursor.moveToNext()) return@use null
+                if (cursor.moveToNext()) {
+                    throw IOException(
+                        "More than one file has this download name in Download/$DEFAULT_FOLDER. " +
+                            "The original cannot be identified safely; no additional '(1)' file was created."
+                    )
+                }
                 ContentUris.withAppendedId(collection, rowId)
             }
         }
