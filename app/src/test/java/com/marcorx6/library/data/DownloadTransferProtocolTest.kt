@@ -24,6 +24,25 @@ class DownloadTransferProtocolTest {
         assertTrue(DownloadTransferProtocol.canAppend(500, 206, range, 500, "\"v1\"", "\"v1\"", "", ""))
         assertFalse(DownloadTransferProtocol.canAppend(500, 206, range, 500, "\"v1\"", "\"v2\"", "", ""))
     }
+    @Test fun rejectsWeakEtagForByteAccurateResume() {
+        val range = DownloadTransferProtocol.parseContentRange("bytes 100-199/200")
+        assertFalse(
+            DownloadTransferProtocol.canAppend(
+                100, 206, range, 100, "W/\"v1\"", "W/\"v1\"", "", ""
+            )
+        )
+    }
+
+    @Test fun fallsBackToLastModifiedWhenOnlyWeakEtagIsAvailable() {
+        val range = DownloadTransferProtocol.parseContentRange("bytes 100-199/200")
+        assertTrue(
+            DownloadTransferProtocol.canAppend(
+                100, 206, range, 100, "W/\"v1\"", "W/\"v2\"", "Mon, 01 Jan 2024 00:00:00 GMT",
+                "Mon, 01 Jan 2024 00:00:00 GMT"
+            )
+        )
+    }
+
     @Test fun rejectsIgnoredRangeAndWrongOffset() {
         val range = DownloadTransferProtocol.parseContentRange("bytes 0-499/1000")
         assertFalse(DownloadTransferProtocol.canAppend(500, 200, range, 500, "\"v1\"", "\"v1\"", "", ""))
