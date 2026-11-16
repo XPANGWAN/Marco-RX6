@@ -34,6 +34,7 @@ internal object SegmentedDownloadEngine {
         context: Context,
         item: StoredDownload,
         database: DownloadDatabase,
+        destinationUri: Uri?,
         isStopped: () -> Boolean,
         onProgress: (Long, Long) -> Unit,
         onPreparing: (Int) -> Unit
@@ -119,11 +120,7 @@ internal object SegmentedDownloadEngine {
         }
         // On Android 10+, the default destination must be the visible MediaStore
         // file. Do not silently fall back to a private .part file if creation fails.
-        val directUri: Uri? = if (DownloadStoragePreferences(context).treeUri() == null &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-        ) {
-            DownloadDestination.openDirectTarget(context, item.id, safeName, mime)
-        } else null
+        val directUri: Uri? = destinationUri?.takeIf { DownloadDestination.isMediaStoreTarget(it) }
 
         var existingTargetIsReusable = if (directUri != null) {
             runCatching { DownloadDestination.directTargetSize(context, directUri!!) == total }.getOrDefault(false) &&

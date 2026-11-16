@@ -49,12 +49,12 @@ internal class ResumableDownloadWorker(
                 // Ensure legacy and newly queued jobs both have a published final
                 // MediaStore row before any network capability probe starts.
                 val selectedTree = DownloadStoragePreferences(applicationContext).treeUri()
-                if (selectedTree != null || Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val destinationUri = if (selectedTree != null || Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     val visibleName = DownloadFileNames.safeName(item.title, item.mimeType, item.id)
                     DownloadDestination.openTarget(
                         applicationContext, id, selectedTree, visibleName, item.mimeType
                     )
-                }
+                } else null
                 // Enter preparation only after the visible destination exists.
                 database.preparing(id, item.preparationPercent, item.totalBytes, item.etag, item.lastModified)
                 updatePreparingNotification(item.title, id, item.preparationPercent.coerceIn(0, 100))
@@ -62,6 +62,7 @@ internal class ResumableDownloadWorker(
                     context = applicationContext,
                     item = item,
                     database = database,
+                    destinationUri = destinationUri,
                     isStopped = {
                         isStopped ||
                             database.get(id)?.status == DownloadManager.STATUS_PAUSED ||
@@ -84,6 +85,7 @@ internal class ResumableDownloadWorker(
                         context = applicationContext,
                         item = item,
                         database = database,
+                        destinationUri = destinationUri,
                         shouldStop = {
                             isStopped ||
                                 database.get(id)?.status == DownloadManager.STATUS_PAUSED ||

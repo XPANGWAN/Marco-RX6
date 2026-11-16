@@ -13,7 +13,7 @@ import java.net.URL
 
 /** Sequential transfer engine with durable checkpoints and an explicit destination writer. */
 internal object SequentialDownloadEngine {
-        fun download(context: Context, item: StoredDownload, database: DownloadDatabase, shouldStop: () -> Boolean, onProgress: (Long, Long) -> Unit, onPreparing: (Int) -> Unit) {
+        fun download(context: Context, item: StoredDownload, database: DownloadDatabase, destinationUri: android.net.Uri?, shouldStop: () -> Boolean, onProgress: (Long, Long) -> Unit, onPreparing: (Int) -> Unit) {
             val directory = File(context.filesDir, "MARCO_RX6_downloads").apply { mkdirs() }
             val partial = File(directory, "${item.id}.part")
             val durableProgress = File(directory, "${item.id}.part.progress")
@@ -21,12 +21,7 @@ internal object SequentialDownloadEngine {
             // Write directly to the final destination: MediaStore by default, or the
             // user's selected SAF folder. Only pre-Android-10 without SAF needs staging.
             val selectedTree = DownloadStoragePreferences(context).treeUri()
-            var directUri = if (selectedTree != null || Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                DownloadDestination.openTarget(
-                    context, item.id, selectedTree,
-                    DownloadFileNames.safeName(item.title, item.mimeType, item.id), item.mimeType
-                )
-            } else null
+            var directUri = destinationUri
             var directSize = 0L
             if (directUri != null) {
                 directSize = try {
