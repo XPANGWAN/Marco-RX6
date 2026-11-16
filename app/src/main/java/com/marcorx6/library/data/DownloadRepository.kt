@@ -85,7 +85,7 @@ internal class DownloadRepository(context: Context) {
                     if (duplicate != null) {
                         EnqueueReservation(duplicate = duplicate)
                     } else {
-                        val previous = database.findFailedBySource(sourcePostUrl)
+                        val previous = database.findFailedBySource(sourcePostUrl, secureLink)
                         val id = previous?.id ?: database.nextId()
                         reservedId = id
                         if (previous == null) {
@@ -153,7 +153,7 @@ internal class DownloadRepository(context: Context) {
                                 throw InterruptedException("Download was cancelled before the source was ready")
                             }
                             database.updateSourceDetails(
-                                id, probe.finalUrl, finalTitle, userAgent, cookie, referrer, probe.mimeType
+                                id, secureLink, probe.finalUrl, finalTitle, userAgent, cookie, referrer, probe.mimeType
                             )
                             // Rename the already-published row rather than creating a
                             // second file when the server supplies its final filename.

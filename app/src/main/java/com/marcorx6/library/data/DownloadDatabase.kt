@@ -172,9 +172,19 @@ internal class DownloadDatabase private constructor(context: Context) :
     }
 
     @Synchronized
-    fun findFailedBySource(sourcePostUrl: String): StoredDownload? {
-        if (sourcePostUrl.isBlank()) return null
-        return readableDatabase.query("downloads", null, "source_post_url=? AND status=?", arrayOf(sourcePostUrl, DownloadManager.STATUS_FAILED.toString()), null, null, "id DESC", "1")
+    fun findFailedBySource(sourcePostUrl: String, sourceUrl: String = ""): StoredDownload? {
+        if (sourcePostUrl.isBlank() && sourceUrl.isBlank()) return null
+        val selection = if (sourcePostUrl.isNotBlank()) {
+            "source_post_url=? AND status=?"
+        } else {
+            "(source_url=? OR url=?) AND status=?"
+        }
+        val args = if (sourcePostUrl.isNotBlank()) {
+            arrayOf(sourcePostUrl, DownloadManager.STATUS_FAILED.toString())
+        } else {
+            arrayOf(sourceUrl, sourceUrl, DownloadManager.STATUS_FAILED.toString())
+        }
+        return readableDatabase.query("downloads", null, selection, args, null, null, "id DESC", "1")
             .use { if (it.moveToFirst()) it.toRecord() else null }
     }
 
@@ -186,6 +196,7 @@ internal class DownloadDatabase private constructor(context: Context) :
     @Synchronized
     fun updateSourceDetails(
         id: Long,
+        sourceUrl: String,
         url: String,
         title: String,
         userAgent: String,
@@ -194,6 +205,7 @@ internal class DownloadDatabase private constructor(context: Context) :
         mime: String
     ) {
         writableDatabase.update("downloads", ContentValues().apply {
+            put("source_url", sourceUrl)
             put("url", url)
             put("title", title)
             put("user_agent", userAgent)
