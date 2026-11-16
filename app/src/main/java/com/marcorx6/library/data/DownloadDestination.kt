@@ -129,6 +129,7 @@ internal object DownloadDestination {
             if (!reusable) {
                 throw IOException("The existing download file in the selected folder cannot be reopened; its original destination was preserved")
             }
+            persistDestinationUri(context, id, previous)
             return previous
         }
         val parent = DocumentsContract.buildDocumentUriUsingTree(
@@ -197,6 +198,7 @@ internal object DownloadDestination {
                     throw IOException("The existing download file is present but cannot be reopened; its destination was preserved")
                 }
                 try {
+                    persistDestinationUri(context, id, previous)
                     publishAndVerify(context, id, previous, displayName, mimeType)
                     return previous
                 } catch (error: Exception) {
@@ -621,9 +623,10 @@ internal object DownloadDestination {
      */
     fun resetDirectTarget(context: Context, id: Long) {
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
-        val uri = runCatching {
-            if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null
-        }.getOrNull() ?: return
+        val uri = DownloadDatabase.get(context).destinationUri(id)?.let(Uri::parse)
+            ?: runCatching {
+                if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null
+            }.getOrNull() ?: return
         truncateDirectTarget(context, uri, 0L)
     }
 
