@@ -74,7 +74,7 @@ internal class DownloadRepository(context: Context) {
             var reservedId = -1L
             val result = try {
                 val secureLink = SecureUrlPolicy.toHttpsUrl(link)
-                    ?.let(com.marcorx6.library.network.DownloadSourceResolver::normalizeKnownProviderUrl)
+                    ?.let { com.marcorx6.library.network.DownloadSourceResolver.normalizeKnownProviderUrl(it) }
                     ?: throw SecurityException("رابط التنزيل غير آمن أو غير صالح؛ يجب استخدام HTTPS")
 
                 // Reserve the queue row and publish its destination BEFORE any HTTP
