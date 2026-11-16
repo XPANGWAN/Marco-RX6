@@ -4,6 +4,7 @@ import android.graphics.BitmapFactory
 import org.json.JSONObject
 import java.io.BufferedOutputStream
 import java.io.File
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
@@ -138,7 +139,17 @@ internal class GoogleDriveClient : DriveCoverUploader {
             } finally {
                 connection.disconnect()
             }
-            if (attempt < 2) Thread.sleep(900L * (attempt + 1))
+            if (attempt < 2) {
+                try {
+                    // Keep the short propagation delay off the UI thread (uploadCover
+                    // is dispatched through the bounded IO executor) and preserve
+                    // cancellation if the hosting thread is interrupted.
+                    Thread.sleep(900L * (attempt + 1))
+                } catch (interrupted: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw IOException("Image URL verification was interrupted", interrupted)
+                }
+            }
         }
         throw IllegalStateException(lastFailure)
     }
