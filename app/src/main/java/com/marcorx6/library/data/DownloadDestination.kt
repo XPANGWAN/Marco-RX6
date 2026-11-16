@@ -107,7 +107,7 @@ internal object DownloadDestination {
             }.getOrDefault(false)
             if (belongsToSelectedTree) {
                 val reusable = runCatching {
-                    resolver.openOutputStream(previous, "wa")?.use { true } ?: false
+                    resolver.openFileDescriptor(previous, "rw")?.use { true } ?: false
                 }.getOrDefault(false)
                 if (!reusable) {
                     // Never replace a known destination just because a provider
