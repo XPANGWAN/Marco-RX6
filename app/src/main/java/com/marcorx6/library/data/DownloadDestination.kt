@@ -379,7 +379,20 @@ internal object DownloadDestination {
             stream.flush()
             android.system.Os.fsync(descriptor.fileDescriptor)
         }
-        override fun close() = stream.close()
+        override fun close() {
+            var failure: IOException? = null
+            try {
+                stream.close()
+            } catch (error: IOException) {
+                failure = error
+            }
+            try {
+                descriptor.close()
+            } catch (error: IOException) {
+                if (failure == null) failure = error else failure.addSuppressed(error)
+            }
+            failure?.let { throw it }
+        }
     }
 
     fun openSequentialTargetWriter(context: Context, uri: Uri, offset: Long): SeekableTargetWriter {
