@@ -94,14 +94,8 @@ internal class ResumableDownloadWorker(
         val directory = File(applicationContext.filesDir, "MARCO_RX6_downloads").apply { mkdirs() }
         val partial = File(directory, "${item.id}.part")
         val durableProgress = File(directory, "${item.id}.part.progress")
-        // A sequential checkpoint means the visible destination is already the
-        // resumable target; do not let the range probe discard it on retry.
-        val hasSequentialCheckpoint = durableProgress.isFile
-        // Use one deterministic writer for every transfer. The old parallel
-        // engine maintained a second checkpoint format and could race the sequential
-        // resume path. Re-enable multi-range only after it shares this target journal.
-        val segmented = false
-        if (segmented) return Result.success()
+        // All transfers use one deterministic writer and one durable checkpoint.
+        // Multi-range mode stays disabled until it shares this exact destination journal.
         // Write directly to the final destination: MediaStore by default, or the
         // user's selected SAF folder. Only pre-Android-10 without SAF needs staging.
         val selectedTree = DownloadStoragePreferences(applicationContext).treeUri()
