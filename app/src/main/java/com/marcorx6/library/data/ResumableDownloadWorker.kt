@@ -257,7 +257,8 @@ internal class ResumableDownloadWorker(
             )
             val safeName = DownloadFileNames.safeName(responseName ?: item.title, mime, item.id)
             if (directUri != null && total > 0L &&
-                (directSize != total || item.preparationPercent < 100 ||
+                (DownloadDestination.isMediaStoreTarget(directUri) ||
+                    directSize != total || item.preparationPercent < 100 ||
                     (responseStartOffset == 0L && item.downloadedBytes > 0L))
             ) {
                 database.preparing(item.id, 0, total, etag, modified)
