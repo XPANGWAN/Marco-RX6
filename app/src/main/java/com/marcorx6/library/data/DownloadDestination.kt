@@ -644,7 +644,27 @@ internal object DownloadDestination {
         // Never discard the only identity checkpoint when provider deletion fails:
         // a later retry must reopen this row instead of inserting a '(1)' copy.
         if (uri != null && !deleteTarget(context, uri)) {
-            throw IOException("Could not remove the original download file; its destination identity was retained to prevent a duplicate")
+            // Deletion is intentionally idempotent. A prior cancel/completion may
+            // already have removed the row while a stale sidecar still exists.
+            // Only clear the identity after the provider confirms the row is gone.
+            val exists = try {
+                val column = if (isMediaStoreTarget(uri)) {
+                    MediaStore.MediaColumns._ID
+                } else {
+                    DocumentsContract.Document.COLUMN_DOCUMENT_ID
+                }
+                context.contentResolver.query(uri, arrayOf(column), null, null, null)
+                    ?.use { it.moveToFirst() }
+                    ?: throw IOException("Could not verify whether the original download file still exists")
+            } catch (error: Exception) {
+                throw IOException(
+                    "Could not remove or verify the original download file; its destination identity was retained",
+                    error
+                )
+            }
+            if (exists) {
+                throw IOException("Could not remove the original download file; its destination identity was retained to prevent a duplicate")
+            }
         }
         DownloadDatabase.get(context).clearDestinationUri(id)
         sidecar.delete()
