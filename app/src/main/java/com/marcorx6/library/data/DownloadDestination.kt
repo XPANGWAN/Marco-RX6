@@ -153,10 +153,19 @@ internal object DownloadDestination {
         sidecar.parentFile?.mkdirs()
         val previous = runCatching { if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null }.getOrNull()
         if (previous != null && previous.scheme == "content" && previous.authority == MediaStore.AUTHORITY) {
-            val reopened = runCatching {
-                resolver.openFileDescriptor(previous, "rw")?.use { true } ?: false
-            }.getOrDefault(false)
-            if (reopened) {
+            // Distinguish a genuinely deleted row from a temporary descriptor
+            // failure. If the row still exists, never create another row beside it.
+            val previousExists = resolver.query(
+                previous, arrayOf(MediaStore.MediaColumns._ID), null, null, null
+            )?.use { it.moveToFirst() }
+                ?: throw IOException("Could not verify the existing download destination")
+            if (previousExists) {
+                val reopened = runCatching {
+                    resolver.openFileDescriptor(previous, "rw")?.use { true } ?: false
+                }.getOrDefault(false)
+                if (!reopened) {
+                    throw IOException("The existing download file is present but cannot be reopened; its destination was preserved")
+                }
                 // Older app versions may have left the row pending. Re-publish it
                 // on every resume so file managers can see the in-progress file.
                 // If verification fails, retain this URI and stop; never silently
