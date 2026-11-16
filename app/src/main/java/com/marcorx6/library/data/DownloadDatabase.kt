@@ -261,22 +261,27 @@ internal class DownloadDatabase private constructor(context: Context) :
         }
     }
 
-    /** A process restart interrupts source probing; hand those rows to the worker safely. */
+    /** Recover only probes that are no longer active in this process. */
     @Synchronized
-    fun recoverResolving(): List<Long> {
+    fun recoverResolving(activeProbeIds: Set<Long> = emptySet()): List<Long> {
         val db = writableDatabase
         val ids = db.query(
             "downloads", arrayOf("id"), "status=?",
             arrayOf(STATUS_RESOLVING.toString()), null, null, "id ASC"
         ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getLong(0)) } }
-        db.update(
-            "downloads",
-            ContentValues().apply { put("status", DownloadManager.STATUS_PENDING) },
-            "status=?",
-            arrayOf(STATUS_RESOLVING.toString())
-        )
-        return ids
+        val staleIds = ids.filterNot { it in activeProbeIds }
+        staleIds.forEach { id ->
+            db.update(
+                "downloads",
+                ContentValues().apply { put("status", DownloadManager.STATUS_PENDING) },
+                "id=? AND status=?",
+                arrayOf(id.toString(), STATUS_RESOLVING.toString())
+            )
+        }
+        return staleIds
     }
+
+
 
     @Synchronized
     fun pausedOrFailedIds(): List<Long> =
