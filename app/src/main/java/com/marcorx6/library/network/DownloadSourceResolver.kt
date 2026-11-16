@@ -61,12 +61,45 @@ internal object DownloadSourceResolver {
         val driveConfirm = Regex("""(?:href|action)\s*=\s*["']([^"'<>]*(?:export=download|confirm=)[^"'<>]*)["']""", RegexOption.IGNORE_CASE)
         driveConfirm.findAll(html).forEach { candidates += 95 to it.groupValues[1] }
 
+        // Large Google Drive files may require a confirmation form with hidden id/token fields.
+        val forms = Regex("""<form\\b([^>]*)>(.*?)</form>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        forms.findAll(html).forEach { form ->
+            val action = attribute(form.groupValues[1], "action") ?: return@forEach
+            if (!action.contains("download", ignoreCase = true)) return@forEach
+            val body = form.groupValues[2]
+            val id = inputValue(body, "id")?.takeIf { it.matches(Regex("""[A-Za-z0-9_-]{5,}""")) }
+                ?: return@forEach
+            val confirm = inputValue(body, "confirm")?.takeIf { it.matches(Regex("""[A-Za-z0-9_-]{1,}""")) }
+            val actionUrl = runCatching { URI(pageUrl).resolve(action).toString() }.getOrNull()
+                ?: return@forEach
+            val separator = if (actionUrl.contains('?')) "&" else "?"
+            val query = buildList {
+                add("export=download")
+                add("id=$id")
+                if (confirm != null) add("confirm=$confirm")
+            }.joinToString("&")
+            candidates += 110 to "$actionUrl$separator$query"
+        }
+
         return candidates
             .sortedByDescending { it.first }
             .asSequence()
             .mapNotNull { (_, value) -> resolveCandidate(pageUrl, value) }
             .firstOrNull()
     }
+
+    private fun attribute(tag: String, name: String): String? =
+        Regex("""\\b${Regex.escape(name)}\\s*=\\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+            .find(tag)?.groupValues?.get(1)
+
+    private fun inputValue(formBody: String, name: String): String? =
+        Regex("""<input\\b[^>]*>""", RegexOption.IGNORE_CASE)
+            .findAll(formBody)
+            .firstNotNullOfOrNull { tag ->
+                if (attribute(tag.value, "name").equals(name, ignoreCase = true)) {
+                    attribute(tag.value, "value")
+                } else null
+            }
 
     private fun scoreCandidate(href: String, label: String, attrs: String): Int {
         val value = href.trim()
