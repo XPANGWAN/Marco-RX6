@@ -182,21 +182,20 @@ internal class ResumableDownloadWorker(
             val responseModified = connection.getHeaderField("Last-Modified").orEmpty()
             val responseLength = connection.getHeaderFieldLong("Content-Length", -1L)
             val contentRange = DownloadTransferProtocol.parseContentRange(connection.getHeaderField("Content-Range").orEmpty())
-            val rangeStart = contentRange?.start
-            val rangeEnd = contentRange?.endInclusive
             val rangeTotal = contentRange?.total
 
             if (append) {
-                val validatorMatches = when {
-                    item.etag.isNotBlank() -> responseEtag == item.etag
-                    item.lastModified.isNotBlank() -> responseModified == item.lastModified
-                    else -> false
-                }
-                val rangeMatches = rangeStart == offset &&
-                    rangeEnd != null && rangeTotal != null &&
-                    rangeEnd >= offset && rangeEnd < rangeTotal &&
-                    (responseLength < 0L || responseLength == rangeEnd - offset + 1L)
-                if (!validatorMatches || !rangeMatches) {
+                val verifiedAppend = DownloadTransferProtocol.canAppend(
+                    requestedOffset = offset,
+                    responseStatus = code,
+                    range = contentRange,
+                    contentLength = responseLength,
+                    expectedEtag = item.etag,
+                    responseEtag = responseEtag,
+                    expectedLastModified = item.lastModified,
+                    responseLastModified = responseModified
+                )
+                if (!verifiedAppend) {
                     partial.delete()
                     durableProgress.delete()
                     database.progress(item.id, 0L, -1L, "", "")
