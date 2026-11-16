@@ -323,41 +323,60 @@ internal object DownloadDestination {
             val fd = pfd.fileDescriptor
             val preserved = preserveBytes.coerceIn(0L, total)
 
-            // ftruncate alone creates a sparse file on common Android filesystems.
-            // File managers may therefore report only the bytes received so far.
-            // Reserve real storage by writing every not-yet-downloaded byte before
-            // network transfer. This is deliberately bounded to a 1 MiB buffer.
+            // Establish the logical length, then reserve physical blocks before
+            // the network starts. ftruncate alone creates a sparse file and is
+            // not a reservation. Use fallocate in bounded chunks so ENOSPC is
+            // detected now, not halfway through the download.
             android.system.Os.ftruncate(fd, total)
             val initialSize = android.system.Os.fstat(fd).st_size
             if (initialSize != total) {
                 throw IOException("Could not establish the final download file size: $initialSize / $total")
             }
 
-            val zeroes = ByteArray(1024 * 1024)
+            val chunkSize = 8L * 1024L * 1024L
             var position = preserved
-            while (position < total) {
-                val count = minOf(zeroes.size.toLong(), total - position).toInt()
-                var written = 0
-                while (written < count) {
-                    val amount = android.system.Os.pwrite(
-                        fd, zeroes, written, count - written, position + written
-                    )
-                    if (amount <= 0) {
-                        throw IOException("Could not reserve the complete download size on storage")
-                    }
-                    written += amount
+            var fallocateSupported = true
+            try {
+                while (position < total) {
+                    val count = minOf(chunkSize, total - position)
+                    android.system.Os.posix_fallocate(fd, position, count)
+                    position += count
+                    onPreparing((position.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
                 }
-                position += count
-                onPreparing((position.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
+            } catch (_: Exception) {
+                // Some MediaStore/FUSE implementations do not expose fallocate.
+                // Fall back to bounded real writes; never buffer the whole file.
+                fallocateSupported = false
             }
 
-            // Flush both file data and allocation metadata before exposing the
-            // prepared file to the downloader. A size-only fstat check is not
-            // sufficient: all remaining ranges have now actually been written.
+            if (!fallocateSupported) {
+                val zeroes = ByteArray(1024 * 1024)
+                position = preserved
+                while (position < total) {
+                    val count = minOf(zeroes.size.toLong(), total - position).toInt()
+                    var written = 0
+                    while (written < count) {
+                        val amount = android.system.Os.pwrite(
+                            fd, zeroes, written, count - written, position + written
+                        )
+                        if (amount <= 0) {
+                            throw IOException("Could not reserve the complete download size on storage")
+                        }
+                        written += amount
+                    }
+                    position += count
+                    onPreparing((position.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
+                }
+            }
+
             android.system.Os.fsync(fd)
             val stat = android.system.Os.fstat(fd)
             if (stat.st_size != total) {
                 throw IOException("Preallocated download size verification failed: ${stat.st_size} / $total")
+            }
+            val allocatedBytes = stat.st_blocks * 512L
+            if (allocatedBytes < total) {
+                throw IOException("Storage did not reserve the full download: allocated $allocatedBytes / $total bytes")
             }
 
             val resolver = context.applicationContext.contentResolver
