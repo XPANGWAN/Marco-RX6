@@ -76,9 +76,24 @@ internal object DownloadDestination {
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
         sidecar.parentFile?.mkdirs()
         val previous = runCatching { if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null }.getOrNull()
-        if (previous != null && previous.scheme == "content" &&
-            runCatching { resolver.openFileDescriptor(previous, "rw")?.use { true } ?: false }.getOrDefault(false)
-        ) return previous
+        if (previous != null && previous.scheme == "content") {
+            val reopened = runCatching {
+                resolver.openFileDescriptor(previous, "rw")?.use { true } ?: false
+            }.getOrDefault(false)
+            if (reopened) {
+                // Older app versions may have left the row pending. Re-publish it
+                // on every resume so file managers can see the in-progress file.
+                val publish = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$DEFAULT_FOLDER/")
+                    put(MediaStore.MediaColumns.IS_PENDING, 0)
+                }
+                if (runCatching { resolver.update(previous, publish, null, null) > 0 }.getOrDefault(false)) {
+                    return previous
+                }
+            }
+        }
 
         sidecar.delete()
         val values = ContentValues().apply {
