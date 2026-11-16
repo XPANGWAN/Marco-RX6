@@ -133,8 +133,16 @@ internal object SegmentedDownloadEngine {
                 try {
                     val available = StatFs(Environment.getExternalStorageDirectory().absolutePath).availableBytes
                     if (available < total) throw IOException("Not enough free space in Download storage")
-                    DownloadDestination.prepareDirectTarget(context, directUri, total, onPreparing)
+                    DownloadDestination.prepareDirectTarget(
+                        context, directUri, total, onPreparing,
+                        shouldStop = {
+                            isStopped() ||
+                                database.get(item.id)?.status == DownloadManager.STATUS_PAUSED ||
+                                database.get(item.id)?.status == DownloadDatabase.STATUS_CANCELLED
+                        }
+                    )
                 } catch (error: Exception) {
+                    if (error is InterruptedException) throw error
                     // Keep the same published MediaStore row and URI on failure.
                     // A retry must reopen this file, never create a second visible item.
                     runCatching { DownloadDestination.truncateDirectTarget(context, directUri, 0L) }
