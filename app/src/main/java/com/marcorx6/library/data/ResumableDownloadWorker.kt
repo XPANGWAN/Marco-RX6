@@ -259,7 +259,11 @@ internal class ResumableDownloadWorker(
                     DownloadDestination.prepareDirectTarget(applicationContext, directUri, total, { percent ->
                         database.preparing(item.id, percent, total, etag, modified)
                         updatePreparingNotification(item.title, item.id, percent)
-                    }, responseStartOffset)
+                    }, responseStartOffset, shouldStop = {
+                        isStopped ||
+                            database.get(item.id)?.status == DownloadManager.STATUS_PAUSED ||
+                            database.get(item.id)?.status == DownloadDatabase.STATUS_CANCELLED
+                    })
                 } else {
                     DownloadDestination.openSequentialTargetWriter(applicationContext, directUri, responseStartOffset)
                         .use { DownloadDestination.syncSequentialTargetWriter(it) }
