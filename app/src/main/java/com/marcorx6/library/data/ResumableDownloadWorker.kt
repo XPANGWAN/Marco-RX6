@@ -27,6 +27,11 @@ internal class ResumableDownloadWorker(
     override suspend fun doWork(): Result {
         val id = inputData.getLong(KEY_ID, -1L)
         if (id <= 0L) return Result.failure()
+        val lease = DownloadExecutionLock.acquire(applicationContext, id) ?: return Result.retry()
+        return lease.use { doWorkWithId(id) }
+    }
+
+    private suspend fun doWorkWithId(id: Long): Result {
         val database = DownloadDatabase.get(applicationContext)
         val item = database.get(id) ?: run {
             DownloadWorkScheduler.schedule(applicationContext)
