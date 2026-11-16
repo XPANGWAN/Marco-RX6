@@ -29,6 +29,7 @@ internal object RedirectingHttpConnection {
 
     fun open(
         initialUrl: String,
+        onResponse: (connection: HttpURLConnection, currentUrl: URL) -> Unit = { _, _ -> },
         configure: (connection: HttpURLConnection, currentUrl: URL, isInitialRequest: Boolean) -> Unit
     ): HttpURLConnection {
         var current = URL(initialUrl)
@@ -48,6 +49,7 @@ internal object RedirectingHttpConnection {
             try {
                 configure(connection, current, hop == 0)
                 val code = connection.responseCode
+                onResponse(connection, current)
                 if (!isRedirectStatus(code)) return connection
                 if (hop == MAX_REDIRECTS) {
                     throw IOException("The server exceeded the maximum of " + MAX_REDIRECTS + " redirects")
