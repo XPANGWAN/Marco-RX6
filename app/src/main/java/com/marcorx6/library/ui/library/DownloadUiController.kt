@@ -5,6 +5,9 @@ import android.app.AlertDialog
 import android.app.DownloadManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.ClipDrawable
+import android.graphics.drawable.LayerDrawable
+import android.os.Build
 import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
@@ -576,7 +579,13 @@ internal class DownloadUiController(
             if (views.progress.visibility != progressVisibility) views.progress.visibility = progressVisibility
             val indeterminate = item.status == DownloadManager.STATUS_RUNNING && item.totalBytes <= 0L
             if (views.progress.isIndeterminate != indeterminate) views.progress.isIndeterminate = indeterminate
-            if (!indeterminate && views.progress.progress != percent) views.progress.progress = percent
+            if (!indeterminate && views.progress.progress != percent) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    views.progress.setProgress(percent, true)
+                } else {
+                    views.progress.progress = percent
+                }
+            }
         }
 
         fun smallAction(label: String, filled: Boolean = false, onClick: () -> Unit) =
@@ -797,10 +806,32 @@ internal class DownloadUiController(
             }
             val progressView = android.widget.ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal).apply {
                 max = 100
-                progressTintList = android.content.res.ColorStateList.valueOf(primary)
-                progressBackgroundTintList = android.content.res.ColorStateList.valueOf(
-                    if (dark) AccentPalette.surface(Color.rgb(130, 138, 151), primary, 0.28f)
-                    else AccentPalette.surface(Color.rgb(160, 168, 181), primary, 0.24f))
+                val trackColor = if (dark) {
+                    AccentPalette.surface(Color.rgb(130, 138, 151), primary, 0.28f)
+                } else {
+                    AccentPalette.surface(Color.rgb(160, 168, 181), primary, 0.24f)
+                }
+                val track = GradientDrawable().apply {
+                    setColor(trackColor)
+                    cornerRadius = dp(8).toFloat()
+                }
+                val fill = GradientDrawable(
+                    GradientDrawable.Orientation.LEFT_RIGHT,
+                    intArrayOf(
+                        AccentPalette.surface(primary, Color.WHITE, 0.18f),
+                        primary,
+                        AccentPalette.surface(primary, Color.WHITE, 0.30f)
+                    )
+                ).apply { cornerRadius = dp(8).toFloat() }
+                progressDrawable = LayerDrawable(arrayOf(
+                    track,
+                    ClipDrawable(fill, Gravity.START, ClipDrawable.HORIZONTAL)
+                )).apply {
+                    setId(0, android.R.id.background)
+                    setId(1, android.R.id.progress)
+                }
+                indeterminateTintList = android.content.res.ColorStateList.valueOf(primary)
+                isIndeterminate = false
             }
             val actions = LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
