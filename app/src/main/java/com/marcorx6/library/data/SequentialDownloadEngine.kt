@@ -208,7 +208,7 @@ internal object SequentialDownloadEngine {
                                 throw IOException("The server sent more bytes than the declared file size")
                             }
                             integrityVerifier?.update(buffer, count)
-                            speedLimiter.acquire(count)
+                            speedLimiter.acquire(count, shouldStop)
                             if (directWriter != null) directWriter.writeAt(buffer, count, offset)
                             else if (sequentialTarget != null) sequentialTarget.write(buffer, 0, count)
                             else fileSink!!.write(buffer, 0, count)
