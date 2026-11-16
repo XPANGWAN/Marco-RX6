@@ -74,7 +74,7 @@ internal object DownloadSourceResolver {
         val combined = "$label $attrs $value"
         var score = 0
         if (fileExtension.containsMatchIn(value)) score += 80
-        if (Regex("""downloadButton|download-link|download_url|data-download""", RegexOption.IGNORE_CASE).containsMatchIn(attrs)) score += 90
+        if (Regex("""downloadButton|download-link|download_url|data-download|\\bdownload\\b""", RegexOption.IGNORE_CASE).containsMatchIn(attrs)) score += 90
         if (Regex("""download|تحميل|تنزيل|direct|file""", RegexOption.IGNORE_CASE).containsMatchIn(label)) score += 45
         if (Regex("""(?:^|/)(?:download|attachment|export)(?:/|$)|[?&](?:download|export)=(""|1|true|yes)""", RegexOption.IGNORE_CASE).containsMatchIn(value)) score += 35
         if (Regex("""logout|sign.?in|login|register|privacy|terms|javascript:""", RegexOption.IGNORE_CASE).containsMatchIn(combined)) score = 0
@@ -90,9 +90,6 @@ internal object DownloadSourceResolver {
         val resolved = runCatching { URI(base).resolve(cleaned).toString() }.getOrNull() ?: return null
         val uri = runCatching { URI(resolved) }.getOrNull() ?: return null
         if (uri.scheme?.lowercase(Locale.ROOT) != "https" || uri.host.isNullOrBlank() || uri.userInfo != null) return null
-        if (uri.host.equals(URI(base).host, true) && !fileExtension.containsMatchIn(uri.path.orEmpty()) &&
-            !Regex("""(?:download|export|attachment)""", RegexOption.IGNORE_CASE).containsMatchIn(uri.rawQuery.orEmpty())
-        ) return null
         return resolved
     }
 
