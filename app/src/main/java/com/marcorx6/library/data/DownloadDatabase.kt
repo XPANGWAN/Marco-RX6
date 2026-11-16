@@ -174,18 +174,6 @@ internal class DownloadDatabase private constructor(context: Context) :
             .use { if (it.moveToFirst()) it.toRecord() else null }
     }
 
-    @Synchronized
-    fun refreshSource(id: Long, url: String, userAgent: String, cookie: String, referrer: String, mime: String) {
-        writableDatabase.update("downloads", ContentValues().apply {
-            put("url", url); put("user_agent", userAgent); put("cookie", cookie)
-            put("referrer", referrer); put("mime_type", mime)
-            put("status", DownloadManager.STATUS_PENDING); put("error", "")
-            put("downloaded", 0L); put("total", -1L)
-            put("etag", ""); put("last_modified", "")
-            put("local_path", ""); put("preparation_percent", 0)
-        }, "id=?", arrayOf(id.toString()))
-    }
-
     /**
      * Updates the probed source metadata without changing the queue state.
      * This lets a download remain INITIALIZING (or PAUSED if the user paused it)
