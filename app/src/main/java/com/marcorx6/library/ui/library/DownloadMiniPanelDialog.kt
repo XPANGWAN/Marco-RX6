@@ -291,7 +291,7 @@ internal class DownloadMiniPanelDialog(
             override fun run() {
                 if (dialog.isShowing) {
                     render()
-                    handler.postDelayed(this, 1_200L)
+                    handler.postDelayed(this, 250L)
                 }
             }
         }
@@ -319,7 +319,7 @@ internal class DownloadMiniPanelDialog(
                 if (dialog.isShowing) {
                     handler.removeCallbacks(refresh)
                     render()
-                    handler.postDelayed(refresh, 1_200L)
+                    handler.postDelayed(refresh, 250L)
                 }
             }
 
@@ -342,7 +342,7 @@ internal class DownloadMiniPanelDialog(
         ) {
             render()
             handler.removeCallbacks(refresh)
-            handler.postDelayed(refresh, 900L)
+            handler.postDelayed(refresh, 250L)
         }
     }
 }
