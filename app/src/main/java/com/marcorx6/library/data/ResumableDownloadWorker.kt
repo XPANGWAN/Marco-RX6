@@ -114,21 +114,23 @@ internal class ResumableDownloadWorker(
         // Build verification checkpoint for the visible sequential-download path.
         // If MediaStore cannot create or reopen the visible destination, keep the
         // sequential engine usable through its existing private-file fallback.
-        var directUri = if (DownloadStoragePreferences(applicationContext).treeUri() == null &&
+        // The default Android 10+ destination is the visible MediaStore file.
+        // Surface failures instead of silently switching to an invisible private copy.
+        val directUri = if (DownloadStoragePreferences(applicationContext).treeUri() == null &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-        ) runCatching {
+        ) {
             DownloadDestination.openDirectTarget(applicationContext, item.id, item.title, item.mimeType)
-        }.getOrNull() else null
+        } else null
         var directSize = 0L
         if (directUri != null) {
-            val sizeResult = runCatching {
-                DownloadDestination.directTargetSize(applicationContext, directUri!!)
-            }
-            if (sizeResult.isSuccess) {
-                directSize = sizeResult.getOrDefault(0L)
-            } else {
-                runCatching { DownloadDestination.removeDirectTarget(applicationContext, item.id) }
-                directUri = null
+            directSize = try {
+                DownloadDestination.directTargetSize(applicationContext, directUri)
+            } catch (error: Exception) {
+                DownloadDestination.removeDirectTarget(applicationContext, item.id)
+                throw IOException(
+                    "Could not reopen the visible file in Download/MARCO RX6; download was stopped rather than hidden in private storage.",
+                    error
+                )
             }
         }
         var offset = if (directUri != null) {
