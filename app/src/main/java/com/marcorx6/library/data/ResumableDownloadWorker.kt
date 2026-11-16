@@ -47,11 +47,12 @@ internal class ResumableDownloadWorker(
                 setForeground(createForegroundInfo(item.title, id))
                 // Ensure legacy and newly queued jobs both have a published final
                 // MediaStore row before any network capability probe starts.
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                    DownloadStoragePreferences(applicationContext).treeUri() == null
-                ) {
+                val selectedTree = DownloadStoragePreferences(applicationContext).treeUri()
+                if (selectedTree != null || Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     val visibleName = DownloadFileNames.safeName(item.title, item.mimeType, item.id)
-                    DownloadDestination.openDirectTarget(applicationContext, id, visibleName, item.mimeType)
+                    DownloadDestination.openTarget(
+                        applicationContext, id, selectedTree, visibleName, item.mimeType
+                    )
                 }
                 // Enter preparation only after the visible destination exists.
                 database.preparing(id, 0, item.totalBytes, item.etag, item.lastModified)
@@ -117,14 +118,14 @@ internal class ResumableDownloadWorker(
             }
         )
         if (segmented) return Result.success()
-        // The default Android 10+ destination is always the visible MediaStore
-        // file. SAF-selected folders and pre-Android-10 devices retain the private
-        // staging path because their providers do not guarantee positional writes.
-        // Never hide a default-folder failure by switching to app-private storage.
-        val directUri = if (DownloadStoragePreferences(applicationContext).treeUri() == null &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-        ) {
-            DownloadDestination.openDirectTarget(applicationContext, item.id, item.title, item.mimeType)
+        // Write directly to the final destination: MediaStore by default, or the
+        // user's selected SAF folder. Only pre-Android-10 without SAF needs staging.
+        val selectedTree = DownloadStoragePreferences(applicationContext).treeUri()
+        var directUri = if (selectedTree != null || Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            DownloadDestination.openTarget(
+                applicationContext, item.id, selectedTree,
+                DownloadFileNames.safeName(item.title, item.mimeType, item.id), item.mimeType
+            )
         } else null
         var directSize = 0L
         if (directUri != null) {
@@ -249,7 +250,9 @@ internal class ResumableDownloadWorker(
             // No matter which storage provider or size metadata the server supplies,
             // preparation ends here: immediately before the first response byte is read.
             database.finishPreparing(item.id)
-            if (directUri != null) DownloadDestination.renameDirectTarget(applicationContext, directUri, safeName)
+            if (directUri != null) {
+                directUri = DownloadDestination.renameDirectTarget(applicationContext, item.id, directUri, safeName)
+            }
             database.renameTitle(item.id, safeName)
             database.progress(item.id, offset, total, etag, modified)
             // Persist even a zero-byte checkpoint so retries and pauses keep using
