@@ -3,6 +3,7 @@ package com.marcorx6.library.data
 import android.app.DownloadManager
 import android.os.StatFs
 import android.os.Build
+import android.webkit.CookieManager
 import android.net.Uri
 import android.os.Environment
 import android.content.Context
@@ -463,13 +464,23 @@ internal object SegmentedDownloadEngine {
     }
 
     private fun openConnection(item: StoredDownload, start: Long, end: Long): HttpURLConnection =
-        com.marcorx6.library.network.RedirectingHttpConnection.open(item.url) { request, currentUrl, isInitial ->
+        com.marcorx6.library.network.RedirectingHttpConnection.open(
+            item.url,
+            onResponse = { response, responseUrl ->
+                response.getHeaderFields().entries
+                    .filter { it.key.equals("Set-Cookie", ignoreCase = true) }
+                    .flatMap { it.value.orEmpty() }
+                    .forEach { CookieManager.getInstance().setCookie(responseUrl.toString(), it) }
+            }
+        ) { request, currentUrl, isInitial ->
             request.requestMethod = "GET"
             request.setRequestProperty("Accept", "*/*")
             request.setRequestProperty("Accept-Encoding", "identity")
             request.setRequestProperty("Range", "bytes=$start-$end")
             if (item.userAgent.isNotBlank()) request.setRequestProperty("User-Agent", item.userAgent)
-            if (isInitial && item.cookie.isNotBlank()) request.setRequestProperty("Cookie", item.cookie)
+            val cookies = if (isInitial && item.cookie.isNotBlank()) item.cookie
+                else CookieManager.getInstance().getCookie(currentUrl.toString()).orEmpty()
+            if (cookies.isNotBlank()) request.setRequestProperty("Cookie", cookies)
             if (isInitial && item.referrer.isNotBlank()) request.setRequestProperty("Referer", item.referrer)
         }
 
