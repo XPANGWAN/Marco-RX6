@@ -361,18 +361,16 @@ internal class DownloadRepository(context: Context) {
         hintedMimeType: String,
         referrer: String
     ): DownloadProbe {
-        val connection = (URL(link).openConnection() as HttpURLConnection).apply {
-            instanceFollowRedirects = true
-            connectTimeout = 30000
-            readTimeout = 60000
-            requestMethod = "GET"
-            setRequestProperty("Range", "bytes=0-0")
-            setRequestProperty("Accept", "*/*")
-            setRequestProperty("Accept-Encoding", "identity")
-            if (userAgent.isNotBlank()) setRequestProperty("User-Agent", userAgent)
-            if (referrer.isNotBlank()) setRequestProperty("Referer", referrer)
-            CookieManager.getInstance().getCookie(link)?.takeIf { it.isNotBlank() }?.let {
-                setRequestProperty("Cookie", it)
+        val connection = com.marcorx6.library.network.RedirectingHttpConnection.open(link) { request, currentUrl, isInitial ->
+            request.readTimeout = 60000
+            request.requestMethod = "GET"
+            request.setRequestProperty("Range", "bytes=0-0")
+            request.setRequestProperty("Accept", "*/*")
+            request.setRequestProperty("Accept-Encoding", "identity")
+            if (userAgent.isNotBlank()) request.setRequestProperty("User-Agent", userAgent)
+            if (isInitial && referrer.isNotBlank()) request.setRequestProperty("Referer", referrer)
+            CookieManager.getInstance().getCookie(currentUrl.toString())?.takeIf { it.isNotBlank() }?.let {
+                request.setRequestProperty("Cookie", it)
             }
         }
         try {
