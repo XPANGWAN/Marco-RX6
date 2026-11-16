@@ -101,6 +101,9 @@ internal class DownloadRepository(context: Context) {
                                 if (previous == null) {
                                     database.insert(id, probe.finalUrl, finalTitle, userAgent, cookie, referrer, probe.mimeType, sourcePostUrl)
                                 }
+                                // Keep the queue visibly in preparation while waiting
+                                // for a worker slot; this is state, not an artificial delay.
+                                database.status(id, DownloadDatabase.STATUS_INITIALIZING)
                             } catch (error: Exception) {
                                 DownloadDestination.removeDirectTarget(appContext, id)
                                 if (previous != null) {
