@@ -486,7 +486,6 @@ internal class DownloadUiController(
             val percent = if ((item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
-                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING)) {
                 item.preparationPercent.coerceIn(0, 100)
             } else if (item.totalBytes > 0L) {
@@ -525,7 +524,6 @@ internal class DownloadUiController(
             val details = if ((item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
-                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING)) {
                 StringBuilder(translate("جارٍ حجز مساحة التخزين قبل بدء التنزيل"))
             } else StringBuilder(downloaded)
@@ -533,7 +531,10 @@ internal class DownloadUiController(
                 item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING &&
                 item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING && item.totalBytes > 0L) {
                 details.append(" / ").append(android.text.format.Formatter.formatFileSize(activity, item.totalBytes))
-            } else if (item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING) {
+            } else if (item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING &&
+                item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING &&
+                item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING &&
+                item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED) {
                 details.append(" / ").append(translate("الحجم غير معروف"))
             }
             if (item.status == DownloadManager.STATUS_RUNNING) {
