@@ -414,7 +414,12 @@ internal class DownloadUiController(
         )
         val rows = linkedMapOf<Long, RowViews>()
         val lastSpeedSample = mutableMapOf<Long, Pair<Long, Long>>()
+        val lastValidSpeed = mutableMapOf<Long, Pair<Long, Long>>()
         val lastSegmentSpeedSample = mutableMapOf<Pair<Long, Int>, Pair<Long, Long>>()
+        val lastValidSegmentSpeed = mutableMapOf<Pair<Long, Int>, Pair<Long, Long>>()
+        // Database progress can arrive less often than the 250 ms UI refresh.
+        // Keep the last measured rate briefly instead of flashing 0 B/s/losing ETA.
+        val speedGracePeriodMillis = 4_000L
         val handler = Handler(Looper.getMainLooper())
         var refreshInProgress = false
 
@@ -479,15 +484,20 @@ internal class DownloadUiController(
             } else 0
             val now = SystemClock.elapsedRealtime()
             val previous = lastSpeedSample[item.id]
-            val speed = if (item.status == DownloadManager.STATUS_RUNNING && previous != null &&
+            val measuredSpeed = if (item.status == DownloadManager.STATUS_RUNNING && previous != null &&
                 now > previous.second && item.downloadedBytes >= previous.first) {
                 ((item.downloadedBytes - previous.first) * 1000L) / (now - previous.second).coerceAtLeast(1L)
             } else 0L
             if (item.status == DownloadManager.STATUS_RUNNING) {
                 lastSpeedSample[item.id] = item.downloadedBytes to now
+                if (measuredSpeed > 0L) lastValidSpeed[item.id] = measuredSpeed to now
             } else {
                 lastSpeedSample.remove(item.id)
+                lastValidSpeed.remove(item.id)
             }
+            val cachedSpeed = lastValidSpeed[item.id]
+            val speed = if (measuredSpeed > 0L) measuredSpeed else
+                cachedSpeed?.first?.takeIf { now - cachedSpeed.second <= speedGracePeriodMillis } ?: 0L
             if (views.title.text.toString() != item.title) views.title.text = item.title
             val statusText = if (item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
                 item.totalBytes > 0L) "$statusLabel  •  $percent%" else statusLabel
@@ -527,14 +537,19 @@ internal class DownloadUiController(
                 val segmentSpeeds = item.segmentBytes.mapIndexedNotNull { index, bytes ->
                     if (bytes <= 0L) {
                         lastSegmentSpeedSample.remove(item.id to index)
+                        lastValidSegmentSpeed.remove(item.id to index)
                         null
                     } else {
                         val key = item.id to index
                         val sample = lastSegmentSpeedSample[key]
-                        val partSpeed = if (sample != null && now > sample.second && bytes >= sample.first) {
+                        val measuredPartSpeed = if (sample != null && now > sample.second && bytes >= sample.first) {
                             ((bytes - sample.first) * 1000L) / (now - sample.second).coerceAtLeast(1L)
                         } else 0L
                         lastSegmentSpeedSample[key] = bytes to now
+                        if (measuredPartSpeed > 0L) lastValidSegmentSpeed[key] = measuredPartSpeed to now
+                        val cachedPartSpeed = lastValidSegmentSpeed[key]
+                        val partSpeed = if (measuredPartSpeed > 0L) measuredPartSpeed else
+                            cachedPartSpeed?.first?.takeIf { now - cachedPartSpeed.second <= speedGracePeriodMillis } ?: 0L
                         "P${index + 1}: ${android.text.format.Formatter.formatFileSize(activity, partSpeed)}/s"
                     }
                 }
@@ -543,7 +558,10 @@ internal class DownloadUiController(
                         .append(segmentSpeeds.joinToString("  |  "))
                 }
             } else if (item.status != DownloadManager.STATUS_RUNNING) {
-                lastSegmentSpeedSample.keys.filter { it.first == item.id }.forEach { lastSegmentSpeedSample.remove(it) }
+                lastSegmentSpeedSample.keys.filter { it.first == item.id }.forEach {
+                    lastSegmentSpeedSample.remove(it)
+                    lastValidSegmentSpeed.remove(it)
+                }
             }
             if (item.status == DownloadManager.STATUS_FAILED) {
                 details.append("\n").append(translate("تعذر إكمال التنزيل. يمكنك إعادة المحاولة أو تحديث رابط اللعبة."))
@@ -701,7 +719,7 @@ internal class DownloadUiController(
                 item.status == DownloadManager.STATUS_PENDING || item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED) {
                 addAction(smallAction(translate("إيقاف مؤقت")) {
                     if (downloadRepository.pauseDownload(item.id)) {
-                        lastSpeedSample.remove(item.id); render?.invoke()
+                        lastSpeedSample.remove(item.id); lastValidSpeed.remove(item.id); render?.invoke()
                         Toast.makeText(activity, translate("تم إيقاف التنزيل مؤقتاً"), Toast.LENGTH_SHORT).show()
                     } else Toast.makeText(activity, translate("تعذر إيقاف التنزيل مؤقتاً"), Toast.LENGTH_SHORT).show()
                 })
@@ -842,6 +860,11 @@ internal class DownloadUiController(
             removedIds.forEach { id ->
                 rows.remove(id)?.let { list.removeView(it.card) }
                 lastSpeedSample.remove(id)
+                lastValidSpeed.remove(id)
+                lastSegmentSpeedSample.keys.filter { it.first == id }.forEach {
+                    lastSegmentSpeedSample.remove(it)
+                    lastValidSegmentSpeed.remove(it)
+                }
             }
             emptyState.visibility = if (visibleEntries.isEmpty()) View.VISIBLE else View.GONE
             if (emptyState.parent == null) list.addView(emptyState, LinearLayout.LayoutParams(-1, -2))
