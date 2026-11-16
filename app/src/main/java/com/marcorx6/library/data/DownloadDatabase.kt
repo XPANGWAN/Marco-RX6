@@ -297,8 +297,13 @@ internal class DownloadDatabase private constructor(context: Context) :
     fun deleteCompleted(): Int = writableDatabase.delete("downloads", "status=?", arrayOf(DownloadManager.STATUS_SUCCESSFUL.toString()))
 
     @Synchronized
-    fun setDestinationUri(id: Long, uri: String) {
-        writableDatabase.update("downloads", ContentValues().apply { put("destination_uri", uri) }, "id=?", arrayOf(id.toString()))
+    fun setDestinationUri(id: Long, uri: String): Boolean {
+        return writableDatabase.update(
+            "downloads",
+            ContentValues().apply { put("destination_uri", uri) },
+            "id=? AND status<>?",
+            arrayOf(id.toString(), STATUS_CANCELLED.toString())
+        ) == 1
     }
 
     @Synchronized
