@@ -112,12 +112,25 @@ internal class ResumableDownloadWorker(
         )
         if (segmented) return Result.success()
         // Build verification checkpoint for the visible sequential-download path.
-        val directUri = if (DownloadStoragePreferences(applicationContext).treeUri() == null &&
+        // If MediaStore cannot create or reopen the visible destination, keep the
+        // sequential engine usable through its existing private-file fallback.
+        var directUri = if (DownloadStoragePreferences(applicationContext).treeUri() == null &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-        ) DownloadDestination.openDirectTarget(applicationContext, item.id, item.title, item.mimeType) else null
-        var directSize = directUri?.let {
-            runCatching { DownloadDestination.directTargetSize(applicationContext, it) }.getOrDefault(0L)
-        } ?: 0L
+        ) runCatching {
+            DownloadDestination.openDirectTarget(applicationContext, item.id, item.title, item.mimeType)
+        }.getOrNull() else null
+        var directSize = 0L
+        if (directUri != null) {
+            val sizeResult = runCatching {
+                DownloadDestination.directTargetSize(applicationContext, directUri!!)
+            }
+            if (sizeResult.isSuccess) {
+                directSize = sizeResult.getOrDefault(0L)
+            } else {
+                runCatching { DownloadDestination.removeDirectTarget(applicationContext, item.id) }
+                directUri = null
+            }
+        }
         var offset = if (directUri != null) {
             readDurableOffset(durableProgress, item.downloadedBytes, directSize)
         } else if (partial.exists()) {
