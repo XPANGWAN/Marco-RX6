@@ -181,6 +181,12 @@ internal class ResumableDownloadWorker(
             }
             if (code == 408 || code == 429 || code in 500..599) throw IOException("Temporary server error: HTTP $code")
             if (code !in 200..299) throw IllegalStateException("HTTP $code")
+            val responseMime = connection.contentType?.substringBefore(';')?.trim().orEmpty()
+            if (responseMime.equals("text/html", ignoreCase = true) ||
+                responseMime.equals("application/xhtml+xml", ignoreCase = true)
+            ) {
+                throw IOException("The source returned a web page instead of a downloadable file")
+            }
             val append = offset > 0L && code == HttpURLConnection.HTTP_PARTIAL
             val responseEtag = connection.getHeaderField("ETag").orEmpty()
             val responseModified = connection.getHeaderField("Last-Modified").orEmpty()
