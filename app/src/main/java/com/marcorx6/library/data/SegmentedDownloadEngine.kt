@@ -107,10 +107,11 @@ internal object SegmentedDownloadEngine {
         // Prefer a visible MediaStore file in Download/MARCO RX6 and write all
         // byte ranges into it directly. SAF-selected folders and unsupported providers
         // retain the private-file fallback because they may not support positional writes.
-        val segmentSize = ((total - 1L) / SEGMENT_COUNT) + 1L
+        val ranges = DownloadRangePlanner.create(total, SEGMENT_COUNT, MIN_FILE_SIZE)
+            ?: return false
         val hasAllProgressSidecars = (0 until SEGMENT_COUNT).all { index ->
-            val start = index * segmentSize
-            start >= total || File(directory, "${item.id}.seg$index.progress").isFile
+            val range = ranges[index]
+            range.start >= total || File(directory, "${item.id}.seg$index.progress").isFile
         }
         // On Android 10+, the default destination must be the visible MediaStore
         // file. Do not silently fall back to a private .part file if creation fails.
@@ -165,9 +166,10 @@ internal object SegmentedDownloadEngine {
                         file.setLength(total)
                         var preparedBytes = 0L
                         for (index in 0 until SEGMENT_COUNT) {
-                            val start = index * segmentSize
+                            val range = ranges[index]
+                            val start = range.start
                             if (start >= total) continue
-                            val segmentLength = minOf(total - start, segmentSize)
+                            val segmentLength = range.length
                             Os.posix_fallocate(file.fd, start, segmentLength)
                             preparedBytes += segmentLength
                             onPreparing((preparedBytes.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
@@ -185,7 +187,8 @@ internal object SegmentedDownloadEngine {
         }
         database.finishPreparing(item.id)
         for (index in 0 until SEGMENT_COUNT) {
-            val start = index * segmentSize
+            val range = ranges[index]
+            val start = range.start
             if (start >= total) continue
             val progressFile = File(directory, "${item.id}.seg$index.progress")
             if (!progressFile.isFile) writeSegmentProgress(progressFile, 0L)
@@ -198,10 +201,10 @@ internal object SegmentedDownloadEngine {
         val speedLimiter = DownloadSpeedLimiter(DownloadConcurrencyPreferences(context).speedLimitBytesPerSecond())
         val completedBytes = java.util.concurrent.atomic.AtomicLong(
             (0 until SEGMENT_COUNT).sumOf { index ->
-                val start = index * segmentSize
-                if (start >= total) 0L else {
+                val range = ranges[index]
+                if (range.start >= total) 0L else {
                     val progressFile = File(directory, "${item.id}.seg$index.progress")
-                    val limit = minOf(total - start, segmentSize)
+                    val limit = range.length
                     readSegmentProgress(progressFile, limit)
                 }
             }
@@ -211,9 +214,10 @@ internal object SegmentedDownloadEngine {
         val lastProgressUpdate = java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis())
         try {
             val jobs = (0 until SEGMENT_COUNT).mapNotNull { index ->
-                val start = index * segmentSize
+                val range = ranges[index]
+                val start = range.start
                 if (start >= total) return@mapNotNull null
-                val end = minOf(total - 1L, start + segmentSize - 1L)
+                val end = range.endInclusive
                 Callable {
                     val progressFile = File(directory, "${item.id}.seg$index.progress")
                     downloadRange(context, item, target, directUri, progressFile, start, end, total, etag, modified, isStopped, speedLimiter) { delta ->
@@ -248,9 +252,9 @@ internal object SegmentedDownloadEngine {
         }
 
         val downloaded = (0 until SEGMENT_COUNT).sumOf { index ->
-            val start = index * segmentSize
-            if (start >= total) 0L else {
-                val limit = minOf(total - start, segmentSize)
+            val range = ranges[index]
+            if (range.start >= total) 0L else {
+                val limit = range.length
                 readSegmentProgress(File(directory, "${item.id}.seg$index.progress"), limit)
             }
         }

@@ -57,7 +57,28 @@ internal class ResumableDownloadWorker(
                 // Enter preparation only after the visible destination exists.
                 database.preparing(id, item.preparationPercent, item.totalBytes, item.etag, item.lastModified)
                 updatePreparingNotification(item.title, id, item.preparationPercent.coerceIn(0, 100))
-                download(item, database)
+                val segmentedCompleted = SegmentedDownloadEngine.download(
+                    context = applicationContext,
+                    item = item,
+                    database = database,
+                    isStopped = {
+                        isStopped ||
+                            database.get(id)?.status == DownloadManager.STATUS_PAUSED ||
+                            database.get(id)?.status == DownloadDatabase.STATUS_CANCELLED
+                    },
+                    onProgress = { downloaded, total ->
+                        updateProgressNotification(item.title, id, downloaded, total)
+                    },
+                    onPreparing = { percent ->
+                        val current = database.get(id)
+                        database.preparing(
+                            id, percent, current?.totalBytes ?: -1L,
+                            current?.etag.orEmpty(), current?.lastModified.orEmpty()
+                        )
+                        updatePreparingNotification(item.title, id, percent)
+                    }
+                )
+                if (segmentedCompleted) Result.success() else download(item, database)
             }
         } catch (error: Exception) {
             val latest = database.get(id)
