@@ -375,6 +375,40 @@ internal object DownloadDestination {
             if (preparedSize != total) {
                 throw IOException("Preallocated download size verification failed: $preparedSize / $total")
             }
+
+            // MediaStore can cache the row's indexed SIZE from when the empty
+            // destination was first inserted. Refresh the published row only after
+            // the inode has its final length and its blocks have been reserved.
+            // Cycling IS_PENDING forces MediaProvider to re-index the completed
+            // preparation before the first network byte is written.
+            val resolver = context.applicationContext.contentResolver
+            val hideWhileRefreshing = ContentValues().apply {
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+            if (resolver.update(uri, hideWhileRefreshing, null, null) <= 0) {
+                throw IOException("Could not refresh the preallocated download metadata")
+            }
+            resolver.notifyChange(uri, null)
+            val publish = ContentValues().apply {
+                put(MediaStore.MediaColumns.IS_PENDING, 0)
+            }
+            if (resolver.update(uri, publish, null, null) <= 0) {
+                throw IOException("Could not republish the preallocated download file")
+            }
+            resolver.notifyChange(uri, null)
+
+            val indexedSize = resolver.query(
+                uri,
+                arrayOf(OpenableColumns.SIZE),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else -1L
+            } ?: -1L
+            if (indexedSize >= 0L && indexedSize != total) {
+                throw IOException("MediaStore indexed the prepared file with the wrong size: $indexedSize / $total")
+            }
             onPreparing(100)
         }
     }
