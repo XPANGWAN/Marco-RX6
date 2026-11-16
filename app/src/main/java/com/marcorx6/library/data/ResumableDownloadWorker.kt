@@ -244,7 +244,7 @@ internal class ResumableDownloadWorker(
                 // A full-size reservation is impossible when the server does not
                 // disclose a reliable total length. Never silently start a growing
                 // file and present it as a preallocated download.
-                throw IOException("The server did not provide the total file size; safe full-size preallocation is not possible")
+                throw IllegalStateException("The server did not provide the total file size; safe full-size preallocation is not possible")
             }
             val responseStartOffset = offset
             val integrityVerifier = DownloadIntegrityVerifier.from(connection)
