@@ -55,8 +55,8 @@ internal class ResumableDownloadWorker(
                     )
                 }
                 // Enter preparation only after the visible destination exists.
-                database.preparing(id, 0, item.totalBytes, item.etag, item.lastModified)
-                updatePreparingNotification(item.title, id, 0)
+                database.preparing(id, item.preparationPercent, item.totalBytes, item.etag, item.lastModified)
+                updatePreparingNotification(item.title, id, item.preparationPercent.coerceIn(0, 100))
                 download(item, database)
             }
         } catch (error: Exception) {
@@ -147,6 +147,16 @@ internal class ResumableDownloadWorker(
         if (directUri != null && offset == 0L && directSize > 0L) {
             DownloadDestination.truncateDirectTarget(applicationContext, directUri, 0L)
             directSize = 0L
+        } else if (directUri != null && !DownloadDestination.isMediaStoreTarget(directUri) && directSize > offset) {
+            try {
+                DownloadDestination.truncateDirectTarget(applicationContext, directUri, offset)
+            } catch (_: Exception) {
+                DownloadDestination.truncateDirectTarget(applicationContext, directUri, 0L)
+                durableProgress.delete()
+                database.progress(item.id, 0L, item.totalBytes, item.etag, item.lastModified)
+                offset = 0L
+            }
+            directSize = offset
         }
         // Discard bytes written after the last fsynced checkpoint. They will be
         // downloaded again rather than trusting data that was never committed.
@@ -240,11 +250,21 @@ internal class ResumableDownloadWorker(
                 connection.url.toString()
             )
             val safeName = DownloadFileNames.safeName(responseName ?: item.title, mime, item.id)
-            if (directUri != null && total > 0L && (directSize != total || (responseStartOffset == 0L && item.downloadedBytes > 0L))) {
+            if (directUri != null && total > 0L &&
+                (directSize != total || item.preparationPercent < 100 ||
+                    (responseStartOffset == 0L && item.downloadedBytes > 0L))
+            ) {
                 database.preparing(item.id, 0, total, etag, modified)
-                DownloadDestination.prepareDirectTarget(applicationContext, directUri, total) { percent ->
-                    database.preparing(item.id, percent, total, etag, modified)
-                    updatePreparingNotification(item.title, item.id, percent)
+                if (DownloadDestination.isMediaStoreTarget(directUri)) {
+                    DownloadDestination.prepareDirectTarget(applicationContext, directUri, total, { percent ->
+                        database.preparing(item.id, percent, total, etag, modified)
+                        updatePreparingNotification(item.title, item.id, percent)
+                    }, responseStartOffset)
+                } else {
+                    DownloadDestination.openSequentialTargetWriter(applicationContext, directUri, responseStartOffset)
+                        .use { DownloadDestination.syncSequentialTargetWriter(it) }
+                    database.preparing(item.id, 100, total, etag, modified)
+                    updatePreparingNotification(item.title, item.id, 100)
                 }
             }
             // No matter which storage provider or size metadata the server supplies,
@@ -260,8 +280,11 @@ internal class ResumableDownloadWorker(
             writeDurableOffset(durableProgress, offset)
             var responseBytes = 0L
             connection.inputStream.use { input ->
-                val directWriter = directUri?.let { DownloadDestination.openDirectWriter(applicationContext, it) }
-                val fileSink = if (directWriter == null) FileOutputStream(partial, append) else null
+                val directWriter = directUri?.takeIf { DownloadDestination.isMediaStoreTarget(it) }
+                    ?.let { DownloadDestination.openDirectWriter(applicationContext, it) }
+                val sequentialTarget = directUri?.takeUnless { DownloadDestination.isMediaStoreTarget(it) }
+                    ?.let { DownloadDestination.openSequentialTargetWriter(applicationContext, it, responseStartOffset) }
+                val fileSink = if (directWriter == null && sequentialTarget == null) FileOutputStream(partial, append) else null
                 try {
                     val buffer = ByteArray(64 * 1024)
                     var lastUpdate = System.currentTimeMillis()
@@ -276,13 +299,15 @@ internal class ResumableDownloadWorker(
                         integrityVerifier?.update(buffer, count)
                         speedLimiter.acquire(count)
                         if (directWriter != null) directWriter.writeAt(buffer, count, offset)
+                        else if (sequentialTarget != null) sequentialTarget.write(buffer, 0, count)
                         else fileSink!!.write(buffer, 0, count)
                         offset += count
                         responseBytes += count
                         val now = System.currentTimeMillis()
                         if (now - lastUpdate >= 1_000L) {
-                            fileSink?.flush()
-                            if (directWriter != null) directWriter.sync() else fileSink!!.fd.sync()
+                            if (directWriter != null) directWriter.sync()
+                            else if (sequentialTarget != null) DownloadDestination.syncSequentialTargetWriter(sequentialTarget)
+                            else { fileSink!!.flush(); fileSink!!.fd.sync() }
                             writeDurableOffset(durableProgress, offset)
                             database.progress(item.id, offset, total, etag, modified)
                             lastUpdate = now
@@ -292,11 +317,14 @@ internal class ResumableDownloadWorker(
                             }
                         }
                     }
-                    if (directWriter != null) directWriter.sync() else fileSink!!.fd.sync()
+                    if (directWriter != null) directWriter.sync()
+                    else if (sequentialTarget != null) DownloadDestination.syncSequentialTargetWriter(sequentialTarget)
+                    else { fileSink!!.flush(); fileSink!!.fd.sync() }
                     writeDurableOffset(durableProgress, offset)
                 } finally {
                     runCatching { fileSink?.close() }
                     runCatching { directWriter?.close() }
+                    runCatching { sequentialTarget?.close() }
                 }
             }
             if (responseLength >= 0L && responseBytes != responseLength) {
@@ -327,6 +355,9 @@ internal class ResumableDownloadWorker(
             if (total > 0L && offset != total) {
                 throw IOException("Incomplete file: $offset / $total")
             }
+            if (directUri != null && total > 0L &&
+                DownloadDestination.directTargetSize(applicationContext, directUri, offset) != total
+            ) throw IOException("Final destination size does not match the verified download size")
             // Network transfer is finished. Keep the item RUNNING while finalizing;
             // PREPARING is reserved exclusively for the pre-download storage phase.
             updateProgressNotification(item.title, item.id, offset, total)
