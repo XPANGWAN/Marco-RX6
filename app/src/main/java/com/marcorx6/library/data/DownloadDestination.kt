@@ -130,21 +130,24 @@ internal object DownloadDestination {
         descriptor.use { pfd ->
             android.system.Os.ftruncate(pfd.fileDescriptor, total)
             var prepared = 0L
+            var supportsPhysicalPreallocation = true
             val segmentSize = ((total - 1L) / 4L) + 1L
             for (index in 0 until 4) {
                 val start = index * segmentSize
                 if (start >= total) continue
                 val length = minOf(total - start, segmentSize)
-                try {
-                    android.system.Os.posix_fallocate(pfd.fileDescriptor, start, length)
-                } catch (error: android.system.ErrnoException) {
-                    // MediaStore/FUSE providers may support positional writes and
-                    // truncation but not the Linux fallocate operation. Keep the
-                    // public target instead of abandoning it for app-private storage.
-                    val unsupported = error.errno == android.system.OsConstants.EOPNOTSUPP ||
-                        error.errno == android.system.OsConstants.ENOSYS ||
-                        error.errno == android.system.OsConstants.EINVAL
-                    if (!unsupported) throw error
+                if (supportsPhysicalPreallocation) {
+                    try {
+                        android.system.Os.posix_fallocate(pfd.fileDescriptor, start, length)
+                    } catch (error: android.system.ErrnoException) {
+                        // MediaStore/FUSE providers may support positional writes and
+                        // truncation but not Linux fallocate. Keep the visible target.
+                        val unsupported = error.errno == android.system.OsConstants.EOPNOTSUPP ||
+                            error.errno == android.system.OsConstants.ENOSYS ||
+                            error.errno == android.system.OsConstants.EINVAL
+                        if (!unsupported) throw error
+                        supportsPhysicalPreallocation = false
+                    }
                 }
                 prepared += length
                 onPreparing((prepared.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
