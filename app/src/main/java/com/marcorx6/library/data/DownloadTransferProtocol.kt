@@ -19,9 +19,20 @@ internal object DownloadTransferProtocol {
                   expectedEtag: String, responseEtag: String, expectedLastModified: String, responseLastModified: String): Boolean {
         if (requestedOffset <= 0L || responseStatus != 206 || range == null || range.start != requestedOffset) return false
         if (contentLength >= 0L && contentLength != range.length) return false
+        // If-Range requires a strong ETag. A weak validator (W/...) only
+        // identifies semantically equivalent representations and is not safe
+        // for byte-for-byte resume. Fall back to Last-Modified when available.
+        val expectedStrongEtag = expectedEtag.takeIf {
+            it.isNotBlank() && !it.trimStart().startsWith("W/", ignoreCase = true)
+        }
+        val responseStrongEtag = responseEtag.takeIf {
+            it.isNotBlank() && !it.trimStart().startsWith("W/", ignoreCase = true)
+        }
         val validatorMatches = when {
-            expectedEtag.isNotBlank() -> responseEtag.isNotBlank() && responseEtag == expectedEtag
-            expectedLastModified.isNotBlank() -> responseLastModified.isNotBlank() && responseLastModified == expectedLastModified
+            expectedStrongEtag != null ->
+                responseStrongEtag != null && responseStrongEtag == expectedStrongEtag
+            expectedLastModified.isNotBlank() ->
+                responseLastModified.isNotBlank() && responseLastModified == expectedLastModified
             else -> false
         }
         return validatorMatches
