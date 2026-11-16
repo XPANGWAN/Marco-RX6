@@ -48,6 +48,12 @@ internal class DownloadRepository(context: Context) {
         DownloadWorkScheduler.schedule(appContext)
     }
 
+    private data class EnqueueReservation(
+        val duplicate: StoredDownload? = null,
+        val id: Long = -1L,
+        val previous: StoredDownload? = null
+    )
+
     fun enqueue(
         link: String,
         title: String,
@@ -59,64 +65,108 @@ internal class DownloadRepository(context: Context) {
         onResult: (DownloadStartResult) -> Unit
     ) {
         probeExecutor.execute {
+            var reservedId = -1L
+            var previousDownload: StoredDownload? = null
             val result = try {
                 val secureLink = SecureUrlPolicy.toHttpsUrl(link)
                     ?: throw SecurityException("رابط التنزيل غير آمن أو غير صالح؛ يجب استخدام HTTPS")
-                val probe = inspect(secureLink, userAgent, contentDisposition, hintedMimeType, referrer)
-                if (!probe.isDirectFile) {
-                    DownloadStartResult.OpenInBrowser(probe.finalUrl)
-                } else {
-                    if (!probe.finalUrl.startsWith("https://", ignoreCase = true)) {
-                        throw SecurityException("رابط التحويل النهائي لا يستخدم HTTPS؛ تم إيقاف التنزيل لحماية بياناتك")
-                    }
-                    val finalTitle = probe.fileName ?: title.ifBlank { "MARCO" }
-                    val cookie = CookieManager.getInstance().getCookie(probe.finalUrl).orEmpty()
-                    synchronized(database) {
-                        val duplicate = database.findActiveDuplicate(probe.finalUrl, sourcePostUrl)
-                        if (duplicate != null) {
-                            ensureVisibleDefaultTarget(duplicate.id, duplicate.title, duplicate.mimeType)
-                            DownloadStartResult.AlreadyQueued(duplicate.title)
+
+                // Reserve the queue row and publish its destination BEFORE any HTTP
+                // probe. The UI can now show Preparing immediately, and the user
+                // can see the actual destination while redirects/headers are checked.
+                val reservation = synchronized(database) {
+                    val duplicate = database.findActiveDuplicate(secureLink, sourcePostUrl)
+                    if (duplicate != null) {
+                        EnqueueReservation(duplicate = duplicate)
+                    } else {
+                        val previous = database.findFailedBySource(sourcePostUrl)
+                        val id = previous?.id ?: database.nextId()
+                        reservedId = id
+                        previousDownload = previous
+                        if (previous == null) {
+                            database.insert(
+                                id, secureLink, title.ifBlank { "MARCO" }, userAgent, "",
+                                referrer, hintedMimeType, sourcePostUrl
+                            )
                         } else {
-                            val previous = database.findFailedBySource(sourcePostUrl)
-                            val id = previous?.id ?: database.nextId()
-                            if (previous != null) {
-                                database.refreshSource(id, probe.finalUrl, userAgent, cookie, referrer, probe.mimeType)
-                                val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
-                                File(directory, "$id.part").delete()
-                                File(directory, "$id.part.progress").delete()
-                                File(directory, "$id.part.progress.tmp").delete()
-                                DownloadDestination.removeDirectTarget(appContext, id)
-                                (0 until 4).forEach { index ->
-                                    File(directory, "$id.seg$index").delete()
-                                    File(directory, "$id.seg$index.progress").delete()
-                                    File(directory, "$id.seg$index.progress.tmp").delete()
-                                }
+                            val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
+                            File(directory, "$id.part").delete()
+                            File(directory, "$id.part.progress").delete()
+                            File(directory, "$id.part.progress.tmp").delete()
+                            DownloadDestination.removeDirectTarget(appContext, id)
+                            (0 until 4).forEach { index ->
+                                File(directory, "$id.seg$index").delete()
+                                File(directory, "$id.seg$index.progress").delete()
+                                File(directory, "$id.seg$index.progress.tmp").delete()
                             }
-                            try {
-                                // Publish the final MediaStore row before WorkManager is
-                                // scheduled. This guarantees that the user can see the
-                                // destination immediately, including while the worker is
-                                // waiting for a network slot or probing HTTP Range support.
-                                ensureVisibleDefaultTarget(id, finalTitle, probe.mimeType)
-                                if (previous == null) {
-                                    database.insert(id, probe.finalUrl, finalTitle, userAgent, cookie, referrer, probe.mimeType, sourcePostUrl)
-                                }
-                                // Keep the queue visibly in preparation while waiting
-                                // for a worker slot; this is state, not an artificial delay.
-                                database.status(id, DownloadDatabase.STATUS_INITIALIZING)
-                            } catch (error: Exception) {
-                                DownloadDestination.removeDirectTarget(appContext, id)
-                                if (previous != null) {
-                                    database.status(id, DownloadManager.STATUS_FAILED, error.message ?: "Could not create visible download target")
-                                }
-                                throw error
-                            }
-                            DownloadWorkScheduler.schedule(appContext)
-                            DownloadStartResult.Enqueued(finalTitle)
                         }
+                        database.status(id, DownloadDatabase.STATUS_INITIALIZING)
+                        ensureVisibleDefaultTarget(id, title.ifBlank { "MARCO" }, hintedMimeType)
+                        EnqueueReservation(id = id, previous = previous)
+                    }
+                }
+
+                if (reservation.duplicate != null) {
+                    ensureVisibleDefaultTarget(
+                        reservation.duplicate.id,
+                        reservation.duplicate.title,
+                        reservation.duplicate.mimeType
+                    )
+                    DownloadStartResult.AlreadyQueued(reservation.duplicate.title)
+                } else {
+                    val id = reservation.id
+                    val previous = reservation.previous
+                    val probe = inspect(secureLink, userAgent, contentDisposition, hintedMimeType, referrer)
+                    if (!probe.isDirectFile) {
+                        synchronized(database) {
+                            if (previous == null) {
+                                database.cancel(id)
+                                database.delete(id)
+                            } else {
+                                database.status(id, DownloadManager.STATUS_FAILED, "Source is a web page, not a direct file")
+                            }
+                        }
+                        DownloadDestination.removeDirectTarget(appContext, id)
+                        DownloadStartResult.OpenInBrowser(probe.finalUrl)
+                    } else {
+                        if (!probe.finalUrl.startsWith("https://", ignoreCase = true)) {
+                            throw SecurityException("رابط التحويل النهائي لا يستخدم HTTPS؛ تم إيقاف التنزيل لحماية بياناتك")
+                        }
+                        val finalTitle = probe.fileName ?: title.ifBlank { "MARCO" }
+                        val cookie = CookieManager.getInstance().getCookie(probe.finalUrl).orEmpty()
+                        synchronized(database) {
+                            val latest = database.get(id)
+                                ?: throw InterruptedException("Download was cancelled before the source was ready")
+                            if (latest.status == DownloadDatabase.STATUS_CANCELLED) {
+                                throw InterruptedException("Download was cancelled before the source was ready")
+                            }
+                            database.updateSourceDetails(
+                                id, probe.finalUrl, finalTitle, userAgent, cookie, referrer, probe.mimeType
+                            )
+                            // Rename the already-published row rather than creating a
+                            // second file when the server supplies its final filename.
+                            ensureVisibleDefaultTarget(id, finalTitle, probe.mimeType)
+                            if (latest.status == DownloadDatabase.STATUS_INITIALIZING) {
+                                DownloadWorkScheduler.schedule(appContext)
+                            }
+                        }
+                        DownloadStartResult.Enqueued(finalTitle)
                     }
                 }
             } catch (error: Exception) {
+                if (reservedId > 0L) {
+                    val latest = database.get(reservedId)
+                    if (latest?.status == DownloadDatabase.STATUS_INITIALIZING) {
+                        database.status(
+                            reservedId,
+                            DownloadManager.STATUS_FAILED,
+                            error.message ?: "Could not initialize download"
+                        )
+                        DownloadDestination.removeDirectTarget(appContext, reservedId)
+                    } else if (latest == null || latest.status == DownloadDatabase.STATUS_CANCELLED) {
+                        DownloadDestination.removeDirectTarget(appContext, reservedId)
+                    }
+                }
                 val message = error.message ?: "تعذر بدء تنزيل الملف"
                 if (sourcePostUrl.isNotBlank() && Regex("HTTP (401|403|404|410)").containsMatchIn(message)) {
                     DownloadStartResult.RefreshSource(sourcePostUrl)
@@ -125,7 +175,6 @@ internal class DownloadRepository(context: Context) {
             onResult(result)
         }
     }
-
 
     fun getDownloads(): List<DownloadEntry> = database.all().map { item ->
         DownloadEntry(
