@@ -37,6 +37,11 @@ internal object SegmentedDownloadEngine {
         onProgress: (Long, Long) -> Unit,
         onPreparing: (Int) -> Unit
     ): Boolean {
+        // SAF providers are not required to support positional writes. Route those
+        // downloads through the resumable sequential writer, which now writes into
+        // the selected document itself instead of a hidden private staging copy.
+        if (DownloadStoragePreferences(context).treeUri() != null) return false
+
         val directory = File(context.filesDir, "MARCO_RX6_downloads").apply { mkdirs() }
         val target = File(directory, "${item.id}.part")
         val probe = openConnection(item, 0L, 0L)
