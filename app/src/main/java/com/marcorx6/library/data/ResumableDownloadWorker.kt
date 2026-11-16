@@ -97,26 +97,10 @@ internal class ResumableDownloadWorker(
         // A sequential checkpoint means the visible destination is already the
         // resumable target; do not let the range probe discard it on retry.
         val hasSequentialCheckpoint = durableProgress.isFile
-        val segmented = if (hasSequentialCheckpoint) false else SegmentedDownloadEngine.download(
-            applicationContext,
-            item,
-            database,
-            isStopped = { isStopped || database.get(item.id)?.status == DownloadManager.STATUS_PAUSED ||
-                database.get(item.id)?.status == DownloadDatabase.STATUS_CANCELLED },
-            onProgress = { downloaded, total ->
-                updateProgressNotification(item.title, item.id, downloaded, total)
-            },
-            onPreparing = { percent ->
-                val latest = database.get(item.id)
-                database.preparing(
-                    item.id, percent,
-                    latest?.totalBytes ?: item.totalBytes,
-                    latest?.etag ?: item.etag,
-                    latest?.lastModified ?: item.lastModified
-                )
-                updatePreparingNotification(item.title, item.id, percent)
-            }
-        )
+        // Use one deterministic writer for every transfer. The old parallel
+        // engine maintained a second checkpoint format and could race the sequential
+        // resume path. Re-enable multi-range only after it shares this target journal.
+        val segmented = false
         if (segmented) return Result.success()
         // Write directly to the final destination: MediaStore by default, or the
         // user's selected SAF folder. Only pre-Android-10 without SAF needs staging.
@@ -132,9 +116,10 @@ internal class ResumableDownloadWorker(
             directSize = try {
                 DownloadDestination.directTargetSize(applicationContext, directUri)
             } catch (error: Exception) {
-                DownloadDestination.removeDirectTarget(applicationContext, item.id)
+                // Preserve the exact URI checkpoint on every reopen/stat failure.
+                // Deleting it here made the retry create a second MediaStore row.
                 throw IOException(
-                    "Could not reopen the visible file in Download/MARCO RX6; download was stopped rather than hidden in private storage.",
+                    "Could not reopen or inspect the existing visible file in Download/MARCO RX6. The original file was preserved for retry.",
                     error
                 )
             }
