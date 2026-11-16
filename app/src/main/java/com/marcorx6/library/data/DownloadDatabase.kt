@@ -27,7 +27,7 @@ internal data class StoredDownload(
 )
 
 internal class DownloadDatabase private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "marco_downloads.db", null, 5) {
+    SQLiteOpenHelper(context.applicationContext, "marco_downloads.db", null, 6) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -44,6 +44,7 @@ internal class DownloadDatabase private constructor(context: Context) :
                 total INTEGER NOT NULL DEFAULT -1,
                 etag TEXT NOT NULL DEFAULT '',
                 last_modified TEXT NOT NULL DEFAULT '',
+                source_url TEXT NOT NULL DEFAULT '',
                 local_path TEXT NOT NULL DEFAULT '',
                 error TEXT NOT NULL DEFAULT '',
                 source_post_url TEXT NOT NULL DEFAULT '',
@@ -59,21 +60,25 @@ internal class DownloadDatabase private constructor(context: Context) :
         if (oldVersion < 3) db.execSQL("ALTER TABLE downloads ADD COLUMN priority INTEGER NOT NULL DEFAULT 0")
         if (oldVersion < 4) db.execSQL("ALTER TABLE downloads ADD COLUMN preparation_percent INTEGER NOT NULL DEFAULT 0")
         if (oldVersion < 5) db.execSQL("ALTER TABLE downloads ADD COLUMN destination_uri TEXT NOT NULL DEFAULT ''")
+        if (oldVersion < 6) {
+            db.execSQL("ALTER TABLE downloads ADD COLUMN source_url TEXT NOT NULL DEFAULT ''")
+            db.execSQL("UPDATE downloads SET source_url=url WHERE source_url=''")
+        }
     }
 
     @Synchronized
-    fun insert(id: Long, url: String, title: String, userAgent: String, cookie: String, referrer: String, mime: String, sourcePostUrl: String = "") {
+    fun insert(id: Long, url: String, title: String, userAgent: String, cookie: String, referrer: String, mime: String, sourcePostUrl: String = "", sourceUrl: String = url) {
         val values = ContentValues().apply {
             put("id", id); put("url", url); put("title", title)
             put("user_agent", userAgent); put("cookie", cookie); put("referrer", referrer)
             put("mime_type", mime); put("status", DownloadManager.STATUS_PENDING)
-            put("source_post_url", sourcePostUrl)
+            put("source_post_url", sourcePostUrl); put("source_url", sourceUrl)
         }
         writableDatabase.insertOrThrow("downloads", null, values)
     }
 
     @Synchronized
-    fun findActiveDuplicate(url: String, sourcePostUrl: String): StoredDownload? {
+    fun findActiveDuplicate(url: String, sourcePostUrl: String, sourceUrl: String = url): StoredDownload? {
         val activeStatuses = intArrayOf(
             DownloadManager.STATUS_PENDING,
             DownloadManager.STATUS_RUNNING,
@@ -85,8 +90,8 @@ internal class DownloadDatabase private constructor(context: Context) :
         )
         val byUrl = readableDatabase.query(
             "downloads", null,
-            "url=? AND status IN (?,?,?,?,?,?,?)",
-            arrayOf(url, *activeStatuses.map(Int::toString).toTypedArray()),
+            "(source_url=? OR url=?) AND status IN (?,?,?,?,?,?,?)",
+            arrayOf(sourceUrl, url, *activeStatuses.map(Int::toString).toTypedArray()),
             null, null, "id DESC", "1"
         ).use { if (it.moveToFirst()) it.toRecord() else null }
         if (byUrl != null) return byUrl

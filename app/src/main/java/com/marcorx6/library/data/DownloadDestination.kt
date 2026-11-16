@@ -20,6 +20,7 @@ import java.io.IOException
 internal object DownloadDestination {
     private const val DEFAULT_FOLDER = "MARCO RX6"
     private const val MARKER_NAME = "MARCO RX6 folder.txt"
+    private fun ownerTag(id: Long): String = "MARCO_RX6_DOWNLOAD_ID:" + id
 
     fun ensureDefaultFolder(context: Context): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -221,7 +222,7 @@ internal object DownloadDestination {
         // Legacy recovery when an older app version has no SQLite URI checkpoint:
         // adopt only one exact-name match in the app's download folder. If the name
         // is ambiguous, fail closed rather than guessing or creating a "(1)" copy.
-        val recovered = findRecoverableDirectTarget(context, displayName)
+        val recovered = findRecoverableDirectTarget(context, id, displayName)
         if (recovered != null) {
             persistDestinationUri(context, id, recovered)
             publishAndVerify(context, id, recovered, displayName, mimeType)
@@ -232,6 +233,7 @@ internal object DownloadDestination {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
             put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$DEFAULT_FOLDER/")
+            put(MediaStore.MediaColumns.DESCRIPTION, ownerTag(id))
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val uri = resolver.insert(
@@ -252,7 +254,7 @@ internal object DownloadDestination {
     }
 
     @SuppressLint("NewApi")
-    private fun findRecoverableDirectTarget(context: Context, displayName: String): Uri? {
+    private fun findRecoverableDirectTarget(context: Context, id: Long, displayName: String): Uri? {
         val resolver = context.applicationContext.contentResolver
         val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         val relativePath = "${Environment.DIRECTORY_DOWNLOADS}/$DEFAULT_FOLDER/"
@@ -276,8 +278,14 @@ internal object DownloadDestination {
             }
         }
 
-        // Compatibility recovery for older rows without a private URI checkpoint.
-        // Reuse only one exact-name match; never guess when multiple rows exist.
+        // Recover by immutable owner identity first; the filename may change after redirects.
+        val owned = findOne(
+            "${MediaStore.MediaColumns.DESCRIPTION}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?",
+            arrayOf(ownerTag(id), relativePath)
+        )
+        if (owned != null) return owned
+
+        // Legacy rows without owner metadata are recovered by one exact-name match only.
         return findOne(
             "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?",
             arrayOf(displayName, relativePath)
@@ -302,6 +310,7 @@ internal object DownloadDestination {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
             put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+            put(MediaStore.MediaColumns.DESCRIPTION, ownerTag(id))
             put(MediaStore.MediaColumns.IS_PENDING, 0)
         }
         if (resolver.update(uri, values, null, null) <= 0) {
@@ -313,7 +322,8 @@ internal object DownloadDestination {
             arrayOf(
                 MediaStore.MediaColumns.DISPLAY_NAME,
                 MediaStore.MediaColumns.RELATIVE_PATH,
-                MediaStore.MediaColumns.IS_PENDING
+                MediaStore.MediaColumns.IS_PENDING,
+                MediaStore.MediaColumns.DESCRIPTION
             ),
             null,
             null,
@@ -322,7 +332,8 @@ internal object DownloadDestination {
             cursor.moveToFirst() &&
                 cursor.getString(0) == displayName &&
                 cursor.getString(1)?.trimEnd('/') == relativePath.trimEnd('/') &&
-                (cursor.isNull(2) || cursor.getInt(2) == 0)
+                (cursor.isNull(2) || cursor.getInt(2) == 0) &&
+                cursor.getString(3) == ownerTag(id)
         } ?: false
         if (!visible) {
             throw IOException("MediaStore did not confirm the visible file in Download/$DEFAULT_FOLDER")

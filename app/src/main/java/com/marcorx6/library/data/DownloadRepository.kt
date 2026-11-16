@@ -81,7 +81,7 @@ internal class DownloadRepository(context: Context) {
                 // probe. The UI can now show Preparing immediately, and the user
                 // can see the actual destination while redirects/headers are checked.
                 val reservation = synchronized(database) {
-                    val duplicate = database.findActiveDuplicate(secureLink, sourcePostUrl)
+                    val duplicate = database.findActiveDuplicate(secureLink, sourcePostUrl, secureLink)
                     if (duplicate != null) {
                         EnqueueReservation(duplicate = duplicate)
                     } else {
@@ -91,7 +91,7 @@ internal class DownloadRepository(context: Context) {
                         if (previous == null) {
                             database.insert(
                                 id, secureLink, title.ifBlank { "MARCO" }, userAgent, "",
-                                referrer, hintedMimeType, sourcePostUrl
+                                referrer, hintedMimeType, sourcePostUrl, secureLink
                             )
                         } else {
                             val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
