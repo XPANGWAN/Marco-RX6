@@ -97,11 +97,13 @@ internal object DownloadDestination {
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
         sidecar.parentFile?.mkdirs()
         val previous = try {
-            if (sidecar.isFile) {
-                val saved = sidecar.readText().trim()
-                Uri.parse(saved).takeIf { saved.isNotBlank() }
-                    ?: throw IOException("The saved download destination checkpoint is empty")
-            } else null
+            val savedInDatabase = DownloadDatabase.get(context).destinationUri(id)
+            val saved = savedInDatabase ?: if (sidecar.isFile) sidecar.readText().trim() else null
+            if (saved == null) null else {
+                if (saved.isBlank()) throw IOException("The saved download destination checkpoint is empty")
+                Uri.parse(saved).takeIf { it.scheme == "content" }
+                    ?: throw IOException("The saved download destination checkpoint is invalid")
+            }
         } catch (error: Exception) {
             throw IOException("The original download destination could not be recovered; no duplicate file was created", error)
         }
@@ -161,8 +163,9 @@ internal object DownloadDestination {
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
         sidecar.parentFile?.mkdirs()
         val previous = try {
-            if (!sidecar.isFile) null else {
-                val saved = sidecar.readText().trim()
+            val savedInDatabase = DownloadDatabase.get(context).destinationUri(id)
+            val saved = savedInDatabase ?: if (sidecar.isFile) sidecar.readText().trim() else null
+            if (saved == null) null else {
                 val parsed = Uri.parse(saved)
                 if (saved.isBlank() || parsed.scheme != "content") {
                     throw IOException("The saved download destination checkpoint is invalid; refusing to create a duplicate file")
@@ -183,6 +186,9 @@ internal object DownloadDestination {
                 previous, arrayOf(MediaStore.MediaColumns._ID), null, null, null
             )?.use { it.moveToFirst() }
                 ?: throw IOException("Could not verify the existing download destination")
+            if (!previousExists) {
+                throw IOException("The database points to the original download file, but that exact file is missing. Refusing to create a renamed duplicate.")
+            }
             if (previousExists) {
                 val reopened = runCatching {
                     resolver.openFileDescriptor(previous, "rw")?.use { true } ?: false
@@ -586,6 +592,9 @@ internal object DownloadDestination {
     private fun persistDestinationUri(context: Context, id: Long, uri: Uri) {
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
         sidecar.parentFile?.mkdirs()
+        // SQLite is the authoritative identity record; the sidecar remains a
+        // recovery mirror for upgrades and filesystem-level diagnostics.
+        DownloadDatabase.get(context).setDestinationUri(id, uri.toString())
         val temporary = File(sidecar.parentFile, sidecar.name + ".tmp")
         java.io.FileOutputStream(temporary, false).use { output ->
             output.write(uri.toString().toByteArray(Charsets.UTF_8))
@@ -597,12 +606,14 @@ internal object DownloadDestination {
         }
     }
 
-    private fun deleteTarget(context: Context, uri: Uri) {
+    private fun deleteTarget(context: Context, uri: Uri): Boolean =
         runCatching {
-            if (uri.authority == MediaStore.AUTHORITY) context.contentResolver.delete(uri, null, null)
-            else DocumentsContract.deleteDocument(context.contentResolver, uri)
-        }
-    }
+            if (uri.authority == MediaStore.AUTHORITY) {
+                context.contentResolver.delete(uri, null, null) > 0
+            } else {
+                DocumentsContract.deleteDocument(context.contentResolver, uri)
+            }
+        }.getOrDefault(false)
 
     /**
      * Reset an interrupted direct download in place. Keep its MediaStore row and
@@ -618,13 +629,24 @@ internal object DownloadDestination {
 
     fun removeDirectTarget(context: Context, id: Long) {
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
-        val uri = runCatching { if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null }.getOrNull()
-        if (uri != null) deleteTarget(context, uri)
+        val saved = DownloadDatabase.get(context).destinationUri(id)
+            ?: runCatching { if (sidecar.isFile) sidecar.readText().trim() else null }.getOrNull()
+        val uri = saved?.takeIf { it.isNotBlank() }?.let(Uri::parse)
+        // Never discard the only identity checkpoint when provider deletion fails:
+        // a later retry must reopen this row instead of inserting a '(1)' copy.
+        if (uri != null && !deleteTarget(context, uri)) {
+            throw IOException("Could not remove the original download file; its destination identity was retained to prevent a duplicate")
+        }
+        DownloadDatabase.get(context).clearDestinationUri(id)
         sidecar.delete()
+        File(sidecar.parentFile, sidecar.name + ".tmp").delete()
     }
 
     fun forgetDirectTarget(context: Context, id: Long) {
-        File(context.filesDir, "MARCO_RX6_downloads/$id.destination").delete()
+        DownloadDatabase.get(context).clearDestinationUri(id)
+        val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
+        sidecar.delete()
+        File(sidecar.parentFile, sidecar.name + ".tmp").delete()
     }
 
     fun save(
