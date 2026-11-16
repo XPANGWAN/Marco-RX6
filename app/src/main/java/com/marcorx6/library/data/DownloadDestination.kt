@@ -274,15 +274,58 @@ internal object DownloadDestination {
         return descriptor.use { android.system.Os.fstat(it.fileDescriptor).st_size }
     }
 
-    fun openSequentialTargetWriter(context: Context, uri: Uri, offset: Long): java.io.OutputStream {
+    /**
+     * SAF providers are not guaranteed to implement append as a seek to the
+     * requested resume offset. Open the document descriptor in read/write mode,
+     * seek explicitly, and fail closed when the provider is not seekable.
+     */
+    internal class SeekableTargetWriter(
+        private val descriptor: android.os.ParcelFileDescriptor,
+        offset: Long
+    ) : java.io.OutputStream() {
+        private val stream = java.io.FileOutputStream(descriptor.fileDescriptor)
+
+        init {
+            try {
+                android.system.Os.lseek(
+                    descriptor.fileDescriptor,
+                    offset,
+                    android.system.OsConstants.SEEK_SET
+                )
+            } catch (error: Exception) {
+                runCatching { stream.close() }
+                throw IOException("The selected folder cannot safely resume at byte $offset; the original file was preserved", error)
+            }
+        }
+
+        override fun write(value: Int) = stream.write(value)
+        override fun write(bytes: ByteArray, offset: Int, length: Int) = stream.write(bytes, offset, length)
+        override fun flush() = stream.flush()
+        fun sync() {
+            stream.flush()
+            android.system.Os.fsync(descriptor.fileDescriptor)
+        }
+        override fun close() = stream.close()
+    }
+
+    fun openSequentialTargetWriter(context: Context, uri: Uri, offset: Long): SeekableTargetWriter {
         if (isMediaStoreTarget(uri)) throw IllegalArgumentException("MediaStore targets use positional writes")
-        return context.contentResolver.openOutputStream(uri, if (offset > 0L) "wa" else "wt")
+        val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
             ?: throw IOException("The selected folder could not open the download for writing")
+        return try {
+            SeekableTargetWriter(descriptor, offset)
+        } catch (error: Exception) {
+            runCatching { descriptor.close() }
+            throw error
+        }
     }
 
     fun syncSequentialTargetWriter(output: java.io.OutputStream) {
-        output.flush()
-        if (output is java.io.FileOutputStream) output.fd.sync()
+        if (output is SeekableTargetWriter) output.sync()
+        else {
+            output.flush()
+            if (output is java.io.FileOutputStream) output.fd.sync()
+        }
     }
 
     fun renameDirectTarget(context: Context, id: Long, uri: Uri, displayName: String): Uri {

@@ -251,8 +251,11 @@ internal class ResumableDownloadWorker(
                 } else {
                     DownloadDestination.openSequentialTargetWriter(applicationContext, directUri, responseStartOffset)
                         .use { DownloadDestination.syncSequentialTargetWriter(it) }
-                    database.preparing(item.id, 100, total, etag, modified)
-                    updatePreparingNotification(item.title, item.id, 100)
+                    // SAF providers do not expose a portable physical
+                    // preallocation contract. Keep the Preparing phase visible,
+                    // but never report 100% reserved when no reservation occurred.
+                    database.preparing(item.id, 0, total, etag, modified)
+                    updatePreparingNotification(item.title, item.id, 0)
                 }
             }
             // No matter which storage provider or size metadata the server supplies,
