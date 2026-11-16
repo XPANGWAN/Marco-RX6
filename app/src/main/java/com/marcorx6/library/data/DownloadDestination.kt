@@ -92,6 +92,7 @@ internal object DownloadDestination {
             }
         }
 
+        if (previous != null) runCatching { resolver.delete(previous, null, null) }
         sidecar.delete()
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
@@ -105,9 +106,11 @@ internal object DownloadDestination {
             MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), values
         ) ?: throw IOException("Could not create the visible preallocated download file")
         return try {
+            // Persist the URI before opening the descriptor so a process death
+            // cannot leave an untracked MediaStore row behind.
+            sidecar.writeText(uri.toString())
             resolver.openFileDescriptor(uri, "rw")?.close()
                 ?: throw IOException("Could not open the destination file for random access")
-            sidecar.writeText(uri.toString())
             publishAndVerify(context, uri, displayName, mimeType)
             uri
         } catch (error: Exception) {
