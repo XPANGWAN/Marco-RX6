@@ -206,7 +206,6 @@ internal object DownloadDestination {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
             put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$DEFAULT_FOLDER/")
-            put(MediaStore.MediaColumns.DESCRIPTION, destinationMarker(id))
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val uri = resolver.insert(
@@ -226,8 +225,6 @@ internal object DownloadDestination {
         }
     }
 
-    private fun destinationMarker(id: Long): String = "MARCO_RX6_DOWNLOAD_ID:$id"
-
     private fun findRecoverableDirectTarget(context: Context, id: Long, displayName: String): Uri? {
         val resolver = context.applicationContext.contentResolver
         val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
@@ -246,12 +243,6 @@ internal object DownloadDestination {
                 ContentUris.withAppendedId(collection, rowId)
             }
         }
-
-        val markerMatch = findOne(
-            "${MediaStore.MediaColumns.DESCRIPTION}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?",
-            arrayOf(destinationMarker(id), relativePath)
-        )
-        if (markerMatch != null) return markerMatch
 
         // Compatibility recovery for rows created by earlier app versions that
         // predate the marker. Reuse only an unambiguous exact-name match.
@@ -279,7 +270,6 @@ internal object DownloadDestination {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
             put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
-            put(MediaStore.MediaColumns.DESCRIPTION, destinationMarker(id))
             put(MediaStore.MediaColumns.IS_PENDING, 0)
         }
         if (resolver.update(uri, values, null, null) <= 0) {
@@ -387,7 +377,6 @@ internal object DownloadDestination {
         val renamed = if (uri.authority == MediaStore.AUTHORITY) {
             val values = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
-                put(MediaStore.MediaColumns.DESCRIPTION, destinationMarker(id))
             }
             if (resolver.update(uri, values, null, null) <= 0) {
                 throw IOException("Could not update the visible download filename")
