@@ -31,11 +31,22 @@ class RedirectingHttpConnectionTest {
         )
     }
 
+    @Test
+    fun upgradesGenericCleartextRedirectsToHttps() {
+        assertEquals(
+            "https://untrusted.example.net/file.pkg",
+            RedirectingHttpConnection.resolveRedirect(
+                URL("https://download.example.com/start"),
+                "http://untrusted.example.net/file.pkg"
+            ).toExternalForm()
+        )
+    }
+
     @Test(expected = SecurityException::class)
-    fun rejectsUntrustedCleartextRedirectTargets() {
+    fun rejectsCleartextRedirectsToPrivateHosts() {
         RedirectingHttpConnection.resolveRedirect(
             URL("https://download.example.com/start"),
-            "http://untrusted.example.net/file.pkg"
+            "http://192.168.1.10/file.pkg"
         )
     }
 
