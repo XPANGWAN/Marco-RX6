@@ -105,10 +105,18 @@ internal object DownloadDestination {
                         documentId == treeId || documentId.startsWith("$treeId/")
                     }
             }.getOrDefault(false)
-            val reusable = belongsToSelectedTree && runCatching {
-                resolver.openOutputStream(previous, "wa")?.use { true } ?: false
-            }.getOrDefault(false)
-            if (reusable) return previous
+            if (belongsToSelectedTree) {
+                val reusable = runCatching {
+                    resolver.openOutputStream(previous, "wa")?.use { true } ?: false
+                }.getOrDefault(false)
+                if (!reusable) {
+                    // Never replace a known destination just because a provider
+                    // temporarily refuses an append-open. That creates a second
+                    // visible file and loses the user's resume target.
+                    throw IOException("The existing download file in the selected folder cannot be reopened; its original destination was preserved")
+                }
+                return previous
+            }
             deleteTarget(context, previous)
         }
         sidecar.delete()
@@ -151,11 +159,16 @@ internal object DownloadDestination {
             if (reopened) {
                 // Older app versions may have left the row pending. Re-publish it
                 // on every resume so file managers can see the in-progress file.
-                if (runCatching {
+                // If verification fails, retain this URI and stop; never silently
+                // delete a valid resume target and create a duplicate row.
+                try {
                     publishAndVerify(context, previous, displayName, mimeType)
-                    true
-                }.getOrDefault(false)) {
                     return previous
+                } catch (error: Exception) {
+                    throw IOException(
+                        "Could not verify the existing download destination; the same file was preserved for retry",
+                        error
+                    )
                 }
             }
         }
