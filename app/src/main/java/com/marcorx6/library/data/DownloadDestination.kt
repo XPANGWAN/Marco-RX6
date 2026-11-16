@@ -302,7 +302,11 @@ internal object DownloadDestination {
     private fun refuseNewDestinationForResumedDownload(context: Context, id: Long) {
         val item = DownloadDatabase.get(context).get(id)
             ?: throw IOException("The download record disappeared; refusing to create an untracked file")
-        if (item.downloadedBytes > 0L || item.totalBytes > 0L) {
+        // STATUS_RESOLVING denotes an explicit fresh source inspection/restart.
+        // All paused, pending, failed-resume and running sessions must keep their old target.
+        if (item.status != DownloadDatabase.STATUS_RESOLVING &&
+            (item.downloadedBytes > 0L || item.totalBytes > 0L)
+        ) {
             throw IOException(
                 "The original destination could not be recovered for this resumed download. " +
                     "No replacement file was created; restore the original file or restart explicitly."
