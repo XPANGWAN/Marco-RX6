@@ -235,7 +235,7 @@ internal object DownloadDestination {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
             put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$DEFAULT_FOLDER/")
-            put(MediaStore.MediaColumns.DESCRIPTION, ownerTag(id))
+            put(MediaStore.MediaColumns.TITLE, ownerTag(id))
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val uri = resolver.insert(
@@ -282,7 +282,7 @@ internal object DownloadDestination {
 
         // Recover by immutable owner identity first; the filename may change after redirects.
         val owned = findOne(
-            "${MediaStore.MediaColumns.DESCRIPTION}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?",
+            "${MediaStore.MediaColumns.TITLE}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?",
             arrayOf(ownerTag(id), relativePath)
         )
         if (owned != null) return owned
@@ -331,7 +331,7 @@ internal object DownloadDestination {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
             put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
-            put(MediaStore.MediaColumns.DESCRIPTION, ownerTag(id))
+            put(MediaStore.MediaColumns.TITLE, ownerTag(id))
             put(MediaStore.MediaColumns.IS_PENDING, 0)
         }
         if (resolver.update(uri, values, null, null) <= 0) {
@@ -344,7 +344,7 @@ internal object DownloadDestination {
                 MediaStore.MediaColumns.DISPLAY_NAME,
                 MediaStore.MediaColumns.RELATIVE_PATH,
                 MediaStore.MediaColumns.IS_PENDING,
-                MediaStore.MediaColumns.DESCRIPTION
+                MediaStore.MediaColumns.TITLE
             ),
             null,
             null,
