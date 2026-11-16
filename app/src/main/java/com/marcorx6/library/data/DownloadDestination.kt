@@ -138,6 +138,7 @@ internal object DownloadDestination {
             tree,
             DocumentsContract.getTreeDocumentId(tree)
         )
+        refuseNewDestinationForResumedDownload(context, id)
         val target = DocumentsContract.createDocument(
             resolver,
             parent,
@@ -229,6 +230,7 @@ internal object DownloadDestination {
             return recovered
         }
 
+        refuseNewDestinationForResumedDownload(context, id)
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
@@ -270,8 +272,8 @@ internal object DownloadDestination {
                 val rowId = cursor.getLong(0)
                 if (cursor.moveToNext()) {
                     throw IOException(
-                        "More than one file has this download name in Download/$DEFAULT_FOLDER. " +
-                            "The original cannot be identified safely; no additional '(1)' file was created."
+                        "More than one MediaStore row matches this download identity. " +
+                            "The original cannot be identified safely; no new file was created."
                     )
                 }
                 ContentUris.withAppendedId(collection, rowId)
@@ -290,6 +292,22 @@ internal object DownloadDestination {
             "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?",
             arrayOf(displayName, relativePath)
         )
+    }
+
+    /**
+     * A resumed transfer must never silently allocate a replacement document.
+     * If its URI and owner-tagged row are both missing, fail closed and preserve
+     * the partial checkpoints for recovery instead of creating a "(1)" file.
+     */
+    private fun refuseNewDestinationForResumedDownload(context: Context, id: Long) {
+        val item = DownloadDatabase.get(context).get(id)
+            ?: throw IOException("The download record disappeared; refusing to create an untracked file")
+        if (item.downloadedBytes > 0L || item.totalBytes > 0L) {
+            throw IOException(
+                "The original destination could not be recovered for this resumed download. " +
+                    "No replacement file was created; restore the original file or restart explicitly."
+            )
+        }
     }
 
     /**
