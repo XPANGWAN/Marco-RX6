@@ -711,9 +711,6 @@ internal class DownloadUiController(
                     com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING,
                     com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING -> translate("جارٍ تجهيز الملف")
                     DownloadManager.STATUS_RUNNING -> translate("قيد التنزيل")
-                    com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING,
-                    com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING,
-                    com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING -> translate("جارٍ تجهيز الملف")
                     DownloadManager.STATUS_PAUSED -> translate("متوقف مؤقتاً")
                     DownloadManager.STATUS_SUCCESSFUL -> translate("اكتمل")
                     DownloadManager.STATUS_FAILED -> translate("فشل")
@@ -753,7 +750,7 @@ internal class DownloadUiController(
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING ||
-                item.status == DownloadManager.STATUS_PENDING || item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED) {
+                item.status == DownloadManager.STATUS_PENDING) {
                 addAction(smallAction(translate("إيقاف مؤقت")) {
                     if (downloadRepository.pauseDownload(item.id)) {
                         lastSpeedSample.remove(item.id); lastValidSpeed.remove(item.id); render?.invoke()
@@ -780,7 +777,7 @@ internal class DownloadUiController(
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING ||
                 item.status == DownloadManager.STATUS_PENDING ||
-                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED || item.status == DownloadManager.STATUS_PAUSED) {
+                item.status == DownloadManager.STATUS_PAUSED) {
                 addAction(smallAction(translate("إلغاء التنزيل")) {
                     if (downloadRepository.deleteDownload(item.id)) {
                         lastSpeedSample.remove(item.id); render?.invoke()
