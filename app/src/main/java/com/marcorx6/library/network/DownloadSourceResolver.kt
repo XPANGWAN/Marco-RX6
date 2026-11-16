@@ -12,7 +12,7 @@ import java.util.Locale
  */
 internal object DownloadSourceResolver {
     private val fileExtension = Regex(
-        """.(apk|zip|7z|rar|iso|pkg|bin|cue|chd|img|pbp|cso|nsp|xci|pdf|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg)(?:$|[?#])""",
+        """\.(apk|zip|7z|rar|iso|pkg|bin|cue|chd|img|pbp|cso|nsp|xci|pdf|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg)(?:$|[?#])""",
         RegexOption.IGNORE_CASE
     )
 
@@ -34,7 +34,7 @@ internal object DownloadSourceResolver {
         val candidates = mutableListOf<Pair<Int, String>>()
 
         val anchor = Regex(
-            """<a\b([^>]*?)href\s*=\\s*["']([^"'<>]+)["']([^>]*)>(.*?)</a>""",
+            """<a\b([^>]*?)href\s*=\s*["']([^"'<>]+)["']([^>]*)>(.*?)</a>""",
             setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
         )
         anchor.findAll(html).forEach { match ->
@@ -49,16 +49,16 @@ internal object DownloadSourceResolver {
 
         // MediaFire and similar hosts often expose a stable download-button href.
         val buttonPatterns = listOf(
-            Regex("""id\s*=\\s*["']downloadButton["'][^>]*href\s*=\\s*["']([^"'<>]+)["']""", RegexOption.IGNORE_CASE),
-            Regex("""href\s*=\\s*["']([^"'<>]+)["'][^>]*id\s*=\\s*["']downloadButton["']""", RegexOption.IGNORE_CASE),
-            Regex("""(?:downloadUrl|download_url|downloadLink)\s*[:=]\\s*["']([^"'<>]+)["']""", RegexOption.IGNORE_CASE)
+            Regex("""id\s*=\s*["']downloadButton["'][^>]*href\s*=\s*["']([^"'<>]+)["']""", RegexOption.IGNORE_CASE),
+            Regex("""href\s*=\s*["']([^"'<>]+)["'][^>]*id\s*=\s*["']downloadButton["']""", RegexOption.IGNORE_CASE),
+            Regex("""(?:downloadUrl|download_url|downloadLink)\s*[:=]\s*["']([^"'<>]+)["']""", RegexOption.IGNORE_CASE)
         )
         buttonPatterns.forEach { pattern ->
             pattern.findAll(html).forEach { candidates += 100 to it.groupValues[1] }
         }
 
         // Google Drive confirmation pages use a hidden confirm token or a generated download href.
-        val driveConfirm = Regex("""(?:href|action)\\s*=\\s*["']([^"'<>]*(?:export=download|confirm=)[^"'<>]*)["']""", RegexOption.IGNORE_CASE)
+        val driveConfirm = Regex("""(?:href|action)\s*=\s*["']([^"'<>]*(?:export=download|confirm=)[^"'<>]*)["']""", RegexOption.IGNORE_CASE)
         driveConfirm.findAll(html).forEach { candidates += 95 to it.groupValues[1] }
 
         return candidates
@@ -104,7 +104,7 @@ internal object DownloadSourceResolver {
         .replace("&quot;", "\"")
 
     private fun stripTags(value: String): String =
-        value.replace(Regex("<[^>]*>"), " ").replace(Regex("\\s+"), " ").trim()
+        value.replace(Regex("<[^>]*>"), " ").replace(Regex("\s+"), " ").trim()
 
     private fun queryParameter(query: String, name: String): String? =
         query.split('&').firstNotNullOfOrNull { part ->
