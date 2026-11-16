@@ -239,8 +239,10 @@ internal object DownloadDestination {
             }
             uri
         } else {
-            DocumentsContract.renameDocument(resolver, uri, displayName)
-                ?: throw IOException("Could not rename the file in the selected folder")
+            // Some SAF providers do not implement rename. Keep the valid URI and
+            // complete the transfer rather than failing after all bytes were received.
+            runCatching { DocumentsContract.renameDocument(resolver, uri, displayName) }
+                .getOrNull() ?: uri
         }
         File(context.filesDir, "MARCO_RX6_downloads/$id.destination").writeText(renamed.toString())
         return renamed
