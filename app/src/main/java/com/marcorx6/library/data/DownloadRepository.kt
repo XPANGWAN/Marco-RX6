@@ -66,7 +66,6 @@ internal class DownloadRepository(context: Context) {
     ) {
         probeExecutor.execute {
             var reservedId = -1L
-            var previousDownload: StoredDownload? = null
             val result = try {
                 val secureLink = SecureUrlPolicy.toHttpsUrl(link)
                     ?: throw SecurityException("رابط التنزيل غير آمن أو غير صالح؛ يجب استخدام HTTPS")
@@ -82,7 +81,6 @@ internal class DownloadRepository(context: Context) {
                         val previous = database.findFailedBySource(sourcePostUrl)
                         val id = previous?.id ?: database.nextId()
                         reservedId = id
-                        previousDownload = previous
                         if (previous == null) {
                             database.insert(
                                 id, secureLink, title.ifBlank { "MARCO" }, userAgent, "",
@@ -100,7 +98,11 @@ internal class DownloadRepository(context: Context) {
                                 File(directory, "$id.seg$index.progress.tmp").delete()
                             }
                         }
-                        database.status(id, DownloadDatabase.STATUS_INITIALIZING)
+                        database.status(id, DownloadDatabase.STATUS_RESOLVING)
+                        File(appContext.filesDir, "MARCO_RX6_downloads/$id.probing").apply {
+                            parentFile?.mkdirs()
+                            writeText("resolving")
+                        }
                         ensureVisibleDefaultTarget(id, title.ifBlank { "MARCO" }, hintedMimeType)
                         EnqueueReservation(id = id, previous = previous)
                     }
@@ -118,6 +120,7 @@ internal class DownloadRepository(context: Context) {
                     val previous = reservation.previous
                     val probe = inspect(secureLink, userAgent, contentDisposition, hintedMimeType, referrer)
                     if (!probe.isDirectFile) {
+                        File(appContext.filesDir, "MARCO_RX6_downloads/$id.probing").delete()
                         synchronized(database) {
                             if (previous == null) {
                                 database.cancel(id)
@@ -134,6 +137,7 @@ internal class DownloadRepository(context: Context) {
                         }
                         val finalTitle = probe.fileName ?: title.ifBlank { "MARCO" }
                         val cookie = CookieManager.getInstance().getCookie(probe.finalUrl).orEmpty()
+                        File(appContext.filesDir, "MARCO_RX6_downloads/$id.probing").delete()
                         synchronized(database) {
                             val latest = database.get(id)
                                 ?: throw InterruptedException("Download was cancelled before the source was ready")
@@ -146,7 +150,8 @@ internal class DownloadRepository(context: Context) {
                             // Rename the already-published row rather than creating a
                             // second file when the server supplies its final filename.
                             ensureVisibleDefaultTarget(id, finalTitle, probe.mimeType)
-                            if (latest.status == DownloadDatabase.STATUS_INITIALIZING) {
+                            if (latest.status == DownloadDatabase.STATUS_RESOLVING) {
+                                database.status(id, DownloadDatabase.STATUS_INITIALIZING)
                                 DownloadWorkScheduler.schedule(appContext)
                             }
                         }
@@ -155,8 +160,10 @@ internal class DownloadRepository(context: Context) {
                 }
             } catch (error: Exception) {
                 if (reservedId > 0L) {
+                    File(appContext.filesDir, "MARCO_RX6_downloads/$reservedId.probing").delete()
                     val latest = database.get(reservedId)
-                    if (latest?.status == DownloadDatabase.STATUS_INITIALIZING) {
+                    if (latest?.status == DownloadDatabase.STATUS_RESOLVING ||
+                        latest?.status == DownloadDatabase.STATUS_INITIALIZING) {
                         database.status(
                             reservedId,
                             DownloadManager.STATUS_FAILED,
@@ -215,8 +222,12 @@ internal class DownloadRepository(context: Context) {
         if (item.status != DownloadManager.STATUS_PAUSED &&
             item.status != DownloadManager.STATUS_FAILED
         ) return false
-        database.status(id, DownloadManager.STATUS_PENDING)
-        DownloadWorkScheduler.schedule(appContext)
+        val stillResolving = File(appContext.filesDir, "MARCO_RX6_downloads/$id.probing").isFile
+        database.status(
+            id,
+            if (stillResolving) DownloadDatabase.STATUS_RESOLVING else DownloadManager.STATUS_PENDING
+        )
+        if (!stillResolving) DownloadWorkScheduler.schedule(appContext)
         return true
     }
 
@@ -228,8 +239,16 @@ internal class DownloadRepository(context: Context) {
 
     fun resumeAllDownloads(): Int {
         val ids = database.pausedOrFailedIds()
-        ids.forEach { id -> database.status(id, DownloadManager.STATUS_PENDING) }
-        if (ids.isNotEmpty()) DownloadWorkScheduler.schedule(appContext)
+        var schedulable = false
+        ids.forEach { id ->
+            val stillResolving = File(appContext.filesDir, "MARCO_RX6_downloads/$id.probing").isFile
+            database.status(
+                id,
+                if (stillResolving) DownloadDatabase.STATUS_RESOLVING else DownloadManager.STATUS_PENDING
+            )
+            if (!stillResolving) schedulable = true
+        }
+        if (schedulable) DownloadWorkScheduler.schedule(appContext)
         return ids.size
     }
 
