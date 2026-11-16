@@ -312,7 +312,8 @@ internal object DownloadDestination {
         uri: Uri,
         total: Long,
         onPreparing: (Int) -> Unit,
-        preserveBytes: Long = 0L
+        preserveBytes: Long = 0L,
+        shouldStop: () -> Boolean = { false }
     ) {
         if (!isMediaStoreTarget(uri)) throw IllegalArgumentException("Physical preallocation requires MediaStore")
         if (total <= 0L) { onPreparing(100); return }
@@ -338,8 +339,14 @@ internal object DownloadDestination {
             var fallocateSupported = true
             try {
                 while (position < total) {
+                    if (shouldStop()) throw InterruptedException("Download preparation stopped")
                     val count = minOf(chunkSize, total - position)
-                    android.system.Os.posix_fallocate(fd, position, count)
+                    try {
+                        android.system.Os.posix_fallocate(fd, position, count)
+                    } catch (_: Exception) {
+                        fallocateSupported = false
+                        break
+                    }
                     position += count
                     onPreparing((position.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
                 }
@@ -353,6 +360,7 @@ internal object DownloadDestination {
                 val zeroes = ByteArray(1024 * 1024)
                 position = preserved
                 while (position < total) {
+                    if (shouldStop()) throw InterruptedException("Download preparation stopped")
                     val count = minOf(zeroes.size.toLong(), total - position).toInt()
                     var written = 0
                     while (written < count) {
