@@ -98,11 +98,18 @@ internal object DownloadDestination {
             if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null
         }.getOrNull()
         if (previous != null && previous.scheme == "content") {
-            val reusable = runCatching {
+            val belongsToSelectedTree = runCatching {
+                previous.authority == tree.authority &&
+                    DocumentsContract.getDocumentId(previous).let { documentId ->
+                        val treeId = DocumentsContract.getTreeDocumentId(tree)
+                        documentId == treeId || documentId.startsWith("$treeId/")
+                    }
+            }.getOrDefault(false)
+            val reusable = belongsToSelectedTree && runCatching {
                 resolver.openFileDescriptor(previous, "rw")?.use { true } ?: false
             }.getOrDefault(false)
             if (reusable) return previous
-            runCatching { DocumentsContract.deleteDocument(resolver, previous) }
+            deleteTarget(context, previous)
         }
         sidecar.delete()
         val parent = DocumentsContract.buildDocumentUriUsingTree(
@@ -137,7 +144,7 @@ internal object DownloadDestination {
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
         sidecar.parentFile?.mkdirs()
         val previous = runCatching { if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null }.getOrNull()
-        if (previous != null && previous.scheme == "content") {
+        if (previous != null && previous.scheme == "content" && previous.authority == MediaStore.AUTHORITY) {
             val reopened = runCatching {
                 resolver.openFileDescriptor(previous, "rw")?.use { true } ?: false
             }.getOrDefault(false)
@@ -153,7 +160,7 @@ internal object DownloadDestination {
             }
         }
 
-        if (previous != null) runCatching { resolver.delete(previous, null, null) }
+        if (previous != null) deleteTarget(context, previous)
         sidecar.delete()
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
@@ -311,13 +318,17 @@ internal object DownloadDestination {
 
     fun openDirectWriter(context: Context, uri: Uri): DirectWriter = DirectWriter(context, uri)
 
-    fun removeDirectTarget(context: Context, id: Long) {
-        val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
-        val uri = runCatching { if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null }.getOrNull()
-        if (uri != null) runCatching {
+    private fun deleteTarget(context: Context, uri: Uri) {
+        runCatching {
             if (uri.authority == MediaStore.AUTHORITY) context.contentResolver.delete(uri, null, null)
             else DocumentsContract.deleteDocument(context.contentResolver, uri)
         }
+    }
+
+    fun removeDirectTarget(context: Context, id: Long) {
+        val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
+        val uri = runCatching { if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null }.getOrNull()
+        if (uri != null) deleteTarget(context, uri)
         sidecar.delete()
     }
 
