@@ -81,7 +81,10 @@ internal object SequentialDownloadEngine {
                     if (item.referrer.isNotBlank()) setRequestProperty("Referer", item.referrer)
                     if (offset > 0L) {
                         setRequestProperty("Range", "bytes=$offset-")
-                        if (item.etag.isNotBlank()) setRequestProperty("If-Range", item.etag)
+                        val strongEtag = item.etag.takeIf {
+                            it.isNotBlank() && !it.trimStart().startsWith("W/", ignoreCase = true)
+                        }
+                        if (strongEtag != null) setRequestProperty("If-Range", strongEtag)
                         else if (item.lastModified.isNotBlank()) setRequestProperty("If-Range", item.lastModified)
                     }
                 }
