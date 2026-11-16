@@ -52,7 +52,7 @@ internal object SegmentedDownloadEngine {
         val safeName: String
         try {
             val code = probe.responseCode
-            if (!probe.url.protocol.equals("https", true)) throw SecurityException("Download redirect did not use HTTPS")
+            if (!com.marcorx6.library.network.SecureUrlPolicy.isAllowedDownloadUrl(probe.url.toString())) throw SecurityException("Download redirect target is not trusted")
             val probeMime = probe.contentType?.substringBefore(';')?.trim().orEmpty()
             if (probeMime.equals("text/html", true) || probeMime.equals("application/xhtml+xml", true)) {
                 discardSegmentedArtifactsIfPresent(context, directory, target, item, database)
@@ -354,7 +354,7 @@ internal object SegmentedDownloadEngine {
         val connection = openConnection(item, rangeStart + offset, rangeEnd)
         try {
             val code = connection.responseCode
-            if (!connection.url.protocol.equals("https", true)) throw SecurityException("Download redirect did not use HTTPS")
+            if (!com.marcorx6.library.network.SecureUrlPolicy.isAllowedDownloadUrl(connection.url.toString())) throw SecurityException("Download redirect target is not trusted")
             if (code == 408 || code == 429 || code in 500..599) throw IOException("Temporary server error: HTTP $code")
             if (code != HttpURLConnection.HTTP_PARTIAL) {
                 throw IOException("Server stopped supporting byte ranges (HTTP $code)")
