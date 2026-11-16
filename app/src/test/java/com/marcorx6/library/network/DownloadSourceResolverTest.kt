@@ -32,6 +32,18 @@ class DownloadSourceResolverTest {
     }
 
     @Test
+    fun extractsGoogleDriveLargeFileConfirmationForm() {
+        val html = """<form action="https://drive.usercontent.google.com/download" method="get">
+            <input type="hidden" name="id" value="1AbcDEF_234567890">
+            <input type="hidden" name="confirm" value="t">
+        </form>"""
+        assertEquals(
+            "https://drive.usercontent.google.com/download?export=download&id=1AbcDEF_234567890&confirm=t",
+            DownloadSourceResolver.extractDownloadUrl("https://drive.google.com/uc?export=download&id=1AbcDEF_234567890", html)
+        )
+    }
+
+    @Test
     fun extractsGenericDirectFileLinkAndResolvesRelativeUrl() {
         val html = """<html><a href="../../files/patch.zip?token=abc">Download patch</a></html>"""
         assertEquals(
