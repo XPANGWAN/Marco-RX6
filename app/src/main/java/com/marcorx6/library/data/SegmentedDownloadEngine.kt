@@ -463,17 +463,14 @@ internal object SegmentedDownloadEngine {
     }
 
     private fun openConnection(item: StoredDownload, start: Long, end: Long): HttpURLConnection =
-        (URL(item.url).openConnection() as HttpURLConnection).apply {
-            instanceFollowRedirects = true
-            connectTimeout = 30000
-            readTimeout = 120000
-            requestMethod = "GET"
-            setRequestProperty("Accept", "*/*")
-            setRequestProperty("Accept-Encoding", "identity")
-            setRequestProperty("Range", "bytes=$start-$end")
-            if (item.userAgent.isNotBlank()) setRequestProperty("User-Agent", item.userAgent)
-            if (item.cookie.isNotBlank()) setRequestProperty("Cookie", item.cookie)
-            if (item.referrer.isNotBlank()) setRequestProperty("Referer", item.referrer)
+        com.marcorx6.library.network.RedirectingHttpConnection.open(item.url) { request, currentUrl, isInitial ->
+            request.requestMethod = "GET"
+            request.setRequestProperty("Accept", "*/*")
+            request.setRequestProperty("Accept-Encoding", "identity")
+            request.setRequestProperty("Range", "bytes=$start-$end")
+            if (item.userAgent.isNotBlank()) request.setRequestProperty("User-Agent", item.userAgent)
+            if (isInitial && item.cookie.isNotBlank()) request.setRequestProperty("Cookie", item.cookie)
+            if (isInitial && item.referrer.isNotBlank()) request.setRequestProperty("Referer", item.referrer)
         }
 
     private fun readSegmentProgress(file: File, maximum: Long): Long =
