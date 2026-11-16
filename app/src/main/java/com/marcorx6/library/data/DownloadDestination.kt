@@ -72,6 +72,7 @@ internal object DownloadDestination {
      * Opens the actual final destination. SAF destinations are created immediately
      * in the selected folder; the default Android 10+ destination uses MediaStore.
      */
+    @Synchronized
     fun openTarget(
         context: Context,
         id: Long,
@@ -164,6 +165,7 @@ internal object DownloadDestination {
      * Creates or reopens the visible MediaStore file used as the actual download target.
      * The URI is kept in app-private metadata so paused downloads can resume in place.
      */
+    @Synchronized
     fun openDirectTarget(context: Context, id: Long, displayName: String, mimeType: String): Uri? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
         val resolver = context.applicationContext.contentResolver
@@ -403,6 +405,7 @@ internal object DownloadDestination {
         }
     }
 
+    @Synchronized
     fun renameDirectTarget(context: Context, id: Long, uri: Uri, displayName: String): Uri {
         val resolver = context.contentResolver
         val renamed = if (uri.authority == MediaStore.AUTHORITY) {
@@ -603,7 +606,9 @@ internal object DownloadDestination {
         sidecar.parentFile?.mkdirs()
         // SQLite is the authoritative identity record; the sidecar remains a
         // recovery mirror for upgrades and filesystem-level diagnostics.
-        DownloadDatabase.get(context).setDestinationUri(id, uri.toString())
+        if (!DownloadDatabase.get(context).setDestinationUri(id, uri.toString())) {
+            throw IOException("The download row no longer exists; refusing to publish an untracked destination")
+        }
         val temporary = File(sidecar.parentFile, sidecar.name + ".tmp")
         java.io.FileOutputStream(temporary, false).use { output ->
             output.write(uri.toString().toByteArray(Charsets.UTF_8))
@@ -628,6 +633,7 @@ internal object DownloadDestination {
      * Reset an interrupted direct download in place. Keep its MediaStore row and
      * sidecar URI so a range-to-sequential fallback cannot create a duplicate file.
      */
+    @Synchronized
     fun resetDirectTarget(context: Context, id: Long) {
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
         val uri = DownloadDatabase.get(context).destinationUri(id)?.let(Uri::parse)
@@ -637,6 +643,7 @@ internal object DownloadDestination {
         truncateDirectTarget(context, uri, 0L)
     }
 
+    @Synchronized
     fun removeDirectTarget(context: Context, id: Long) {
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
         val saved = DownloadDatabase.get(context).destinationUri(id)
@@ -672,6 +679,7 @@ internal object DownloadDestination {
         File(sidecar.parentFile, sidecar.name + ".tmp").delete()
     }
 
+    @Synchronized
     fun forgetDirectTarget(context: Context, id: Long) {
         DownloadDatabase.get(context).clearDestinationUri(id)
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
