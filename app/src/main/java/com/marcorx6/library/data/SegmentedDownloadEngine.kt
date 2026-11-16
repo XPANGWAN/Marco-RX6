@@ -99,12 +99,12 @@ internal object SegmentedDownloadEngine {
             val start = index * segmentSize
             start >= total || File(directory, "${item.id}.seg$index.progress").isFile
         }
-        var directUri: Uri? = if (DownloadStoragePreferences(context).treeUri() == null &&
+        // On Android 10+, the default destination must be the visible MediaStore
+        // file. Do not silently fall back to a private .part file if creation fails.
+        val directUri: Uri? = if (DownloadStoragePreferences(context).treeUri() == null &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         ) {
-            runCatching {
-                DownloadDestination.openDirectTarget(context, item.id, safeName, mime)
-            }.getOrNull()
+            DownloadDestination.openDirectTarget(context, item.id, safeName, mime)
         } else null
 
         var existingTargetIsReusable = if (directUri != null) {
@@ -120,11 +120,13 @@ internal object SegmentedDownloadEngine {
                 try {
                     val available = StatFs(Environment.getExternalStorageDirectory().absolutePath).availableBytes
                     if (available < total) throw IOException("Not enough free space in Download storage")
-                    DownloadDestination.prepareDirectTarget(context, directUri!!, total, onPreparing)
+                    DownloadDestination.prepareDirectTarget(context, directUri, total, onPreparing)
                 } catch (error: Exception) {
                     DownloadDestination.removeDirectTarget(context, item.id)
-                    directUri = null
-                    existingTargetIsReusable = false
+                    throw IOException(
+                        "Could not prepare the visible file in Download/MARCO RX6. The download was stopped instead of being hidden in private storage.",
+                        error
+                    )
                 }
             } else onPreparing(100)
         }
