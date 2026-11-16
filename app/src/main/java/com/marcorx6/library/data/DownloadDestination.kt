@@ -414,6 +414,18 @@ internal object DownloadDestination {
         }
     }
 
+    /**
+     * Reset an interrupted direct download in place. Keep its MediaStore row and
+     * sidecar URI so a range-to-sequential fallback cannot create a duplicate file.
+     */
+    fun resetDirectTarget(context: Context, id: Long) {
+        val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
+        val uri = runCatching {
+            if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null
+        }.getOrNull() ?: return
+        truncateDirectTarget(context, uri, 0L)
+    }
+
     fun removeDirectTarget(context: Context, id: Long) {
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
         val uri = runCatching { if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null }.getOrNull()
