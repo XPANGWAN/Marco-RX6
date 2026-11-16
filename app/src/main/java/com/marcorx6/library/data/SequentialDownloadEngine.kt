@@ -1,8 +1,6 @@
 package com.marcorx6.library.data
 
-import android.app.DownloadManager
 import android.content.Context
-import android.net.Uri
 import android.os.Build
 import java.io.File
 import java.io.FileOutputStream
@@ -11,7 +9,7 @@ import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** Single-stream transfer engine; notification and lifecycle concerns are callbacks. */
+/** Sequential transfer engine with durable checkpoints and an explicit destination writer. */
 internal object SequentialDownloadEngine {
         fun download(context: Context, item: StoredDownload, database: DownloadDatabase, shouldStop: () -> Boolean, onProgress: (Long, Long) -> Unit, onPreparing: (Int) -> Unit) {
             val directory = File(context.filesDir, "MARCO_RX6_downloads").apply { mkdirs() }
@@ -324,25 +322,4 @@ internal object SequentialDownloadEngine {
             }
         }
     
-        private fun readDurableOffset(file: File, fallback: Long, maximum: Long): Long {
-            val saved = runCatching { if (file.isFile) file.readText().trim().toLongOrNull() else null }.getOrNull()
-            return when {
-                saved != null && saved in 0L..maximum -> saved
-                fallback in 0L..maximum -> fallback
-                else -> 0L
-            }
-        }
-    
-        private fun writeDurableOffset(file: File, offset: Long) {
-            val temporary = File(file.parentFile, file.name + ".tmp")
-            FileOutputStream(temporary, false).use { output ->
-                output.write(offset.toString().toByteArray(Charsets.UTF_8))
-                output.fd.sync()
-            }
-            if (!temporary.renameTo(file)) {
-                temporary.delete()
-                throw IOException("Could not commit the download resume checkpoint")
-            }
-        }
-
 }
