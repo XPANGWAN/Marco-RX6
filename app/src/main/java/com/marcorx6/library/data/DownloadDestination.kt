@@ -372,6 +372,15 @@ internal object DownloadDestination {
         }
     }
 
+    /**
+     * Reserve the final destination before the first network byte is written.
+     *
+     * This deliberately supports both MediaStore and user-selected SAF documents.
+     * SAF providers vary: use posix_fallocate where available, then physically
+     * initialize the remaining range with bounded zero writes when allocation is
+     * unsupported. If neither path can reserve the bytes, fail before transfer
+     * instead of silently allowing a file that grows during download.
+     */
     fun prepareDirectTarget(
         context: Context,
         uri: Uri,
@@ -380,22 +389,20 @@ internal object DownloadDestination {
         preserveBytes: Long = 0L,
         shouldStop: () -> Boolean = { false }
     ) {
-        if (!isMediaStoreTarget(uri)) {
-            throw IllegalArgumentException("Physical preallocation requires a MediaStore destination")
-        }
         if (total <= 0L) throw IOException("The server did not provide a valid total file size")
 
         val preserved = preserveBytes.coerceIn(0L, total)
         val resolver = context.applicationContext.contentResolver
         val descriptor = resolver.openFileDescriptor(uri, "rw")
-            ?: throw IOException("Could not open the visible download file for reservation")
+            ?: throw IOException("Could not open the destination file for full-size reservation")
 
         descriptor.use { pfd ->
             val fd = pfd.fileDescriptor
-
-            // Set the final logical length first. The file manager can then see
-            // the intended size while storage blocks are reserved before transfer.
-            android.system.Os.ftruncate(fd, total)
+            try {
+                android.system.Os.ftruncate(fd, total)
+            } catch (error: Exception) {
+                throw IOException("The selected folder cannot set the final file size before downloading", error)
+            }
             if (android.system.Os.fstat(fd).st_size != total) {
                 throw IOException("The destination did not accept the final file length")
             }
@@ -404,9 +411,6 @@ internal object DownloadDestination {
             var needsZeroWriteReservation = false
             val chunkSize = 8L * 1024L * 1024L
 
-            // Prefer the filesystem's real allocation primitive. Only unsupported
-            // operations fall back to bounded zero writes. ENOSPC and I/O errors
-            // are fatal and must never be mistaken for unsupported fallocate.
             while (position < total) {
                 if (shouldStop()) throw InterruptedException("Download preparation stopped")
                 val count = minOf(chunkSize, total - position)
@@ -428,10 +432,10 @@ internal object DownloadDestination {
             }
 
             if (needsZeroWriteReservation) {
-                // A bounded 1 MiB buffer avoids loading large files into RAM.
-                // Writing every remaining byte forces allocation on filesystems
-                // that do not implement posix_fallocate for MediaStore descriptors.
+                // Sequential writes are more compatible with document-provider
+                // proxy descriptors than pwrite; memory stays bounded to 1 MiB.
                 val zeroes = ByteArray(1024 * 1024)
+                android.system.Os.lseek(fd, preserved, android.system.OsConstants.SEEK_SET)
                 position = preserved
                 while (position < total) {
                     if (shouldStop()) throw InterruptedException("Download preparation stopped")
@@ -439,9 +443,7 @@ internal object DownloadDestination {
                     var written = 0
                     while (written < count) {
                         if (shouldStop()) throw InterruptedException("Download preparation stopped")
-                        val amount = android.system.Os.pwrite(
-                            fd, zeroes, written, count - written, position + written
-                        )
+                        val amount = android.system.Os.write(fd, zeroes, written, count - written)
                         if (amount <= 0) {
                             throw IOException("Storage stopped accepting bytes before the full file was reserved")
                         }
@@ -460,32 +462,34 @@ internal object DownloadDestination {
             }
         }
 
-        // Query only after closing the descriptor: MediaStore providers commonly
-        // refresh their indexed SIZE when the writable descriptor is closed.
+        // Some providers expose SIZE only after the writable descriptor closes.
+        // If a provider reports a size, it must match; unknown SIZE is checked by fstat above.
         val indexedSize = resolver.query(
             uri, arrayOf(OpenableColumns.SIZE), null, null, null
         )?.use { cursor ->
             if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else -1L
         } ?: -1L
-        if (indexedSize != total) {
-            throw IOException("MediaStore did not confirm the full visible file size: $indexedSize / $total")
+        if (indexedSize >= 0L && indexedSize != total) {
+            throw IOException("The destination provider did not confirm the full file size: $indexedSize / $total")
         }
 
-        val publish = ContentValues().apply {
-            put(MediaStore.MediaColumns.IS_PENDING, 0)
+        if (isMediaStoreTarget(uri)) {
+            val publish = ContentValues().apply {
+                put(MediaStore.MediaColumns.IS_PENDING, 0)
+            }
+            if (resolver.update(uri, publish, null, null) <= 0) {
+                throw IOException("Could not publish the fully prepared download file")
+            }
+            resolver.notifyChange(uri, null)
         }
-        if (resolver.update(uri, publish, null, null) <= 0) {
-            throw IOException("Could not publish the fully prepared download file")
-        }
-        resolver.notifyChange(uri, null)
 
         val visibleSize = resolver.query(
             uri, arrayOf(OpenableColumns.SIZE), null, null, null
         )?.use { cursor ->
             if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else -1L
         } ?: -1L
-        if (visibleSize != total) {
-            throw IOException("The file manager destination is not reporting the reserved size: $visibleSize / $total")
+        if (visibleSize >= 0L && visibleSize != total) {
+            throw IOException("The destination is not reporting the reserved file size: $visibleSize / $total")
         }
         onPreparing(100)
     }
