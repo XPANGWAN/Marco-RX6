@@ -3,6 +3,7 @@ package com.marcorx6.library.data
 import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.webkit.CookieManager
 import android.provider.DocumentsContract
 import androidx.core.content.FileProvider
@@ -73,24 +74,39 @@ internal class DownloadRepository(context: Context) {
                     synchronized(database) {
                         val duplicate = database.findActiveDuplicate(probe.finalUrl, sourcePostUrl)
                         if (duplicate != null) {
+                            ensureVisibleDefaultTarget(duplicate.id, duplicate.title, duplicate.mimeType)
                             DownloadStartResult.AlreadyQueued(duplicate.title)
                         } else {
                             val previous = database.findFailedBySource(sourcePostUrl)
+                            val id = previous?.id ?: database.nextId()
                             if (previous != null) {
-                                database.refreshSource(previous.id, probe.finalUrl, userAgent, cookie, referrer, probe.mimeType)
+                                database.refreshSource(id, probe.finalUrl, userAgent, cookie, referrer, probe.mimeType)
                                 val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
-                                File(directory, "${previous.id}.part").delete()
-                                File(directory, "${previous.id}.part.progress").delete()
-                                File(directory, "${previous.id}.part.progress.tmp").delete()
-                                DownloadDestination.removeDirectTarget(appContext, previous.id)
+                                File(directory, "$id.part").delete()
+                                File(directory, "$id.part.progress").delete()
+                                File(directory, "$id.part.progress.tmp").delete()
+                                DownloadDestination.removeDirectTarget(appContext, id)
                                 (0 until 4).forEach { index ->
-                                    File(directory, "${previous.id}.seg$index").delete()
-                                    File(directory, "${previous.id}.seg$index.progress").delete()
-                                    File(directory, "${previous.id}.seg$index.progress.tmp").delete()
+                                    File(directory, "$id.seg$index").delete()
+                                    File(directory, "$id.seg$index.progress").delete()
+                                    File(directory, "$id.seg$index.progress.tmp").delete()
                                 }
-                            } else {
-                                val id = database.nextId()
-                                database.insert(id, probe.finalUrl, finalTitle, userAgent, cookie, referrer, probe.mimeType, sourcePostUrl)
+                            }
+                            try {
+                                // Publish the final MediaStore row before WorkManager is
+                                // scheduled. This guarantees that the user can see the
+                                // destination immediately, including while the worker is
+                                // waiting for a network slot or probing HTTP Range support.
+                                ensureVisibleDefaultTarget(id, finalTitle, probe.mimeType)
+                                if (previous == null) {
+                                    database.insert(id, probe.finalUrl, finalTitle, userAgent, cookie, referrer, probe.mimeType, sourcePostUrl)
+                                }
+                            } catch (error: Exception) {
+                                DownloadDestination.removeDirectTarget(appContext, id)
+                                if (previous != null) {
+                                    database.status(id, DownloadManager.STATUS_FAILED, error.message ?: "Could not create visible download target")
+                                }
+                                throw error
                             }
                             DownloadWorkScheduler.schedule(appContext)
                             DownloadStartResult.Enqueued(finalTitle)
@@ -242,6 +258,13 @@ internal class DownloadRepository(context: Context) {
         database.delete(id)
         DownloadWorkScheduler.schedule(appContext)
         return true
+    }
+
+    private fun ensureVisibleDefaultTarget(id: Long, title: String, mimeType: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        if (DownloadStoragePreferences(appContext).treeUri() != null) return
+        val visibleName = DownloadFileNames.safeName(title, mimeType, id)
+        DownloadDestination.openDirectTarget(appContext, id, visibleName, mimeType)
     }
 
     private data class DownloadProbe(
