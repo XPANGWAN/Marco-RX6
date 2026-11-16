@@ -342,10 +342,10 @@ internal class DownloadRepository(context: Context) {
     }
 
     private fun ensureVisibleDefaultTarget(id: Long, title: String, mimeType: String) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
-        if (DownloadStoragePreferences(appContext).treeUri() != null) return
+        val selectedTree = DownloadStoragePreferences(appContext).treeUri()
+        if (selectedTree == null && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
         val visibleName = DownloadFileNames.safeName(title, mimeType, id)
-        DownloadDestination.openDirectTarget(appContext, id, visibleName, mimeType)
+        DownloadDestination.openTarget(appContext, id, selectedTree, visibleName, mimeType)
     }
 
     private data class DownloadProbe(
