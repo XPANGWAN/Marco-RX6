@@ -165,22 +165,6 @@ internal object DownloadDestination {
 
     fun openDirectWriter(context: Context, uri: Uri): DirectWriter = DirectWriter(context, uri)
 
-    fun writeDirectAt(context: Context, uri: Uri, bytes: ByteArray, count: Int, position: Long) {
-        val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
-            ?: throw IOException("Could not open the visible download file for writing")
-        descriptor.use { pfd ->
-            var written = 0
-            while (written < count) {
-                val amount = android.system.Os.pwrite(
-                    pfd.fileDescriptor, bytes, written, count - written, position + written
-                )
-                if (amount <= 0) throw IOException("Could not write to the preallocated destination")
-                written += amount
-            }
-            android.system.Os.fsync(pfd.fileDescriptor)
-        }
-    }
-
     fun removeDirectTarget(context: Context, id: Long) {
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
         val uri = runCatching { if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null }.getOrNull()
