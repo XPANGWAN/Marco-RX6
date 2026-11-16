@@ -39,6 +39,20 @@ class SecureUrlPolicyTest {
     }
 
     @Test
+    fun blocksLocalAndPrivateNetworkTargets() {
+        listOf(
+            "https://localhost/file.zip",
+            "https://printer.local/file.zip",
+            "https://127.0.0.1/file.zip",
+            "https://10.0.0.8/file.zip",
+            "https://192.168.1.20/file.zip",
+            "https://172.20.0.5/file.zip",
+            "https://169.254.10.2/file.zip"
+        ).forEach { assertEquals(false, SecureUrlPolicy.isAllowedDownloadUrl(it)) }
+        assertEquals(true, SecureUrlPolicy.isAllowedDownloadUrl("https://cdn.example.org/file.zip"))
+    }
+
+    @Test
     fun permitsHttpsAndRejectsUntrustedOrMalformedRedirectTargets() {
         assertEquals(true, SecureUrlPolicy.isAllowedDownloadUrl("https://example.com/file.pkg"))
         assertEquals(false, SecureUrlPolicy.isAllowedDownloadUrl("file:///tmp/file.pkg"))
