@@ -261,6 +261,7 @@ internal object DownloadDestination {
      */
     private fun publishAndVerify(
         context: Context,
+        id: Long,
         uri: Uri,
         displayName: String,
         mimeType: String
@@ -271,6 +272,7 @@ internal object DownloadDestination {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
             put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+            put(MediaStore.MediaColumns.DESCRIPTION, destinationMarker(id))
             put(MediaStore.MediaColumns.IS_PENDING, 0)
         }
         if (resolver.update(uri, values, null, null) <= 0) {
@@ -376,7 +378,10 @@ internal object DownloadDestination {
     fun renameDirectTarget(context: Context, id: Long, uri: Uri, displayName: String): Uri {
         val resolver = context.contentResolver
         val renamed = if (uri.authority == MediaStore.AUTHORITY) {
-            val values = ContentValues().apply {\n                put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)\n                put(MediaStore.MediaColumns.DESCRIPTION, destinationMarker(id))\n            }
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+                put(MediaStore.MediaColumns.DESCRIPTION, destinationMarker(id))
+            }
             if (resolver.update(uri, values, null, null) <= 0) {
                 throw IOException("Could not update the visible download filename")
             }
