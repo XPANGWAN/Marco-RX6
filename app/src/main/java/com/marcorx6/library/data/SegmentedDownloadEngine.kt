@@ -318,13 +318,15 @@ internal object SegmentedDownloadEngine {
             item.downloadedBytes > 0L
         if (!hasReusableDownloadData) return
 
-        clearSegments(directory, item.id)
-        // If the range probe declines and we fall back to sequential mode,
-        // retain the exact same visible MediaStore row. Only its old bytes and
-        // segment checkpoints are discarded; openDirectTarget will reopen it.
-        DownloadDestination.resetDirectTarget(context, item.id)
-        target.delete()
-        database.progress(item.id, 0L, -1L, "", "")
+        // The segmented layout stores bytes at independent absolute offsets.
+        // A sequential fallback cannot safely reinterpret those checkpoints as
+        // one contiguous prefix. Never erase valid partial data and restart from
+        // zero merely because a redirect host stopped honoring Range.
+        throw IOException(
+            "The source no longer supports the saved segmented resume state. " +
+                "The existing destination and segment checkpoints were preserved; " +
+                "refresh the source link or restart this download explicitly."
+        )
     }
 
     private fun downloadRange(
