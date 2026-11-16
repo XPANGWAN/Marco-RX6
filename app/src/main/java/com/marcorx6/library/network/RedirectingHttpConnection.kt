@@ -21,10 +21,17 @@ internal object RedirectingHttpConnection {
         } catch (error: Exception) {
             throw IOException("The server returned an invalid redirect location", error)
         }
-        if (!SecureUrlPolicy.isAllowedDownloadUrl(next.toExternalForm())) {
+        val safeNext = if (SecureUrlPolicy.isAllowedDownloadUrl(next.toExternalForm())) {
+            next
+        } else if (next.protocol.equals("http", ignoreCase = true)) {
+            // Upgrade ordinary HTTP redirect hops to HTTPS instead of enabling cleartext.
+            val upgraded = SecureUrlPolicy.toHttpsUrl(next.toExternalForm())
+                ?: throw SecurityException("Redirect target is not allowed: " + next.host)
+            URL(upgraded)
+        } else {
             throw SecurityException("Redirect target is not allowed: " + next.host)
         }
-        return next
+        return safeNext
     }
 
     fun open(
