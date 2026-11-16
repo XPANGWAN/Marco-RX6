@@ -42,13 +42,14 @@ internal class DownloadRepository(context: Context) {
 
     private companion object {
         val probeExecutor = java.util.concurrent.Executors.newFixedThreadPool(2)
+        val activeProbes = java.util.concurrent.ConcurrentHashMap.newKeySet<Long>()
     }
 
     init {
         // A process death can interrupt the pre-queue HTTP probe. Recover those
         // rows as pending so they are never stranded in a permanent Preparing state.
-        database.recoverResolving()
-        database.all().forEach { item ->
+        database.recoverResolving(activeProbes.toSet())
+        database.all().filter { it.id !in activeProbes }.forEach { item ->
             File(appContext.filesDir, "MARCO_RX6_downloads/${item.id}.probing").delete()
         }
         DownloadWorkScheduler.schedule(appContext)
@@ -109,6 +110,7 @@ internal class DownloadRepository(context: Context) {
                             parentFile?.mkdirs()
                             writeText("resolving")
                         }
+                        activeProbes.add(id)
                         ensureVisibleDefaultTarget(id, title.ifBlank { "MARCO" }, hintedMimeType)
                         EnqueueReservation(id = id, previous = previous)
                     }
@@ -184,6 +186,8 @@ internal class DownloadRepository(context: Context) {
                 if (sourcePostUrl.isNotBlank() && Regex("HTTP (401|403|404|410)").containsMatchIn(message)) {
                     DownloadStartResult.RefreshSource(sourcePostUrl)
                 } else DownloadStartResult.Failed(message)
+            } finally {
+                if (reservedId > 0L) activeProbes.remove(reservedId)
             }
             onResult(result)
         }
