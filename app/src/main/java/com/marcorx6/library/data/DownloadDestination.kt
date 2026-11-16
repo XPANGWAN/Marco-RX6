@@ -316,84 +316,56 @@ internal object DownloadDestination {
     ) {
         if (!isMediaStoreTarget(uri)) throw IllegalArgumentException("Physical preallocation requires MediaStore")
         if (total <= 0L) { onPreparing(100); return }
+
         val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
             ?: throw IOException("Could not open the visible download file")
         descriptor.use { pfd ->
-            // Set the final visible length before reserving blocks. This makes the
-            // complete file size visible in Download/MARCO RX6 during Preparing,
-            // rather than letting the directory entry grow with incoming bytes.
-            android.system.Os.ftruncate(pfd.fileDescriptor, total)
-            val initialSize = android.system.Os.fstat(pfd.fileDescriptor).st_size
+            val fd = pfd.fileDescriptor
+            val preserved = preserveBytes.coerceIn(0L, total)
+
+            // ftruncate alone creates a sparse file on common Android filesystems.
+            // File managers may therefore report only the bytes received so far.
+            // Reserve real storage by writing every not-yet-downloaded byte before
+            // network transfer. This is deliberately bounded to a 1 MiB buffer.
+            android.system.Os.ftruncate(fd, total)
+            val initialSize = android.system.Os.fstat(fd).st_size
             if (initialSize != total) {
                 throw IOException("Could not establish the final download file size: $initialSize / $total")
             }
+
             val zeroes = ByteArray(1024 * 1024)
-            var prepared = preserveBytes.coerceIn(0L, total)
-            var fallocateSupported = true
-            val segmentSize = ((total - 1L) / 4L) + 1L
-            fun zeroRange(start: Long, length: Long) {
-                var position = start
-                val end = start + length
-                while (position < end) {
-                    val count = minOf(zeroes.size.toLong(), end - position).toInt()
-                    var written = 0
-                    while (written < count) {
-                        val n = android.system.Os.pwrite(pfd.fileDescriptor, zeroes, written, count - written, position + written)
-                        if (n <= 0) throw IOException("Could not reserve storage for the download")
-                        written += n
+            var position = preserved
+            while (position < total) {
+                val count = minOf(zeroes.size.toLong(), total - position).toInt()
+                var written = 0
+                while (written < count) {
+                    val amount = android.system.Os.pwrite(
+                        fd, zeroes, written, count - written, position + written
+                    )
+                    if (amount <= 0) {
+                        throw IOException("Could not reserve the complete download size on storage")
                     }
-                    position += count
-                    prepared += count
-                    onPreparing((prepared.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
+                    written += amount
                 }
-            }
-            for (index in 0 until 4) {
-                val start = index.toLong() * segmentSize
-                if (start >= total) continue
-                val length = minOf(total - start, segmentSize)
-                if (fallocateSupported) {
-                    try {
-                        android.system.Os.posix_fallocate(pfd.fileDescriptor, start, length)
-                        prepared += (start + length - maxOf(start, preserveBytes.coerceIn(0L, total))).coerceAtLeast(0L)
-                        onPreparing((prepared.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
-                        continue
-                    } catch (error: android.system.ErrnoException) {
-                        val unsupported = error.errno == android.system.OsConstants.EOPNOTSUPP ||
-                            error.errno == android.system.OsConstants.ENOSYS ||
-                            error.errno == android.system.OsConstants.EINVAL
-                        if (!unsupported) throw error
-                        fallocateSupported = false
-                    }
-                }
-                val zeroStart = maxOf(start, preserveBytes.coerceIn(0L, total))
-                if (zeroStart < start + length) zeroRange(zeroStart, start + length - zeroStart)
-            }
-            android.system.Os.fsync(pfd.fileDescriptor)
-            // Do not start network transfer unless the provider still exposes the
-            // exact reserved length after fallocate/zero-fill and fsync.
-            val preparedSize = android.system.Os.fstat(pfd.fileDescriptor).st_size
-            if (preparedSize != total) {
-                throw IOException("Preallocated download size verification failed: $preparedSize / $total")
+                position += count
+                onPreparing((position.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
             }
 
-            // MediaStore can cache the row's indexed SIZE from when the empty
-            // destination was first inserted. Refresh the published row only after
-            // the inode has its final length and its blocks have been reserved.
-            // Cycling IS_PENDING forces MediaProvider to re-index the completed
-            // preparation before the first network byte is written.
+            // Flush both file data and allocation metadata before exposing the
+            // prepared file to the downloader. A size-only fstat check is not
+            // sufficient: all remaining ranges have now actually been written.
+            android.system.Os.fsync(fd)
+            val stat = android.system.Os.fstat(fd)
+            if (stat.st_size != total) {
+                throw IOException("Preallocated download size verification failed: ${stat.st_size} / $total")
+            }
+
             val resolver = context.applicationContext.contentResolver
-            val hideWhileRefreshing = ContentValues().apply {
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
-            }
-            if (resolver.update(uri, hideWhileRefreshing, null, null) <= 0) {
-                throw IOException("Could not refresh the preallocated download metadata")
-            }
-            resolver.notifyChange(uri, null)
             val publish = ContentValues().apply {
                 put(MediaStore.MediaColumns.IS_PENDING, 0)
             }
             if (resolver.update(uri, publish, null, null) <= 0) {
-                throw IOException("Could not republish the preallocated download file")
+                throw IOException("Could not publish the fully prepared download file")
             }
             resolver.notifyChange(uri, null)
 
