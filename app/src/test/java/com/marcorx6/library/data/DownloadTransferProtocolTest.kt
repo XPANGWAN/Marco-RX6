@@ -11,7 +11,11 @@ class DownloadTransferProtocolTest {
     }
     @Test fun rejectsUnknownOrMalformedTotals() {
         assertNull(DownloadTransferProtocol.parseContentRange("bytes 0-99/*"))
-        assertNull(DownloadTransferProtocol.parseContentRange("bytes 0-99/100"))
+        // A range ending at total-1 is valid: the total is an exclusive bound.
+        val complete = DownloadTransferProtocol.parseContentRange("bytes 0-99/100")
+        assertNotNull(complete)
+        assertEquals(100L, complete!!.length)
+        assertNull(DownloadTransferProtocol.parseContentRange("bytes 0-100/100"))
         assertNull(DownloadTransferProtocol.parseContentRange("bytes 20-10/100"))
         assertNull(DownloadTransferProtocol.parseContentRange("items 0-9/10"))
     }
