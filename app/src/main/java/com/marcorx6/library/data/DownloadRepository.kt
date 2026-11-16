@@ -74,6 +74,7 @@ internal class DownloadRepository(context: Context) {
             var reservedId = -1L
             val result = try {
                 val secureLink = SecureUrlPolicy.toHttpsUrl(link)
+                    ?.let(com.marcorx6.library.network.DownloadSourceResolver::normalizeKnownProviderUrl)
                     ?: throw SecurityException("رابط التنزيل غير آمن أو غير صالح؛ يجب استخدام HTTPS")
 
                 // Reserve the queue row and publish its destination BEFORE any HTTP
@@ -359,13 +360,23 @@ internal class DownloadRepository(context: Context) {
         userAgent: String,
         hintedDisposition: String,
         hintedMimeType: String,
-        referrer: String
+        referrer: String,
+        resolutionDepth: Int = 0
     ): DownloadProbe {
-        val connection = com.marcorx6.library.network.RedirectingHttpConnection.open(link) { request, currentUrl, isInitial ->
+        val connection = com.marcorx6.library.network.RedirectingHttpConnection.open(
+            link,
+            onResponse = { response, responseUrl ->
+                response.getHeaderFields().entries
+                    .filter { it.key.equals("Set-Cookie", ignoreCase = true) }
+                    .flatMap { it.value.orEmpty() }
+                    .forEach { cookie ->
+                        CookieManager.getInstance().setCookie(responseUrl.toString(), cookie)
+                    }
+            }
+        ) { request, currentUrl, isInitial ->
             request.readTimeout = 60000
             request.requestMethod = "GET"
-            request.setRequestProperty("Range", "bytes=0-0")
-            request.setRequestProperty("Accept", "*/*")
+            request.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/octet-stream,*/*")
             request.setRequestProperty("Accept-Encoding", "identity")
             if (userAgent.isNotBlank()) request.setRequestProperty("User-Agent", userAgent)
             if (isInitial && referrer.isNotBlank()) request.setRequestProperty("Referer", referrer)
@@ -384,6 +395,15 @@ internal class DownloadRepository(context: Context) {
                 throw SecurityException("وجهة التحويل غير آمنة أو غير موثوقة")
             }
             if (mime == "text/html" || mime == "application/xhtml+xml") {
+                if (resolutionDepth < 3) {
+                    val html = readBoundedHtml(connection, 1_500_000)
+                    val candidate = com.marcorx6.library.network.DownloadSourceResolver
+                        .extractDownloadUrl(finalUrl, html)
+                    if (!candidate.isNullOrBlank() && candidate != finalUrl) {
+                        connection.disconnect()
+                        return inspect(candidate, userAgent, "", hintedMimeType, finalUrl, resolutionDepth + 1)
+                    }
+                }
                 return DownloadProbe(finalUrl, mime, false, null)
             }
             val path = Uri.parse(finalUrl).lastPathSegment.orEmpty().lowercase(Locale.ROOT)
@@ -404,6 +424,24 @@ internal class DownloadRepository(context: Context) {
             return DownloadProbe(finalUrl, mime, isAttachment || isBinary || hasFileExtension, responseFileName)
         } finally {
             connection.disconnect()
+        }
+    }
+
+    private fun readBoundedHtml(connection: HttpURLConnection, maximumBytes: Int): String {
+        val stream = runCatching { connection.inputStream }.getOrElse {
+            connection.errorStream ?: return ""
+        }
+        return stream.use { input ->
+            val output = java.io.ByteArrayOutputStream()
+            val buffer = ByteArray(8192)
+            var remaining = maximumBytes
+            while (remaining > 0) {
+                val count = input.read(buffer, 0, minOf(buffer.size, remaining))
+                if (count < 0) break
+                output.write(buffer, 0, count)
+                remaining -= count
+            }
+            output.toString(Charsets.UTF_8.name())
         }
     }
 }
