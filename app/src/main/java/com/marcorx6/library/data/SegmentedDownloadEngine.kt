@@ -234,8 +234,8 @@ internal object SegmentedDownloadEngine {
             if (DownloadDestination.directTargetSize(context, directUri!!) != total) throw IOException("Visible preallocated destination size mismatch")
         } else if (target.length() != total) throw IOException("Preallocated destination size mismatch")
         // All ranges already occupy their final offsets in this single file: no merge.
-        onPreparing(100)
-
+        // Storage preparation is complete before range transfer; do not re-enter
+        // PREPARING after the network has finished.
         database.renameTitle(item.id, safeName)
         database.progress(item.id, total, total, etag, modified)
         val savedLocation = if (directUri != null) {
@@ -252,7 +252,6 @@ internal object SegmentedDownloadEngine {
             ).also { target.delete() }
         }
         clearSegments(directory, item.id)
-        database.finishPreparing(item.id)
         if (!database.complete(item.id, savedLocation, mime)) {
             DownloadDestination.delete(context, savedLocation)
             throw InterruptedException("Download state changed before completion")
