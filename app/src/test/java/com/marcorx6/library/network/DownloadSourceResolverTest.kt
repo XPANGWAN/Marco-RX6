@@ -33,7 +33,7 @@ class DownloadSourceResolverTest {
 
     @Test
     fun extractsGenericDirectFileLinkAndResolvesRelativeUrl() {
-        val html = """<html><a href="../files/patch.zip?token=abc">Download patch</a></html>"""
+        val html = """<html><a href="../../files/patch.zip?token=abc">Download patch</a></html>"""
         assertEquals(
             "https://files.example.org/files/patch.zip?token=abc",
             DownloadSourceResolver.extractDownloadUrl("https://files.example.org/share/page/", html)
