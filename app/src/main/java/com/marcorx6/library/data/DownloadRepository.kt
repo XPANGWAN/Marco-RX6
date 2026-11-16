@@ -5,7 +5,6 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.webkit.CookieManager
-import android.provider.DocumentsContract
 import androidx.core.content.FileProvider
 import com.marcorx6.library.network.SecureUrlPolicy
 import java.io.File
@@ -322,7 +321,7 @@ internal class DownloadRepository(context: Context) {
         database.cancel(id)
         DownloadWorkScheduler.cancel(appContext, id)
         if (item.localPath.startsWith("content://")) {
-            runCatching { DocumentsContract.deleteDocument(appContext.contentResolver, Uri.parse(item.localPath)) }
+            DownloadDestination.delete(appContext, item.localPath)
         } else if (item.localPath.isNotBlank()) {
             File(item.localPath).delete()
         }
