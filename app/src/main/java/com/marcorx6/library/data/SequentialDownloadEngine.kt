@@ -170,13 +170,16 @@ internal object SequentialDownloadEngine {
                                 database.get(item.id)?.status == DownloadDatabase.STATUS_CANCELLED
                         })
                     } else {
-                        DownloadDestination.openSequentialTargetWriter(context, directUri, responseStartOffset)
-                            .use { DownloadDestination.syncSequentialTargetWriter(it) }
-                        // SAF providers do not expose a portable physical
-                        // preallocation contract. Keep the Preparing phase visible,
-                        // but never report 100% reserved when no reservation occurred.
-                        database.preparing(item.id, 0, total, etag, modified)
-                        onPreparing(0)
+                        DownloadDestination.prepareDirectTarget(
+                            context, directUri, total, { percent ->
+                                database.preparing(item.id, percent, total, etag, modified)
+                                onPreparing(percent)
+                            }, responseStartOffset, shouldStop = {
+                                shouldStop() ||
+                                    database.get(item.id)?.status == DownloadManager.STATUS_PAUSED ||
+                                    database.get(item.id)?.status == DownloadDatabase.STATUS_CANCELLED
+                            }
+                        )
                     }
                 }
                 // No matter which storage provider or size metadata the server supplies,
