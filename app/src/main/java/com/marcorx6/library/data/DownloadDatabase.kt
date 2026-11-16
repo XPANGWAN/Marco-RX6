@@ -23,8 +23,7 @@ internal data class StoredDownload(
     val error: String,
     val sourcePostUrl: String,
     val priority: Int,
-    val preparationPercent: Int,
-    val destinationUri: String
+    val preparationPercent: Int
 )
 
 internal class DownloadDatabase private constructor(context: Context) :
@@ -385,8 +384,7 @@ internal class DownloadDatabase private constructor(context: Context) :
         error = getString(getColumnIndexOrThrow("error")),
         sourcePostUrl = getString(getColumnIndexOrThrow("source_post_url")),
         priority = getInt(getColumnIndexOrThrow("priority")),
-        preparationPercent = getInt(getColumnIndexOrThrow("preparation_percent")),
-        destinationUri = getString(getColumnIndexOrThrow("destination_uri"))
+        preparationPercent = getInt(getColumnIndexOrThrow("preparation_percent"))
     )
 
     companion object {
