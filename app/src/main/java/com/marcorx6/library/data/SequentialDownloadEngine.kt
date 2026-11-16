@@ -50,11 +50,14 @@ internal object SequentialDownloadEngine {
             } else if (directUri != null && !DownloadDestination.isMediaStoreTarget(directUri) && directSize > offset) {
                 try {
                     DownloadDestination.truncateDirectTarget(context, directUri, offset)
-                } catch (_: Exception) {
-                    DownloadDestination.truncateDirectTarget(context, directUri, 0L)
-                    durableProgress.delete()
-                    database.progress(item.id, 0L, item.totalBytes, item.etag, item.lastModified)
-                    offset = 0L
+                } catch (error: Exception) {
+                    // SAF providers are not required to support truncation. Never
+                    // erase a resumable file or its checkpoint as a fallback: that
+                    // turns a provider limitation into a silent full restart.
+                    throw IOException(
+                        "The selected storage provider cannot safely trim uncommitted bytes. The original file and resume checkpoint were preserved.",
+                        error
+                    )
                 }
                 directSize = offset
             }
@@ -117,10 +120,13 @@ internal object SequentialDownloadEngine {
                         responseLastModified = responseModified
                     )
                     if (!verifiedAppend) {
-                        partial.delete()
-                        durableProgress.delete()
-                        database.progress(item.id, 0L, -1L, "", "")
-                        throw IOException("The server could not verify the previous file version and resume range; restarting safely is required")
+                        // The server did not prove that this response belongs to
+                        // the saved file version. Preserve both visible/private data
+                        // and every durable checkpoint; never turn failed validation
+                        // into a destructive restart on the next worker attempt.
+                        throw IOException(
+                            "The server could not verify the previous file version and resume range. The existing file and progress were preserved; refresh the source or explicitly restart."
+                        )
                     }
                 }
                 if (offset > 0L && !append) {
