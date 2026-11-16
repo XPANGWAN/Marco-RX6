@@ -823,7 +823,7 @@ internal class DownloadUiController(
                     it.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
                     it.status == DownloadManager.STATUS_PENDING ||
                     it.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED
-            }) 1_200L else 5_000L
+            }) 250L else 5_000L
             val activeStatuses = setOf(
                 DownloadManager.STATUS_PENDING,
                 DownloadManager.STATUS_RUNNING,
