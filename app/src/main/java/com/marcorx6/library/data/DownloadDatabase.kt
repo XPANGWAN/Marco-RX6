@@ -261,6 +261,23 @@ internal class DownloadDatabase private constructor(context: Context) :
         }
     }
 
+    /** A process restart interrupts source probing; hand those rows to the worker safely. */
+    @Synchronized
+    fun recoverResolving(): List<Long> {
+        val db = writableDatabase
+        val ids = db.query(
+            "downloads", arrayOf("id"), "status=?",
+            arrayOf(STATUS_RESOLVING.toString()), null, null, "id ASC"
+        ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getLong(0)) } }
+        db.update(
+            "downloads",
+            ContentValues().apply { put("status", DownloadManager.STATUS_PENDING) },
+            "status=?",
+            arrayOf(STATUS_RESOLVING.toString())
+        )
+        return ids
+    }
+
     @Synchronized
     fun pausedOrFailedIds(): List<Long> =
         readableDatabase.query(
