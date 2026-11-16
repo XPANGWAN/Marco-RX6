@@ -135,9 +135,11 @@ internal object SegmentedDownloadEngine {
                     if (available < total) throw IOException("Not enough free space in Download storage")
                     DownloadDestination.prepareDirectTarget(context, directUri, total, onPreparing)
                 } catch (error: Exception) {
-                    DownloadDestination.removeDirectTarget(context, item.id)
+                    // Keep the same published MediaStore row and URI on failure.
+                    // A retry must reopen this file, never create a second visible item.
+                    runCatching { DownloadDestination.truncateDirectTarget(context, directUri, 0L) }
                     throw IOException(
-                        "Could not prepare the visible file in Download/MARCO RX6. The download was stopped instead of being hidden in private storage.",
+                        "Could not reserve the full visible file in Download/MARCO RX6. The same destination was retained for a safe retry.",
                         error
                     )
                 }
@@ -254,7 +256,6 @@ internal object SegmentedDownloadEngine {
         database.renameTitle(item.id, safeName)
         database.progress(item.id, total, total, etag, modified)
         val savedLocation = if (directUri != null) {
-            DownloadDestination.forgetDirectTarget(context, item.id)
             directUri.toString()
         } else {
             DownloadDestination.save(
@@ -264,13 +265,17 @@ internal object SegmentedDownloadEngine {
                 safeName,
                 mime,
                 total
-            ).also { target.delete() }
+            )
         }
-        clearSegments(directory, item.id)
+        // Commit SUCCESS before dropping the URI checkpoint. If pause races with
+        // finalization, the paused worker must still be able to reopen this exact row.
         if (!database.complete(item.id, savedLocation, mime)) {
-            DownloadDestination.delete(context, savedLocation)
+            if (directUri == null) DownloadDestination.delete(context, savedLocation)
             throw InterruptedException("Download state changed before completion")
         }
+        if (directUri != null) DownloadDestination.forgetDirectTarget(context, item.id)
+        else target.delete()
+        clearSegments(directory, item.id)
         onProgress(total, total)
         return true
     }
