@@ -327,7 +327,6 @@ internal class DownloadDatabase private constructor(context: Context) :
     fun finishPreparing(id: Long) {
         writableDatabase.update("downloads", ContentValues().apply {
             put("status", DownloadManager.STATUS_RUNNING)
-            put("preparation_percent", 0)
         }, "id=? AND status=?", arrayOf(id.toString(), STATUS_PREPARING.toString()))
     }
 
