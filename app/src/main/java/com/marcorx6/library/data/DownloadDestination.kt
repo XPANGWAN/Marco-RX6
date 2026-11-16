@@ -302,13 +302,12 @@ internal object DownloadDestination {
     private fun refuseNewDestinationForResumedDownload(context: Context, id: Long) {
         val item = DownloadDatabase.get(context).get(id)
             ?: throw IOException("The download record disappeared; refusing to create an untracked file")
-        // STATUS_RESOLVING denotes an explicit fresh source inspection/restart.
-        // All paused, pending, failed-resume and running sessions must keep their old target.
-        if (item.status != DownloadDatabase.STATUS_RESOLVING &&
-            (item.downloadedBytes > 0L || item.totalBytes > 0L)
-        ) {
+        // Only the repository's fresh source-resolution phase may allocate a new target.
+        // Once a row leaves RESOLVING, losing its URI is a recovery error, never permission
+        // to silently create a replacement document with an automatically suffixed name.
+        if (item.status != DownloadDatabase.STATUS_RESOLVING) {
             throw IOException(
-                "The original destination could not be recovered for this resumed download. " +
+                "The original destination could not be recovered for this download. " +
                     "No replacement file was created; restore the original file or restart explicitly."
             )
         }
