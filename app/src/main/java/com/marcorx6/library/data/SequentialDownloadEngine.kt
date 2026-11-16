@@ -1,5 +1,6 @@
 package com.marcorx6.library.data
 
+import android.app.DownloadManager
 import android.content.Context
 import android.os.Build
 import java.io.File
