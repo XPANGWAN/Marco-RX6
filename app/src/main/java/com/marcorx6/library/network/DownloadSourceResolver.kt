@@ -74,7 +74,7 @@ internal object DownloadSourceResolver {
         val combined = "$label $attrs $value"
         var score = 0
         if (fileExtension.containsMatchIn(value)) score += 80
-        if (Regex("""downloadButton|download-link|download_url|data-download|\\bdownload\\b""", RegexOption.IGNORE_CASE).containsMatchIn(attrs)) score += 90
+        if (Regex("""downloadButton|download-link|download_url|data-download|\bdownload\b""", RegexOption.IGNORE_CASE).containsMatchIn(attrs)) score += 90
         if (Regex("""download|تحميل|تنزيل|direct|file""", RegexOption.IGNORE_CASE).containsMatchIn(label)) score += 45
         if (Regex("""(?:^|/)(?:download|attachment|export)(?:/|$)|[?&](?:download|export)=(""|1|true|yes)""", RegexOption.IGNORE_CASE).containsMatchIn(value)) score += 35
         if (Regex("""logout|sign.?in|login|register|privacy|terms|javascript:""", RegexOption.IGNORE_CASE).containsMatchIn(combined)) score = 0
