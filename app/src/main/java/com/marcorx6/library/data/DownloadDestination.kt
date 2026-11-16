@@ -246,8 +246,8 @@ internal object DownloadDestination {
             }
         }
 
-        // Compatibility recovery for rows created by earlier app versions that
-        // predate the marker. Reuse only an unambiguous exact-name match.
+        // Compatibility recovery for older rows without a private URI checkpoint.
+        // Reuse only one exact-name match; never guess when multiple rows exist.
         return findOne(
             "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?",
             arrayOf(displayName, relativePath)
