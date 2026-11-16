@@ -78,11 +78,12 @@ internal class DownloadDatabase private constructor(context: Context) :
             STATUS_SCHEDULED,
             STATUS_PREPARING,
             STATUS_INITIALIZING,
+            STATUS_RESOLVING,
             DownloadManager.STATUS_PAUSED
         )
         val byUrl = readableDatabase.query(
             "downloads", null,
-            "url=? AND status IN (?,?,?,?,?,?)",
+            "url=? AND status IN (?,?,?,?,?,?,?)",
             arrayOf(url, *activeStatuses.map(Int::toString).toTypedArray()),
             null, null, "id DESC", "1"
         ).use { if (it.moveToFirst()) it.toRecord() else null }
@@ -90,7 +91,7 @@ internal class DownloadDatabase private constructor(context: Context) :
         if (sourcePostUrl.isBlank()) return null
         return readableDatabase.query(
             "downloads", null,
-            "source_post_url=? AND status IN (?,?,?,?,?,?)",
+            "source_post_url=? AND status IN (?,?,?,?,?,?,?)",
             arrayOf(sourcePostUrl, *activeStatuses.map(Int::toString).toTypedArray()),
             null, null, "id DESC", "1"
         ).use { if (it.moveToFirst()) it.toRecord() else null }
@@ -230,25 +231,27 @@ internal class DownloadDatabase private constructor(context: Context) :
         db.beginTransaction()
         try {
             val ids = db.query(
-                "downloads", arrayOf("id"), "status IN (?,?,?,?,?)",
+                "downloads", arrayOf("id"), "status IN (?,?,?,?,?,?)",
                 arrayOf(
                     DownloadManager.STATUS_PENDING.toString(),
                     DownloadManager.STATUS_RUNNING.toString(),
                     STATUS_SCHEDULED.toString(),
                     STATUS_PREPARING.toString(),
-                    STATUS_INITIALIZING.toString()
+                    STATUS_INITIALIZING.toString(),
+                    STATUS_RESOLVING.toString()
                 ), null, null, "id ASC"
             ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getLong(0)) } }
             db.update(
                 "downloads",
                 ContentValues().apply { put("status", DownloadManager.STATUS_PAUSED) },
-                "status IN (?,?,?,?,?)",
+                "status IN (?,?,?,?,?,?)",
                 arrayOf(
                     DownloadManager.STATUS_PENDING.toString(),
                     DownloadManager.STATUS_RUNNING.toString(),
                     STATUS_SCHEDULED.toString(),
                     STATUS_PREPARING.toString(),
-                    STATUS_INITIALIZING.toString()
+                    STATUS_INITIALIZING.toString(),
+                    STATUS_RESOLVING.toString()
                 )
             )
             db.setTransactionSuccessful()
@@ -361,6 +364,7 @@ internal class DownloadDatabase private constructor(context: Context) :
         const val STATUS_SCHEDULED = 7
         const val STATUS_PREPARING = 8
         const val STATUS_INITIALIZING = 9
+        const val STATUS_RESOLVING = 10
         @Volatile private var instance: DownloadDatabase? = null
         fun get(context: Context): DownloadDatabase =
             instance ?: synchronized(this) {
