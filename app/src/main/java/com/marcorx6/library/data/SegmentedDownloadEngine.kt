@@ -410,7 +410,7 @@ internal object SegmentedDownloadEngine {
                         val count = input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
                         if (count < 0) break
                         integrityVerifier?.update(buffer, count)
-                        speedLimiter.acquire(count)
+                        speedLimiter.acquire(count, isStopped)
                         output(buffer, count)
                         offset += count
                         receivedBytes += count
