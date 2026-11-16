@@ -135,7 +135,17 @@ internal object DownloadDestination {
                 val start = index * segmentSize
                 if (start >= total) continue
                 val length = minOf(total - start, segmentSize)
-                android.system.Os.posix_fallocate(pfd.fileDescriptor, start, length)
+                try {
+                    android.system.Os.posix_fallocate(pfd.fileDescriptor, start, length)
+                } catch (error: android.system.ErrnoException) {
+                    // MediaStore/FUSE providers may support positional writes and
+                    // truncation but not the Linux fallocate operation. Keep the
+                    // public target instead of abandoning it for app-private storage.
+                    val unsupported = error.errno == android.system.OsConstants.EOPNOTSUPP ||
+                        error.errno == android.system.OsConstants.ENOSYS ||
+                        error.errno == android.system.OsConstants.EINVAL
+                    if (!unsupported) throw error
+                }
                 prepared += length
                 onPreparing((prepared.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
             }
