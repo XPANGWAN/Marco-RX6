@@ -89,8 +89,8 @@ internal object SequentialDownloadEngine {
                     }
                 }
                 val code = connection.responseCode
-                if (!connection.url.protocol.equals("https", true)) {
-                    throw SecurityException("Download redirect did not use HTTPS")
+                if (!com.marcorx6.library.network.SecureUrlPolicy.isAllowedDownloadUrl(connection.url.toString())) {
+                    throw SecurityException("Download redirect target is not trusted")
                 }
                 if (code == 416 && offset > 0L) {
                     // Keep partial bytes intact; the source may need refreshing before resume.
