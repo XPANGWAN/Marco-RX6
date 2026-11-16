@@ -13,6 +13,20 @@ internal object RedirectingHttpConnection {
     private const val MAX_REDIRECTS = 10
     private val redirectCodes = setOf(301, 302, 303, 307, 308)
 
+    internal fun isRedirectStatus(code: Int): Boolean = code in redirectCodes
+
+    internal fun resolveRedirect(current: URL, location: String): URL {
+        val next = try {
+            URL(current, location.trim())
+        } catch (error: Exception) {
+            throw IOException("The server returned an invalid redirect location", error)
+        }
+        if (!SecureUrlPolicy.isAllowedDownloadUrl(next.toExternalForm())) {
+            throw SecurityException("Redirect target is not allowed: " + next.host)
+        }
+        return next
+    }
+
     fun open(
         initialUrl: String,
         configure: (connection: HttpURLConnection, currentUrl: URL, isInitialRequest: Boolean) -> Unit
@@ -34,20 +48,13 @@ internal object RedirectingHttpConnection {
             try {
                 configure(connection, current, hop == 0)
                 val code = connection.responseCode
-                if (code !in redirectCodes) return connection
+                if (!isRedirectStatus(code)) return connection
                 if (hop == MAX_REDIRECTS) {
                     throw IOException("The server exceeded the maximum of " + MAX_REDIRECTS + " redirects")
                 }
                 val location = connection.getHeaderField("Location")?.trim()?.takeIf { it.isNotEmpty() }
                     ?: throw IOException("The server returned HTTP " + code + " without a Location header")
-                val next = try {
-                    URL(current, location)
-                } catch (error: Exception) {
-                    throw IOException("The server returned an invalid redirect location", error)
-                }
-                if (!SecureUrlPolicy.isAllowedDownloadUrl(next.toExternalForm())) {
-                    throw SecurityException("Redirect target is not allowed: " + next.host)
-                }
+                val next = resolveRedirect(current, location)
                 connection.disconnect()
                 current = next
             } catch (error: Exception) {
