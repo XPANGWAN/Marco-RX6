@@ -62,7 +62,7 @@ internal object DownloadSourceResolver {
         driveConfirm.findAll(html).forEach { candidates += 95 to it.groupValues[1] }
 
         // Large Google Drive files may require a confirmation form with hidden id/token fields.
-        val forms = Regex("""<form\\b([^>]*)>(.*?)</form>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        val forms = Regex("""<form\b([^>]*)>(.*?)</form>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
         forms.findAll(html).forEach { form ->
             val action = attribute(form.groupValues[1], "action") ?: return@forEach
             if (!action.contains("download", ignoreCase = true)) return@forEach
@@ -89,11 +89,11 @@ internal object DownloadSourceResolver {
     }
 
     private fun attribute(tag: String, name: String): String? =
-        Regex("""\\b${Regex.escape(name)}\\s*=\\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+        Regex("""\b${Regex.escape(name)}\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
             .find(tag)?.groupValues?.get(1)
 
     private fun inputValue(formBody: String, name: String): String? =
-        Regex("""<input\\b[^>]*>""", RegexOption.IGNORE_CASE)
+        Regex("""<input\b[^>]*>""", RegexOption.IGNORE_CASE)
             .findAll(formBody)
             .firstNotNullOfOrNull { tag ->
                 if (attribute(tag.value, "name").equals(name, ignoreCase = true)) {
