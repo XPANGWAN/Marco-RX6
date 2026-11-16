@@ -198,23 +198,25 @@ internal class DownloadDatabase private constructor(context: Context) :
         db.beginTransaction()
         try {
             val ids = db.query(
-                "downloads", arrayOf("id"), "status IN (?,?,?,?)",
+                "downloads", arrayOf("id"), "status IN (?,?,?,?,?)",
                 arrayOf(
                     DownloadManager.STATUS_PENDING.toString(),
                     DownloadManager.STATUS_RUNNING.toString(),
                     STATUS_SCHEDULED.toString(),
-                    STATUS_PREPARING.toString()
+                    STATUS_PREPARING.toString(),
+                    STATUS_INITIALIZING.toString()
                 ), null, null, "id ASC"
             ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getLong(0)) } }
             db.update(
                 "downloads",
                 ContentValues().apply { put("status", DownloadManager.STATUS_PAUSED) },
-                "status IN (?,?,?,?)",
+                "status IN (?,?,?,?,?)",
                 arrayOf(
                     DownloadManager.STATUS_PENDING.toString(),
                     DownloadManager.STATUS_RUNNING.toString(),
                     STATUS_SCHEDULED.toString(),
-                    STATUS_PREPARING.toString()
+                    STATUS_PREPARING.toString(),
+                    STATUS_INITIALIZING.toString()
                 )
             )
             db.setTransactionSuccessful()
