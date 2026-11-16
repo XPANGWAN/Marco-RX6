@@ -362,7 +362,6 @@ internal class ResumableDownloadWorker(
             // PREPARING is reserved exclusively for the pre-download storage phase.
             updateProgressNotification(item.title, item.id, offset, total)
             val savedLocation = if (directUri != null) {
-                DownloadDestination.forgetDirectTarget(applicationContext, item.id)
                 directUri.toString()
             } else {
                 DownloadDestination.save(
@@ -374,14 +373,16 @@ internal class ResumableDownloadWorker(
                     total
                 )
             }
+            database.finishPreparing(item.id)
+            if (!database.complete(item.id, savedLocation, mime)) {
+                if (directUri == null) deleteSavedLocation(savedLocation)
+                throw InterruptedException("Download state changed before completion")
+            }
+            // Only discard resume metadata after the database has committed SUCCESS.
+            if (directUri != null) DownloadDestination.forgetDirectTarget(applicationContext, item.id)
             partial.delete()
             durableProgress.delete()
             File(directory, durableProgress.name + ".tmp").delete()
-            database.finishPreparing(item.id)
-            if (!database.complete(item.id, savedLocation, mime)) {
-                deleteSavedLocation(savedLocation)
-                throw InterruptedException("Download state changed before completion")
-            }
             return Result.success()
         } finally {
             connection?.disconnect()
