@@ -16,8 +16,7 @@ internal object SequentialDownloadEngine {
             val directory = File(context.filesDir, "MARCO_RX6_downloads").apply { mkdirs() }
             val partial = File(directory, "${item.id}.part")
             val durableProgress = File(directory, "${item.id}.part.progress")
-            // All transfers use one deterministic writer and one durable checkpoint.
-            // Multi-range mode stays disabled until it shares this exact destination journal.
+            // Sequential fallback keeps one deterministic writer and durable checkpoint.
             // Write directly to the final destination: MediaStore by default, or the
             // user's selected SAF folder. Only pre-Android-10 without SAF needs staging.
             val selectedTree = DownloadStoragePreferences(context).treeUri()
@@ -177,7 +176,7 @@ internal object SequentialDownloadEngine {
                         // preallocation contract. Keep the Preparing phase visible,
                         // but never report 100% reserved when no reservation occurred.
                         database.preparing(item.id, 0, total, etag, modified)
-                        updatePreparingNotification(item.title, item.id, 0)
+                        onPreparing(0)
                     }
                 }
                 // No matter which storage provider or size metadata the server supplies,
