@@ -67,6 +67,67 @@ internal object DownloadDestination {
     }
 
     /**
+     * Opens the actual final destination. SAF destinations are created immediately
+     * in the selected folder; the default Android 10+ destination uses MediaStore.
+     */
+    fun openTarget(
+        context: Context,
+        id: Long,
+        selectedTree: Uri?,
+        displayName: String,
+        mimeType: String
+    ): Uri? {
+        if (selectedTree != null) {
+            return openTreeTarget(context, id, selectedTree, displayName, mimeType)
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        return openDirectTarget(context, id, displayName, mimeType)
+    }
+
+    private fun openTreeTarget(
+        context: Context,
+        id: Long,
+        tree: Uri,
+        displayName: String,
+        mimeType: String
+    ): Uri {
+        val resolver = context.applicationContext.contentResolver
+        val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
+        sidecar.parentFile?.mkdirs()
+        val previous = runCatching {
+            if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null
+        }.getOrNull()
+        if (previous != null && previous.scheme == "content") {
+            val reusable = runCatching {
+                resolver.openFileDescriptor(previous, "rw")?.use { true } ?: false
+            }.getOrDefault(false)
+            if (reusable) return previous
+            runCatching { DocumentsContract.deleteDocument(resolver, previous) }
+        }
+        sidecar.delete()
+        val parent = DocumentsContract.buildDocumentUriUsingTree(
+            tree,
+            DocumentsContract.getTreeDocumentId(tree)
+        )
+        val target = DocumentsContract.createDocument(
+            resolver,
+            parent,
+            mimeType.ifBlank { "application/octet-stream" },
+            displayName
+        ) ?: throw IOException("Could not create the download in the selected folder")
+        try {
+            sidecar.writeText(target.toString())
+            resolver.openFileDescriptor(target, "rw")?.close()
+                ?: throw IOException("The selected folder does not support direct file access")
+            return target
+        } catch (error: Exception) {
+            runCatching { DocumentsContract.deleteDocument(resolver, target) }
+            sidecar.delete()
+            throw error
+        }
+    }
+
+    /**
      * Creates or reopens the visible MediaStore file used as the actual download target.
      * The URI is kept in app-private metadata so paused downloads can resume in place.
      */
@@ -169,11 +230,20 @@ internal object DownloadDestination {
         return descriptor.use { android.system.Os.fstat(it.fileDescriptor).st_size }
     }
 
-    fun renameDirectTarget(context: Context, uri: Uri, displayName: String) {
-        val values = ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, displayName) }
-        if (context.contentResolver.update(uri, values, null, null) <= 0) {
-            throw IOException("Could not update the visible download filename")
+    fun renameDirectTarget(context: Context, id: Long, uri: Uri, displayName: String): Uri {
+        val resolver = context.contentResolver
+        val renamed = if (uri.authority == MediaStore.AUTHORITY) {
+            val values = ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, displayName) }
+            if (resolver.update(uri, values, null, null) <= 0) {
+                throw IOException("Could not update the visible download filename")
+            }
+            uri
+        } else {
+            DocumentsContract.renameDocument(resolver, uri, displayName)
+                ?: throw IOException("Could not rename the file in the selected folder")
         }
+        File(context.filesDir, "MARCO_RX6_downloads/$id.destination").writeText(renamed.toString())
+        return renamed
     }
 
     fun truncateDirectTarget(context: Context, uri: Uri, length: Long) {
@@ -242,7 +312,10 @@ internal object DownloadDestination {
     fun removeDirectTarget(context: Context, id: Long) {
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
         val uri = runCatching { if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null }.getOrNull()
-        if (uri != null) runCatching { context.contentResolver.delete(uri, null, null) }
+        if (uri != null) runCatching {
+            if (uri.authority == MediaStore.AUTHORITY) context.contentResolver.delete(uri, null, null)
+            else DocumentsContract.deleteDocument(context.contentResolver, uri)
+        }
         sidecar.delete()
     }
 
