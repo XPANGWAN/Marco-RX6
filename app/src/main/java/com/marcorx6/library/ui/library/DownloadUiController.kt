@@ -705,8 +705,11 @@ internal class DownloadUiController(
             }
             addAction(smallAction(translate("التفاصيل")) {
                 val status = when (item.status) {
-                    DownloadManager.STATUS_PENDING,
-                    com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED -> translate("في الانتظار")
+                    DownloadManager.STATUS_PENDING -> translate("في الانتظار")
+                    com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED,
+                    com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING,
+                    com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING,
+                    com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING -> translate("جارٍ تجهيز الملف")
                     DownloadManager.STATUS_RUNNING -> translate("قيد التنزيل")
                     com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING,
                     com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING,
