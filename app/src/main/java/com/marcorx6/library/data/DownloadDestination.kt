@@ -83,13 +83,10 @@ internal object DownloadDestination {
             if (reopened) {
                 // Older app versions may have left the row pending. Re-publish it
                 // on every resume so file managers can see the in-progress file.
-                val publish = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$DEFAULT_FOLDER/")
-                    put(MediaStore.MediaColumns.IS_PENDING, 0)
-                }
-                if (runCatching { resolver.update(previous, publish, null, null) > 0 }.getOrDefault(false)) {
+                if (runCatching {
+                    publishAndVerify(context, previous, displayName, mimeType)
+                    true
+                }.getOrDefault(false)) {
                     return previous
                 }
             }
@@ -100,8 +97,9 @@ internal object DownloadDestination {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
             put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$DEFAULT_FOLDER/")
-            // Publish immediately so the user can see the reserved file in the file manager.
-            put(MediaStore.MediaColumns.IS_PENDING, 0)
+            // Keep the row private until its descriptor and destination metadata
+            // have both been verified, then publish it before returning to the queue.
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val uri = resolver.insert(
             MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), values
@@ -110,10 +108,55 @@ internal object DownloadDestination {
             resolver.openFileDescriptor(uri, "rw")?.close()
                 ?: throw IOException("Could not open the destination file for random access")
             sidecar.writeText(uri.toString())
+            publishAndVerify(context, uri, displayName, mimeType)
             uri
         } catch (error: Exception) {
             runCatching { resolver.delete(uri, null, null) }
             throw error
+        }
+    }
+
+    /**
+     * Publish the MediaStore row and verify the exact public destination before
+     * the scheduler is allowed to start writing. notifyChange nudges file-manager
+     * observers after the row becomes visible.
+     */
+    private fun publishAndVerify(
+        context: Context,
+        uri: Uri,
+        displayName: String,
+        mimeType: String
+    ) {
+        val resolver = context.applicationContext.contentResolver
+        val relativePath = "${Environment.DIRECTORY_DOWNLOADS}/$DEFAULT_FOLDER/"
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+            put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
+            put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+            put(MediaStore.MediaColumns.IS_PENDING, 0)
+        }
+        if (resolver.update(uri, values, null, null) <= 0) {
+            throw IOException("Could not publish the download in Download/$DEFAULT_FOLDER")
+        }
+        resolver.notifyChange(uri, null)
+        val visible = resolver.query(
+            uri,
+            arrayOf(
+                MediaStore.MediaColumns.DISPLAY_NAME,
+                MediaStore.MediaColumns.RELATIVE_PATH,
+                MediaStore.MediaColumns.IS_PENDING
+            ),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            cursor.moveToFirst() &&
+                cursor.getString(0) == displayName &&
+                cursor.getString(1)?.trimEnd('/') == relativePath.trimEnd('/') &&
+                (cursor.isNull(2) || cursor.getInt(2) == 0)
+        } ?: false
+        if (!visible) {
+            throw IOException("MediaStore did not confirm the visible file in Download/$DEFAULT_FOLDER")
         }
     }
 
