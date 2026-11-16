@@ -139,8 +139,8 @@ internal class DownloadRepository(context: Context) {
                         DownloadDestination.removeDirectTarget(appContext, id)
                         DownloadStartResult.OpenInBrowser(probe.finalUrl)
                     } else {
-                        if (!probe.finalUrl.startsWith("https://", ignoreCase = true)) {
-                            throw SecurityException("رابط التحويل النهائي لا يستخدم HTTPS؛ تم إيقاف التنزيل لحماية بياناتك")
+                        if (!SecureUrlPolicy.isAllowedDownloadUrl(probe.finalUrl)) {
+                            throw SecurityException("رابط التحويل النهائي غير آمن أو يستخدم خادمًا غير موثوق")
                         }
                         val finalTitle = probe.fileName ?: title.ifBlank { "MARCO" }
                         val cookie = CookieManager.getInstance().getCookie(probe.finalUrl).orEmpty()
@@ -382,6 +382,9 @@ internal class DownloadRepository(context: Context) {
             val disposition = connection.getHeaderField("Content-Disposition") ?: hintedDisposition
             val finalUrl = connection.url.toString()
             if (code !in 200..299) throw IllegalStateException("الخادم رفض رابط التنزيل (HTTP $code)")
+            if (!SecureUrlPolicy.isAllowedDownloadUrl(finalUrl)) {
+                throw SecurityException("وجهة التحويل غير آمنة أو غير موثوقة")
+            }
             if (mime == "text/html" || mime == "application/xhtml+xml") {
                 return DownloadProbe(finalUrl, mime, false, null)
             }
