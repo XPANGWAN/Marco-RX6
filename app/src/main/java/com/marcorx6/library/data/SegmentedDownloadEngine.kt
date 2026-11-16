@@ -97,8 +97,10 @@ internal object SegmentedDownloadEngine {
             (item.totalBytes > 0L && item.totalBytes != total)
         ) {
             clearSegments(directory, item.id)
+            // A changed/unverifiable source invalidates old bytes, not the user's
+            // visible destination. Reset that same MediaStore document in place.
+            DownloadDestination.resetDirectTarget(context, item.id)
             target.delete()
-            DownloadDestination.removeDirectTarget(context, item.id)
             database.progress(item.id, 0L, total, etag, modified)
         }
 
@@ -297,8 +299,11 @@ internal object SegmentedDownloadEngine {
         if (!hasReusableDownloadData) return
 
         clearSegments(directory, item.id)
+        // If the range probe declines and we fall back to sequential mode,
+        // retain the exact same visible MediaStore row. Only its old bytes and
+        // segment checkpoints are discarded; openDirectTarget will reopen it.
+        DownloadDestination.resetDirectTarget(context, item.id)
         target.delete()
-        DownloadDestination.removeDirectTarget(context, item.id)
         database.progress(item.id, 0L, -1L, "", "")
     }
 
