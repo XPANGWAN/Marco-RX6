@@ -32,7 +32,12 @@ internal object SecureUrlPolicy {
     }
 
     fun upgradeToHttps(rawUrl: String): String {
-        return toHttpsUrl(rawUrl) ?: rawUrl.trim()
+        val value = rawUrl.trim()
+        return when {
+            value.startsWith("https://", ignoreCase = true) -> value
+            value.startsWith("http://", ignoreCase = true) -> "https://" + value.substringAfter("://")
+            else -> value
+        }
     }
 
     private fun isLocalOrPrivateHost(rawHost: String): Boolean {
