@@ -106,7 +106,7 @@ internal object DownloadDestination {
                     }
             }.getOrDefault(false)
             val reusable = belongsToSelectedTree && runCatching {
-                resolver.openFileDescriptor(previous, "rw")?.use { true } ?: false
+                resolver.openOutputStream(previous, "wa")?.use { true } ?: false
             }.getOrDefault(false)
             if (reusable) return previous
             deleteTarget(context, previous)
@@ -124,8 +124,8 @@ internal object DownloadDestination {
         ) ?: throw IOException("Could not create the download in the selected folder")
         try {
             sidecar.writeText(target.toString())
-            resolver.openFileDescriptor(target, "rw")?.close()
-                ?: throw IOException("The selected folder does not support direct file access")
+            resolver.openOutputStream(target, "wa")?.close()
+                ?: throw IOException("The selected folder does not allow writing to the destination")
             return target
         } catch (error: Exception) {
             runCatching { DocumentsContract.deleteDocument(resolver, target) }
@@ -231,10 +231,36 @@ internal object DownloadDestination {
         }
     }
 
-    fun directTargetSize(context: Context, uri: Uri): Long {
-        val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
-            ?: throw IOException("Could not reopen the preallocated download file")
+    fun isMediaStoreTarget(uri: Uri): Boolean = uri.authority == MediaStore.AUTHORITY
+
+    fun directTargetSize(context: Context, uri: Uri, fallback: Long = -1L): Long {
+        val resolver = context.contentResolver
+        if (!isMediaStoreTarget(uri)) {
+            val size = runCatching {
+                resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else null
+                }
+            }.getOrNull()
+            if (size != null && size >= 0L) return size
+            val fdSize = runCatching {
+                resolver.openFileDescriptor(uri, "rw")?.use { android.system.Os.fstat(it.fileDescriptor).st_size }
+            }.getOrNull()
+            return fdSize?.takeIf { it >= 0L } ?: fallback
+        }
+        val descriptor = resolver.openFileDescriptor(uri, "rw")
+            ?: throw IOException("Could not reopen the visible download file")
         return descriptor.use { android.system.Os.fstat(it.fileDescriptor).st_size }
+    }
+
+    fun openSequentialTargetWriter(context: Context, uri: Uri, offset: Long): java.io.OutputStream {
+        if (isMediaStoreTarget(uri)) throw IllegalArgumentException("MediaStore targets use positional writes")
+        return context.contentResolver.openOutputStream(uri, if (offset > 0L) "wa" else "wt")
+            ?: throw IOException("The selected folder could not open the download for writing")
+    }
+
+    fun syncSequentialTargetWriter(output: java.io.OutputStream) {
+        output.flush()
+        if (output is java.io.FileOutputStream) output.fd.sync()
     }
 
     fun renameDirectTarget(context: Context, id: Long, uri: Uri, displayName: String): Uri {
@@ -256,7 +282,24 @@ internal object DownloadDestination {
     }
 
     fun truncateDirectTarget(context: Context, uri: Uri, length: Long) {
-        val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
+        val resolver = context.contentResolver
+        if (!isMediaStoreTarget(uri)) {
+            val ok = runCatching {
+                resolver.openFileDescriptor(uri, "rw")?.use {
+                    android.system.Os.ftruncate(it.fileDescriptor, length)
+                    android.system.Os.fsync(it.fileDescriptor)
+                } ?: throw IOException("No file descriptor")
+                true
+            }.getOrDefault(false)
+            if (ok) return
+            if (length == 0L) {
+                resolver.openOutputStream(uri, "wt")?.use { syncSequentialTargetWriter(it) }
+                    ?: throw IOException("Could not restart the file in the selected folder")
+                return
+            }
+            throw IOException("The selected folder cannot safely trim an interrupted file")
+        }
+        val descriptor = resolver.openFileDescriptor(uri, "rw")
             ?: throw IOException("Could not reopen the visible download file")
         descriptor.use {
             android.system.Os.ftruncate(it.fileDescriptor, length)
@@ -264,33 +307,59 @@ internal object DownloadDestination {
         }
     }
 
-    fun prepareDirectTarget(context: Context, uri: Uri, total: Long, onPreparing: (Int) -> Unit) {
+    fun prepareDirectTarget(
+        context: Context,
+        uri: Uri,
+        total: Long,
+        onPreparing: (Int) -> Unit,
+        preserveBytes: Long = 0L
+    ) {
+        if (!isMediaStoreTarget(uri)) throw IllegalArgumentException("Physical preallocation requires MediaStore")
+        if (total <= 0L) { onPreparing(100); return }
         val descriptor = context.contentResolver.openFileDescriptor(uri, "rw")
             ?: throw IOException("Could not open the visible download file")
         descriptor.use { pfd ->
             android.system.Os.ftruncate(pfd.fileDescriptor, total)
-            var prepared = 0L
-            var supportsPhysicalPreallocation = true
+            val zeroes = ByteArray(1024 * 1024)
+            var prepared = preserveBytes.coerceIn(0L, total)
+            var fallocateSupported = true
             val segmentSize = ((total - 1L) / 4L) + 1L
+            fun zeroRange(start: Long, length: Long) {
+                var position = start
+                val end = start + length
+                while (position < end) {
+                    val count = minOf(zeroes.size.toLong(), end - position).toInt()
+                    var written = 0
+                    while (written < count) {
+                        val n = android.system.Os.pwrite(pfd.fileDescriptor, zeroes, written, count - written, position + written)
+                        if (n <= 0) throw IOException("Could not reserve storage for the download")
+                        written += n
+                    }
+                    position += count
+                    prepared += count
+                    onPreparing((prepared.toDouble() * 100.0 / total).toInt().coerceIn(1, 100))
+                }
+            }
             for (index in 0 until 4) {
-                val start = index * segmentSize
+                val start = index.toLong() * segmentSize
                 if (start >= total) continue
                 val length = minOf(total - start, segmentSize)
-                if (supportsPhysicalPreallocation) {
+                if (fallocateSupported) {
                     try {
                         android.system.Os.posix_fallocate(pfd.fileDescriptor, start, length)
+                        prepared += (start + length - maxOf(start, preserveBytes.coerceIn(0L, total))).coerceAtLeast(0L)
+                        onPreparing((prepared.toDouble() * 100.0 / total).toInt().coerceIn(1, 100))
+                        continue
                     } catch (error: android.system.ErrnoException) {
-                        // MediaStore/FUSE providers may support positional writes and
-                        // truncation but not Linux fallocate. Keep the visible target.
                         val unsupported = error.errno == android.system.OsConstants.EOPNOTSUPP ||
                             error.errno == android.system.OsConstants.ENOSYS ||
                             error.errno == android.system.OsConstants.EINVAL
                         if (!unsupported) throw error
-                        supportsPhysicalPreallocation = false
+                        fallocateSupported = false
                     }
                 }
-                prepared += length
-                onPreparing((prepared.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
+                val zeroStart = maxOf(start, preserveBytes.coerceIn(0L, total))
+                if (zeroStart < start + length) zeroRange(zeroStart, start + length - zeroStart)
             }
             android.system.Os.fsync(pfd.fileDescriptor)
         }
