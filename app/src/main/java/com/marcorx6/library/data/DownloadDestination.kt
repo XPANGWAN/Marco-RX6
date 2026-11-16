@@ -1,5 +1,6 @@
 package com.marcorx6.library.data
 
+import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.ContentUris
 import android.content.Context
@@ -225,6 +226,7 @@ internal object DownloadDestination {
         }
     }
 
+    @SuppressLint("NewApi")
     private fun findRecoverableDirectTarget(context: Context, id: Long, displayName: String): Uri? {
         val resolver = context.applicationContext.contentResolver
         val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
