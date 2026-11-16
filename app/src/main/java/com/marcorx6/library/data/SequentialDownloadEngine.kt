@@ -69,23 +69,20 @@ internal object SequentialDownloadEngine {
             val speedLimiter = DownloadSpeedLimiter(DownloadConcurrencyPreferences(context).speedLimitBytesPerSecond())
             var connection: HttpURLConnection? = null
             try {
-                connection = (URL(item.url).openConnection() as HttpURLConnection).apply {
-                    instanceFollowRedirects = true
-                    connectTimeout = 30000
-                    readTimeout = 120000
-                    requestMethod = "GET"
-                    setRequestProperty("Accept", "*/*")
-                    setRequestProperty("Accept-Encoding", "identity")
-                    if (item.userAgent.isNotBlank()) setRequestProperty("User-Agent", item.userAgent)
-                    if (item.cookie.isNotBlank()) setRequestProperty("Cookie", item.cookie)
-                    if (item.referrer.isNotBlank()) setRequestProperty("Referer", item.referrer)
+                connection = com.marcorx6.library.network.RedirectingHttpConnection.open(item.url) { request, currentUrl, isInitial ->
+                    request.requestMethod = "GET"
+                    request.setRequestProperty("Accept", "*/*")
+                    request.setRequestProperty("Accept-Encoding", "identity")
+                    if (item.userAgent.isNotBlank()) request.setRequestProperty("User-Agent", item.userAgent)
+                    if (isInitial && item.cookie.isNotBlank()) request.setRequestProperty("Cookie", item.cookie)
+                    if (isInitial && item.referrer.isNotBlank()) request.setRequestProperty("Referer", item.referrer)
                     if (offset > 0L) {
-                        setRequestProperty("Range", "bytes=$offset-")
+                        request.setRequestProperty("Range", "bytes=$offset-")
                         val strongEtag = item.etag.takeIf {
                             it.isNotBlank() && !it.trimStart().startsWith("W/", ignoreCase = true)
                         }
-                        if (strongEtag != null) setRequestProperty("If-Range", strongEtag)
-                        else if (item.lastModified.isNotBlank()) setRequestProperty("If-Range", item.lastModified)
+                        if (strongEtag != null) request.setRequestProperty("If-Range", strongEtag)
+                        else if (item.lastModified.isNotBlank()) request.setRequestProperty("If-Range", item.lastModified)
                     }
                 }
                 val code = connection.responseCode
