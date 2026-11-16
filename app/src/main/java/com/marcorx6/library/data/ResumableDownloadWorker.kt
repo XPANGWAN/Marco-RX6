@@ -17,11 +17,7 @@ import com.marcorx6.library.R
 import com.marcorx6.library.ui.activity.MainActivity
 import com.marcorx6.library.ui.LanguageTranslator
 import java.io.File
-import java.io.FileOutputStream
-import java.io.RandomAccessFile
 import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 
 internal class ResumableDownloadWorker(
     context: Context,
