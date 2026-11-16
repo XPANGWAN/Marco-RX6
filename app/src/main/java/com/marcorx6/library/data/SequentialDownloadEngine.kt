@@ -324,10 +324,6 @@ internal object SequentialDownloadEngine {
             }
         }
     
-        private fun deleteSavedLocation(location: String) {
-            DownloadDestination.delete(context, location)
-        }
-    
         private fun readDurableOffset(file: File, fallback: Long, maximum: Long): Long {
             val saved = runCatching { if (file.isFile) file.readText().trim().toLongOrNull() else null }.getOrNull()
             return when {
@@ -348,8 +344,5 @@ internal object SequentialDownloadEngine {
                 throw IOException("Could not commit the download resume checkpoint")
             }
         }
-    
-            DownloadDestination.delete(applicationContext, location)
-        }
-    
+
 }
