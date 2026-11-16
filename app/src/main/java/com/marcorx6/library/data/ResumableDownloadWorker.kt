@@ -181,11 +181,10 @@ internal class ResumableDownloadWorker(
             val responseEtag = connection.getHeaderField("ETag").orEmpty()
             val responseModified = connection.getHeaderField("Last-Modified").orEmpty()
             val responseLength = connection.getHeaderFieldLong("Content-Length", -1L)
-            val contentRange = Regex("""bytes (\d+)-(\d+)/(\d+)""")
-                .find(connection.getHeaderField("Content-Range").orEmpty())
-            val rangeStart = contentRange?.groupValues?.getOrNull(1)?.toLongOrNull()
-            val rangeEnd = contentRange?.groupValues?.getOrNull(2)?.toLongOrNull()
-            val rangeTotal = contentRange?.groupValues?.getOrNull(3)?.toLongOrNull()
+            val contentRange = DownloadTransferProtocol.parseContentRange(connection.getHeaderField("Content-Range").orEmpty())
+            val rangeStart = contentRange?.start
+            val rangeEnd = contentRange?.endInclusive
+            val rangeTotal = contentRange?.total
 
             if (append) {
                 val validatorMatches = when {
