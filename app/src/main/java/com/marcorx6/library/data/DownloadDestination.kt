@@ -124,7 +124,7 @@ internal object DownloadDestination {
         ) ?: throw IOException("Could not create the download in the selected folder")
         try {
             sidecar.writeText(target.toString())
-            resolver.openOutputStream(target, "wa")?.close()
+            resolver.openOutputStream(target, "wt")?.close()
                 ?: throw IOException("The selected folder does not allow writing to the destination")
             return target
         } catch (error: Exception) {
@@ -337,7 +337,7 @@ internal object DownloadDestination {
                     }
                     position += count
                     prepared += count
-                    onPreparing((prepared.toDouble() * 100.0 / total).toInt().coerceIn(1, 100))
+                    onPreparing((prepared.toDouble() * 100.0 / total.toDouble()).toInt().coerceIn(1, 100))
                 }
             }
             for (index in 0 until 4) {
