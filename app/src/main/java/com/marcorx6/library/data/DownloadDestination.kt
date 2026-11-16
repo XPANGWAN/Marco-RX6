@@ -1,6 +1,7 @@
 package com.marcorx6.library.data
 
 import android.content.ContentValues
+import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.os.Build
@@ -151,10 +152,16 @@ internal object DownloadDestination {
         val resolver = context.applicationContext.contentResolver
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
         sidecar.parentFile?.mkdirs()
-        val previous = runCatching { if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null }.getOrNull()
-        if (previous != null && previous.scheme == "content" && previous.authority == MediaStore.AUTHORITY) {
-            // Distinguish a genuinely deleted row from a temporary descriptor
-            // failure. If the row still exists, never create another row beside it.
+        val previous = runCatching {
+            if (sidecar.isFile) Uri.parse(sidecar.readText().trim()) else null
+        }.getOrNull()
+
+        if (previous != null && previous.scheme == "content") {
+            if (previous.authority != MediaStore.AUTHORITY) {
+                // The user changed storage destinations while this item was paused.
+                // Never delete the old document or silently create a second copy.
+                throw IOException("This download is linked to its original selected folder. Restore that folder to resume the same file.")
+            }
             val previousExists = resolver.query(
                 previous, arrayOf(MediaStore.MediaColumns._ID), null, null, null
             )?.use { it.moveToFirst() }
@@ -166,12 +173,8 @@ internal object DownloadDestination {
                 if (!reopened) {
                     throw IOException("The existing download file is present but cannot be reopened; its destination was preserved")
                 }
-                // Older app versions may have left the row pending. Re-publish it
-                // on every resume so file managers can see the in-progress file.
-                // If verification fails, retain this URI and stop; never silently
-                // delete a valid resume target and create a duplicate row.
                 try {
-                    publishAndVerify(context, previous, displayName, mimeType)
+                    publishAndVerify(context, id, previous, displayName, mimeType)
                     return previous
                 } catch (error: Exception) {
                     throw IOException(
@@ -182,31 +185,73 @@ internal object DownloadDestination {
             }
         }
 
-        if (previous != null) deleteTarget(context, previous)
-        sidecar.delete()
+        // Recover the original MediaStore row if its small private URI checkpoint
+        // was lost or became stale. Each row receives an app-owned marker, so this
+        // lookup cannot accidentally adopt another download with the same filename.
+        val recovered = findRecoverableDirectTarget(context, id, displayName)
+        if (recovered != null) {
+            persistDestinationUri(context, id, recovered)
+            publishAndVerify(context, id, recovered, displayName, mimeType)
+            return recovered
+        }
+
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
             put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$DEFAULT_FOLDER/")
-            // Keep the row private until its descriptor and destination metadata
-            // have both been verified, then publish it before returning to the queue.
+            put(MediaStore.MediaColumns.DESCRIPTION, destinationMarker(id))
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val uri = resolver.insert(
             MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), values
         ) ?: throw IOException("Could not create the visible preallocated download file")
         return try {
-            // Persist the URI before opening the descriptor so a process death
-            // cannot leave an untracked MediaStore row behind.
+            // Commit the URI checkpoint before opening or publishing the row.
             persistDestinationUri(context, id, uri)
             resolver.openFileDescriptor(uri, "rw")?.close()
                 ?: throw IOException("Could not open the destination file for random access")
-            publishAndVerify(context, uri, displayName, mimeType)
+            publishAndVerify(context, id, uri, displayName, mimeType)
             uri
         } catch (error: Exception) {
-            runCatching { resolver.delete(uri, null, null) }
+            // Keep the URI checkpoint if the row still exists: a retry must inspect
+            // and reuse this exact row rather than create a '(1)' duplicate.
             throw error
         }
+    }
+
+    private fun destinationMarker(id: Long): String = "MARCO_RX6_DOWNLOAD_ID:$id"
+
+    private fun findRecoverableDirectTarget(context: Context, id: Long, displayName: String): Uri? {
+        val resolver = context.applicationContext.contentResolver
+        val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val relativePath = "${Environment.DIRECTORY_DOWNLOADS}/$DEFAULT_FOLDER/"
+        fun findOne(selection: String, args: Array<String>): Uri? {
+            return resolver.query(
+                collection,
+                arrayOf(MediaStore.MediaColumns._ID),
+                selection,
+                args,
+                "${MediaStore.MediaColumns._ID} DESC"
+            )?.use { cursor ->
+                if (!cursor.moveToFirst()) return@use null
+                val rowId = cursor.getLong(0)
+                if (cursor.moveToNext()) return@use null
+                ContentUris.withAppendedId(collection, rowId)
+            }
+        }
+
+        val markerMatch = findOne(
+            "${MediaStore.MediaColumns.DESCRIPTION}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?",
+            arrayOf(destinationMarker(id), relativePath)
+        )
+        if (markerMatch != null) return markerMatch
+
+        // Compatibility recovery for rows created by earlier app versions that
+        // predate the marker. Reuse only an unambiguous exact-name match.
+        return findOne(
+            "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?",
+            arrayOf(displayName, relativePath)
+        )
     }
 
     /**
@@ -331,7 +376,7 @@ internal object DownloadDestination {
     fun renameDirectTarget(context: Context, id: Long, uri: Uri, displayName: String): Uri {
         val resolver = context.contentResolver
         val renamed = if (uri.authority == MediaStore.AUTHORITY) {
-            val values = ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, displayName) }
+            val values = ContentValues().apply {\n                put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)\n                put(MediaStore.MediaColumns.DESCRIPTION, destinationMarker(id))\n            }
             if (resolver.update(uri, values, null, null) <= 0) {
                 throw IOException("Could not update the visible download filename")
             }
