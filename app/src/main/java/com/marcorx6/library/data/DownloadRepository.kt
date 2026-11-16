@@ -45,6 +45,12 @@ internal class DownloadRepository(context: Context) {
     }
 
     init {
+        // A process death can interrupt the pre-queue HTTP probe. Recover those
+        // rows as pending so they are never stranded in a permanent Preparing state.
+        database.recoverResolving()
+        database.all().forEach { item ->
+            File(appContext.filesDir, "MARCO_RX6_downloads/${item.id}.probing").delete()
+        }
         DownloadWorkScheduler.schedule(appContext)
     }
 
