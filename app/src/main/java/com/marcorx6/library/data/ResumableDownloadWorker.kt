@@ -46,6 +46,11 @@ internal class ResumableDownloadWorker(
                 Result.success()
             } else {
                 setForeground(createForegroundInfo(item.title, id))
+                // Enter the preparation state before either download-engine probe.
+                // This makes the phase observable while the server is inspected and
+                // storage is reserved, rather than switching straight to RUNNING.
+                database.preparing(id, 0, item.totalBytes, item.etag, item.lastModified)
+                updatePreparingNotification(item.title, id, 0)
                 download(item, database)
             }
         } catch (error: Exception) {
@@ -215,8 +220,10 @@ internal class ResumableDownloadWorker(
                     database.preparing(item.id, percent, total, etag, modified)
                     updatePreparingNotification(item.title, item.id, percent)
                 }
-                database.finishPreparing(item.id)
             }
+            // No matter which storage provider or size metadata the server supplies,
+            // preparation ends here: immediately before the first response byte is read.
+            database.finishPreparing(item.id)
             if (directUri != null) DownloadDestination.renameDirectTarget(applicationContext, directUri, safeName)
             database.renameTitle(item.id, safeName)
             database.progress(item.id, offset, total, etag, modified)
@@ -292,9 +299,9 @@ internal class ResumableDownloadWorker(
             if (total > 0L && offset != total) {
                 throw IOException("Incomplete file: $offset / $total")
             }
-            // Network transfer is finished. Keep the item active while assembling/saving.
-            database.preparing(item.id, 100, total, etag, modified)
-            updatePreparingNotification(item.title, item.id)
+            // Network transfer is finished. Keep the item RUNNING while finalizing;
+            // PREPARING is reserved exclusively for the pre-download storage phase.
+            updateProgressNotification(item.title, item.id, offset, total)
             val savedLocation = if (directUri != null) {
                 DownloadDestination.forgetDirectTarget(applicationContext, item.id)
                 directUri.toString()
