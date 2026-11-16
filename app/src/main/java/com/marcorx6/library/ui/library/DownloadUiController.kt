@@ -475,8 +475,7 @@ internal class DownloadUiController(
                 DownloadManager.STATUS_PENDING, com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED -> translate("في الانتظار")
                 DownloadManager.STATUS_RUNNING -> translate("قيد التنزيل")
                 com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING,
-                com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING,
-                    com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING -> translate("جارٍ تجهيز الملف")
+                com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING -> translate("جارٍ تجهيز الملف")
                 DownloadManager.STATUS_PAUSED -> translate("متوقف مؤقتاً")
                 DownloadManager.STATUS_SUCCESSFUL -> translate("اكتمل")
                 DownloadManager.STATUS_FAILED -> translate("فشل")
@@ -520,7 +519,8 @@ internal class DownloadUiController(
                 item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING)) {
                 StringBuilder(translate("جارٍ حجز مساحة التخزين قبل بدء التنزيل"))
             } else StringBuilder(downloaded)
-            if (item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING && item.totalBytes > 0L) {
+            if (item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING &&
+                item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING && item.totalBytes > 0L) {
                 details.append(" / ").append(android.text.format.Formatter.formatFileSize(activity, item.totalBytes))
             } else if (item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING) {
                 details.append(" / ").append(translate("الحجم غير معروف"))
@@ -694,7 +694,8 @@ internal class DownloadUiController(
                     DownloadManager.STATUS_PENDING,
                     com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED -> translate("في الانتظار")
                     DownloadManager.STATUS_RUNNING -> translate("قيد التنزيل")
-                    com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING -> translate("جارٍ تجهيز الملف")
+                    com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING,
+                    com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING -> translate("جارٍ تجهيز الملف")
                     DownloadManager.STATUS_PAUSED -> translate("متوقف مؤقتاً")
                     DownloadManager.STATUS_SUCCESSFUL -> translate("اكتمل")
                     DownloadManager.STATUS_FAILED -> translate("فشل")
@@ -878,6 +879,7 @@ internal class DownloadUiController(
             refreshIntervalMillis = if (allEntries.any {
                 it.status == DownloadManager.STATUS_RUNNING ||
                     it.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
+                    it.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
                     it.status == DownloadManager.STATUS_PENDING ||
                     it.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED
             }) 250L else 5_000L
