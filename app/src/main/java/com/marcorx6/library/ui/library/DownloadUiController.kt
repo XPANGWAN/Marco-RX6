@@ -274,6 +274,15 @@ internal class DownloadUiController(
         val filterButtons = linkedMapOf<String, TextView>()
         fun filterButton(key: String, label: String): TextView = TextView(activity).apply {
             text = translate(label)
+            val filterIcon = when (key) {
+                "active" -> com.marcorx6.library.R.drawable.ic_download_filter_active
+                "completed" -> com.marcorx6.library.R.drawable.ic_download_filter_completed
+                "failed" -> com.marcorx6.library.R.drawable.ic_download_filter_failed
+                else -> com.marcorx6.library.R.drawable.ic_download_filter_all
+            }
+            setCompoundDrawablesWithIntrinsicBounds(filterIcon, 0, 0, 0)
+            compoundDrawablePadding = dp(3)
+            compoundDrawableTintList = android.content.res.ColorStateList.valueOf(accentText)
             textSize = 10f
             gravity = Gravity.CENTER
             setPadding(dp(5), dp(6), dp(5), dp(6))
@@ -285,6 +294,9 @@ internal class DownloadUiController(
                 filterButtons.forEach { (filterKey, button) ->
                     val active = filterKey == selectedFilter
                     button.setTextColor(if (active) primaryForeground else accentText)
+                    button.compoundDrawableTintList = android.content.res.ColorStateList.valueOf(
+                        if (active) primaryForeground else accentText
+                    )
                     (button.background as? GradientDrawable)?.setColor(
                         if (active) primary else surface
                     )
@@ -311,6 +323,7 @@ internal class DownloadUiController(
         }
         filterButtons["all"]?.apply {
             setTextColor(primaryForeground)
+            compoundDrawableTintList = android.content.res.ColorStateList.valueOf(primaryForeground)
             (background as? GradientDrawable)?.setColor(primary)
         }
         val bulkRow = LinearLayout(activity).apply {
