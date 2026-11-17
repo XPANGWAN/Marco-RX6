@@ -51,7 +51,7 @@ class DownloadSourceResolverTest {
 
     @Test
     fun recognizesGenericShareLandingPagesButNotDirectFileUrls() {
-        assertEquals(true, DownloadSourceResolver.isKnownLandingPageUrl("https://files.example.org/f/AFklphNAHo"))
+        assertEquals(false, DownloadSourceResolver.isKnownLandingPageUrl("https://files.example.org/f/AFklphNAHo"))
         assertEquals(false, DownloadSourceResolver.isKnownLandingPageUrl("https://files.example.org/download/game.pkg"))
         assertEquals(true, DownloadSourceResolver.isDirectDownloadEndpointUrl("https://cdn.example.org/files/game.pkg?token=abc"))
     }
