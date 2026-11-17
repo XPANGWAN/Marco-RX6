@@ -24,6 +24,7 @@ class LocalBrowserAdBlockerTest {
         page: String = "https://example.org/download/game",
         enabled: Boolean = true,
         allow: Set<String> = emptySet(),
+        blocked: Set<String> = emptySet(),
         direct: Boolean = false,
         headers: Map<String, String> = emptyMap(),
         mainFrame: Boolean = false
@@ -32,6 +33,7 @@ class LocalBrowserAdBlockerTest {
         pageUrl = page,
         enabled = enabled,
         allowedHosts = allow,
+        blockedHosts = blocked,
         isDirectFile = { direct },
         requestHeaders = headers,
         isMainFrame = mainFrame
@@ -87,6 +89,31 @@ class LocalBrowserAdBlockerTest {
     fun allowlistAndDirectFilesTakePrecedence() {
         assertFalse(blocks("https://ads.example.com/banner.js", allow = setOf("example.com")))
         assertFalse(blocks("https://doubleclick.net/ads.js", direct = true))
+    }
+
+    @Test
+    fun userBlockedSitesIncludeSubdomainsAndOverrideDirectFileExemption() {
+        assertTrue(
+            blocks(
+                "https://downloads.example.net/game.zip",
+                blocked = setOf("example.net"),
+                direct = true
+            )
+        )
+        assertTrue(
+            blocks(
+                "https://shop.example.net/page",
+                blocked = setOf("example.net"),
+                mainFrame = true
+            )
+        )
+        assertFalse(
+            blocks(
+                "https://example.net/page",
+                blocked = setOf("example.net"),
+                allow = setOf("example.net")
+            )
+        )
     }
 
     @Test
