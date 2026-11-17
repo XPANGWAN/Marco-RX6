@@ -23,6 +23,26 @@ class DownloadSourceResolverTest {
     }
 
     @Test
+    fun recognizesVikingFileLandingPagesWithoutMatchingOtherPaths() {
+        assertEquals(
+            true,
+            DownloadSourceResolver.isKnownLandingPageUrl("https://vik1ngfile.site/f/AFklphNAHo")
+        )
+        assertEquals(
+            true,
+            DownloadSourceResolver.isKnownLandingPageUrl("https://vikingfile.com/f/AFklphNAHo")
+        )
+        assertEquals(
+            false,
+            DownloadSourceResolver.isKnownLandingPageUrl("https://vikingfile.com/")
+        )
+        assertEquals(
+            false,
+            DownloadSourceResolver.isKnownLandingPageUrl("https://example.com/f/AFklphNAHo")
+        )
+    }
+
+    @Test
     fun extractsMediaFireDownloadButtonUrl() {
         val html = """<html><a class="input popsok" id="downloadButton" href="https://download123.mediafire.com/token/game.pkg">Download</a></html>"""
         assertEquals(
