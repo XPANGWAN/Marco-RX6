@@ -386,6 +386,9 @@ internal class DownloadRepository(context: Context) {
         referrer: String,
         resolutionDepth: Int = 0
     ): DownloadProbe {
+        if (com.marcorx6.library.network.DownloadSourceResolver.isKnownLandingPageUrl(link)) {
+            return DownloadProbe(link, "text/html", false, null)
+        }
         val connection = com.marcorx6.library.network.RedirectingHttpConnection.open(
             link,
             onResponse = { response, responseUrl ->
