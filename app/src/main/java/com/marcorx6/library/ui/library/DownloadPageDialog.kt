@@ -541,6 +541,7 @@ internal class DownloadPageDialog(
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
         val adPreferences = appPreferences
         var adBlockerEnabled = adPreferences.getBoolean("download_page_ad_blocker", true)
+        LocalBrowserAdBlocker.loadCached(adPreferences)
         val allowedHosts = adPreferences.getString("download_page_ad_allowlist", "").orEmpty()
             .split(',', ';').map { it.trim().lowercase() }.filter { it.isNotBlank() }.toMutableSet()
         lateinit var adToggle: android.widget.ImageButton
@@ -658,57 +659,13 @@ internal class DownloadPageDialog(
         }
         fun applyCosmeticFiltering() {
             if (!adBlockerEnabled) return
-            val script = """(function(){try{
-              var selectors=['iframe[src*="doubleclick"]','iframe[src*="googlesyndication"]',
-                'iframe[src*="adservice"]','iframe[src*="adnxs"]','iframe[src*="outbrain"]',
-                'iframe[src*="taboola"]','iframe[src*="popads"]','iframe[src*="popcash"]',
-                'iframe[src*="propellerads"]','iframe[src*="exoclick"]','iframe[src*="adsterra"]',
-                'iframe[src*="ad-delivery"]','iframe[src*="clickadu"]','iframe[src*="trafficstars"]',
-                'iframe[src*="adnow"]','iframe[src*="adskeeper"]','iframe[src*="monetag"]',
-                '[id^="google_ads"]','[id*="ad-container"]','[id*="ad_wrapper"]','[id*="ad_banner"]',
-                '[id*="ad-popup"]','[id*="ad-overlay"]',
-                '[class*="ad-container"]','[class*="ad-wrapper"]','[class*="advertisement"]',
-                '[class*="advert-banner"]','[class*="ad-slot"]','[class*="ad-placement"]',
-                '[class*="sponsored"]','[class*="sponsor-box"]','[class*="ad-banner"]',
-                '[class*="ad-popup"]','[class*="ad-overlay"]','[class*="popunder"]',
-                '[data-ad]','[data-ad-unit]',
-                '[data-ad-slot]','[data-advertisement]','[data-google-query-id]',
-                '[aria-label="advertisement" i]','ins.adsbygoogle','amp-ad',
-                'amp-embed[type="taboola"]','div[id*="taboola"]','div[class*="taboola"]',
-                'div[id*="outbrain"]','div[class*="outbrain"]',
-                'a[href*="doubleclick.net"]','a[href*="popads.net"]','a[href*="popcash.net"]',
-                'a[href*="propellerads.com"]','a[href*="exoclick.com"]'];
-              function hideAds(root){var n=0;selectors.forEach(function(s){
-                try{
-                  if(root&&root.nodeType===1&&root.matches&&root.matches(s)&&root.getAttribute('data-marco-ad-hidden')!=='1'){
-                    root.style.setProperty('display','none','important');root.setAttribute('data-marco-ad-hidden','1');n++;
-                  }
-                  root.querySelectorAll(s).forEach(function(e){
-                    if(n<240&&e.getAttribute('data-marco-ad-hidden')!=='1'){e.style.setProperty('display','none','important');e.setAttribute('data-marco-ad-hidden','1');n++;}
-                  });
-                }catch(ignore){}
-              });}
-              var newlyHidden=hideAds(document);
-              if(!window.__marcoAdObserver){
-                var pending=false;
-                window.__marcoAdObserver=new MutationObserver(function(records){
-                  if(pending)return;pending=true;
-                  requestAnimationFrame(function(){
-                    pending=false;
-                    records.forEach(function(record){record.addedNodes.forEach(function(node){
-                      if(node&&node.nodeType===1){hideAds(node);}});
-                    });
-                  });
-                });
-                window.__marcoAdObserver.observe(document.documentElement,{childList:true,subtree:true});
-              }
-              return newlyHidden;
-            }catch(e){return 0;}})();"""
+            val script = LocalBrowserAdBlocker.buildCosmeticScript(activePageUrl.get())
+            if (script.isBlank()) return
             webView.evaluateJavascript(script) { raw ->
-                val newlyHidden = runCatching {
+                val newlyApplied = runCatching {
                     (JSONTokener(raw ?: "0").nextValue() as? Number)?.toInt() ?: 0
                 }.getOrDefault(0)
-                recordBlocked(newlyHidden)
+                if (newlyApplied > 0) recordBlocked(newlyApplied)
             }
         }
         var rendererGone = false
@@ -875,6 +832,14 @@ internal class DownloadPageDialog(
         }
         com.marcorx6.library.AppDiagnostics.log("INFO", "Browser", "Opened download browser")
         webView.loadUrl(safeStartUrl)
+        LocalBrowserAdBlocker.refreshInBackground(adPreferences) {
+            activity.runOnUiThread {
+                if (!rendererGone && dialog.isShowing && adBlockerEnabled) {
+                    // Apply newly downloaded cosmetic rules without interrupting an active download.
+                    applyCosmeticFiltering()
+                }
+            }
+        }
         val observer = object : DefaultLifecycleObserver {
             override fun onResume(owner: LifecycleOwner) {
                 if (!rendererGone && dialog.isShowing) webView.onResume()
