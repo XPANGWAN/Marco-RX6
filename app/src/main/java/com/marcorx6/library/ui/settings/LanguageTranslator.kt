@@ -3,6 +3,20 @@ package com.marcorx6.library.ui
 /** Centralized static translations for the app interface. */
 internal object LanguageTranslator {
     private val translations = mapOf(
+            "نسخة الجهاز" to listOf("Device variant", "Version de l’appareil", "Versión del dispositivo"),
+            "سيتم تنزيل النسخة المناسبة مباشرة داخل التطبيق" to listOf("The matching APK will download directly inside the app", "La version adaptée sera téléchargée directement dans l’application", "La versión compatible se descargará directamente en la aplicación"),
+            "جارٍ تنزيل تحديث التطبيق" to listOf("Downloading app update", "Téléchargement de la mise à jour", "Descargando actualización de la aplicación"),
+            "جارٍ الاتصال بخادم التنزيل..." to listOf("Connecting to download server...", "Connexion au serveur de téléchargement...", "Conectando con el servidor de descarga..."),
+            "جارٍ التنزيل" to listOf("Downloading", "Téléchargement en cours", "Descargando"),
+            "تنزيل تحديث MARCO RX6" to listOf("Downloading MARCO RX6 update", "Téléchargement de la mise à jour MARCO RX6", "Descargando actualización de MARCO RX6"),
+            "إلغاء" to listOf("Cancel", "Annuler", "Cancelar"),
+            "تعذر بدء تنزيل التحديث" to listOf("Could not start the update download", "Impossible de démarrer le téléchargement", "No se pudo iniciar la descarga de la actualización"),
+            "تعذر العثور على ملف التحديث" to listOf("Could not find the update file", "Fichier de mise à jour introuvable", "No se encontró el archivo de actualización"),
+            "اكتمل التنزيل لكن تعذر فتح ملف APK" to listOf("Download completed, but the APK could not be opened", "Téléchargement terminé, mais impossible d’ouvrir l’APK", "Descarga completada, pero no se pudo abrir el APK"),
+            "فشل تنزيل التحديث" to listOf("Update download failed", "Échec du téléchargement de la mise à jour", "Falló la descarga de la actualización"),
+            "اسمح بتثبيت التطبيقات من هذا المصدر لإكمال التحديث" to listOf("Allow installs from this source to finish the update", "Autorisez les installations depuis cette source pour terminer la mise à jour", "Permite instalaciones desde esta fuente para completar la actualización"),
+            "تعذر فتح إعدادات تثبيت التطبيقات" to listOf("Could not open app install settings", "Impossible d’ouvrir les paramètres d’installation", "No se pudo abrir la configuración de instalación"),
+            "تعذر فتح مثبت تحديث Android" to listOf("Could not open the Android update installer", "Impossible d’ouvrir l’installateur Android", "No se pudo abrir el instalador de Android"),
             "جارٍ تجهيز الملف" to listOf("Preparing file", "Préparation du fichier", "Preparando el archivo"),
             "بانتظار اتصال Wi-Fi" to listOf("Waiting for Wi-Fi connection", "En attente d’une connexion Wi-Fi", "Esperando conexión Wi-Fi"),
             "اختر اللون الأساسي للتطبيق" to listOf("Choose the app primary color", "Choisissez la couleur principale de l’application", "Elige el color principal de la aplicación"),
