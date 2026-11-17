@@ -355,7 +355,7 @@ internal class DownloadUiController(
             addGlassTouch(this)
             setOnClickListener { onClick() }
         }
-        val bulkActions = listOf(
+        val bulkActions: List<Pair<String, () -> Unit>> = listOf(
             "إيقاف الكل" to {
                 val count = downloadRepository.pauseAllDownloads()
                 Toast.makeText(activity, translate("تم إيقاف") + " $count " + translate("تنزيلات مؤقتاً"), Toast.LENGTH_SHORT).show()
@@ -380,6 +380,7 @@ internal class DownloadUiController(
                         Toast.makeText(activity, translate("تم حذف") + " $count " + translate("ملفات مكتملة"), Toast.LENGTH_SHORT).show()
                         render?.invoke()
                     }.show()
+                Unit
             }
         )
         bulkActions.forEachIndexed { index, (label, action) ->
