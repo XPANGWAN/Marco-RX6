@@ -209,7 +209,12 @@ internal object SegmentedDownloadEngine {
                 }
             }
         )
-        database.progress(item.id, completedBytes.get(), total, etag, modified)
+        // A total-sized aggregate is not committed to the database until every
+        // range has returned and passed its integrity check below. This makes a
+        // persisted downloaded==total checkpoint safe for finalization recovery.
+        if (completedBytes.get() < total) {
+            database.progress(item.id, completedBytes.get(), total, etag, modified)
+        }
         onProgress(completedBytes.get(), total)
         val lastProgressUpdate = java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis())
         try {
@@ -224,11 +229,15 @@ internal object SegmentedDownloadEngine {
                         val current = completedBytes.addAndGet(delta).coerceAtMost(total)
                         val now = System.currentTimeMillis()
                         val previous = lastProgressUpdate.get()
-                        if (now - previous >= 500L || current >= total) {
-                            if (lastProgressUpdate.compareAndSet(previous, now) || current >= total) {
-                                database.progress(item.id, current, total, etag, modified)
-                                onProgress(current, total)
-                            }
+                        // Do not persist the terminal byte count until this range's
+                        // integrity verifier has completed and every worker future has joined.
+                        if (current < total && now - previous >= 500L &&
+                            lastProgressUpdate.compareAndSet(previous, now)
+                        ) {
+                            database.progress(item.id, current, total, etag, modified)
+                            onProgress(current, total)
+                        } else if (current >= total) {
+                            onProgress(current, total)
                         }
                     }
                 }
