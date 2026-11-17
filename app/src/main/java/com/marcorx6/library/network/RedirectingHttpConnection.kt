@@ -2,7 +2,6 @@ package com.marcorx6.library.network
 
 import java.io.IOException
 import java.net.HttpURLConnection
-import java.net.SocketTimeoutException
 import java.net.URL
 import java.util.Locale
 
@@ -38,11 +37,8 @@ internal object RedirectingHttpConnection {
     fun open(
         initialUrl: String,
         onResponse: (connection: HttpURLConnection, currentUrl: URL) -> Unit = { _, _ -> },
-        maxDurationMillis: Long = 180_000L,
         configure: (connection: HttpURLConnection, currentUrl: URL, isInitialRequest: Boolean) -> Unit
     ): HttpURLConnection {
-        require(maxDurationMillis > 0L)
-        val deadlineNanos = System.nanoTime() + java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(maxDurationMillis)
         var current = URL(initialUrl)
         val visited = linkedSetOf<String>()
 
@@ -59,11 +55,6 @@ internal object RedirectingHttpConnection {
             }
             try {
                 configure(connection, current, hop == 0)
-                val remainingMillis = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(deadlineNanos - System.nanoTime())
-                if (remainingMillis <= 0L) throw SocketTimeoutException("Download source resolution timed out")
-                val timeoutMillis = remainingMillis.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-                connection.connectTimeout = minOf(connection.connectTimeout, timeoutMillis)
-                connection.readTimeout = minOf(connection.readTimeout, timeoutMillis)
                 val code = connection.responseCode
                 onResponse(connection, current)
                 if (!isRedirectStatus(code)) return connection
