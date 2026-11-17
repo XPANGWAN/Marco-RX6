@@ -1,7 +1,7 @@
 package com.marcorx6.library.data
 
-import android.net.Uri
 import android.webkit.MimeTypeMap
+import java.net.URI
 import java.net.URLDecoder
 import java.util.Locale
 
@@ -52,17 +52,29 @@ internal object DownloadFileNames {
 
     private fun extensionFromUrl(url: String): String? {
         if (url.isBlank()) return null
-        val segment = runCatching { Uri.parse(url).lastPathSegment.orEmpty() }.getOrDefault("")
-        val decoded = runCatching { Uri.decode(segment) }.getOrDefault(segment)
+        val decoded = decodePathSegment(lastPathSegment(url))
         val extension = decoded.substringAfterLast('.', "").lowercase(Locale.ROOT)
         return extension.takeIf { it in knownExtensions }
     }
 
     private fun urlExtensionName(url: String): String? {
-        val segment = runCatching { Uri.parse(url).lastPathSegment.orEmpty() }.getOrDefault("")
-        val decoded = runCatching { Uri.decode(segment) }.getOrDefault(segment)
+        val decoded = decodePathSegment(lastPathSegment(url))
         return decoded.takeIf { extensionFromUrl(url) != null }?.let(::clean)
     }
+
+    /**
+     * Use java.net.URI rather than android.net.Uri so filename resolution also
+     * works in local JVM unit tests (where Android framework methods are stubs).
+     */
+    private fun lastPathSegment(url: String): String {
+        val rawPath = runCatching { URI(url).rawPath }.getOrNull()
+            ?: url.substringBefore('#').substringBefore('?').substringAfter("://", url)
+        return rawPath.substringAfterLast('/')
+    }
+
+    private fun decodePathSegment(segment: String): String =
+        runCatching { URLDecoder.decode(segment.replace("+", "%2B"), "UTF-8") }
+            .getOrDefault(segment)
 
     private fun extensionFromMime(mimeType: String): String? {
         val mime = mimeType.substringBefore(';').trim().lowercase(Locale.ROOT)
