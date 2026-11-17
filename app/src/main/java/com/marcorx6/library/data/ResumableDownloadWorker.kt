@@ -55,9 +55,8 @@ internal class ResumableDownloadWorker(
                         applicationContext, id, selectedTree, visibleName, item.mimeType
                     )
                 } else null
-                // Enter preparation only after the visible destination exists.
-                database.preparing(id, item.preparationPercent, item.totalBytes, item.etag, item.lastModified)
-                updatePreparingNotification(item.title, id, item.preparationPercent.coerceIn(0, 100))
+                // Do not reset a resumed transfer to PREPARING 0%.
+                // Engines enter PREPARING only while they actually reserve storage.
                 val segmentedCompleted = SegmentedDownloadEngine.download(
                     context = applicationContext,
                     item = item,
