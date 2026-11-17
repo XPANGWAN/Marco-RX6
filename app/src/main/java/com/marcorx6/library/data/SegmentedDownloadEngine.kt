@@ -81,10 +81,9 @@ internal object SegmentedDownloadEngine {
                 return false
             }
             mime = probe.contentType?.substringBefore(';')?.trim().orEmpty().ifBlank { item.mimeType }
-            val responseName = DownloadFileNames.fromResponse(
-                probe.getHeaderField("Content-Disposition"), probe.url.toString()
-            )
-            safeName = DownloadFileNames.safeName(responseName ?: item.title, mime, item.id)
+            // Keep the filename selected during the repository's initial probe.
+            // Range responses and redirect hosts are not allowed to rename an active file.
+            safeName = DownloadFileNames.safeName(item.title, mime, item.id)
             // Consume the one-byte probe response so the connection can be closed cleanly.
             probe.inputStream.use { it.read() }
         } finally {
@@ -266,7 +265,6 @@ internal object SegmentedDownloadEngine {
         // All ranges already occupy their final offsets in this single file: no merge.
         // Storage preparation is complete before range transfer; do not re-enter
         // PREPARING after the network has finished.
-        database.renameTitle(item.id, safeName)
         database.progress(item.id, total, total, etag, modified)
         val savedLocation = if (directUri != null) {
             directUri.toString()
