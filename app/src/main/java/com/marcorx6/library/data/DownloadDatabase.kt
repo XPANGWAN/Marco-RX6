@@ -387,10 +387,16 @@ internal class DownloadDatabase private constructor(context: Context) :
 
     @Synchronized
     fun progress(id: Long, downloaded: Long, total: Long, etag: String, modified: String) {
+        // Once verified network bytes are being committed, the item is no longer
+        // preparing storage. Keep this invariant even if a late preparation
+        // callback races with the first progress checkpoint.
         writableDatabase.update("downloads", ContentValues().apply {
             put("downloaded", downloaded); put("total", total)
             put("etag", etag); put("last_modified", modified)
-        }, "id=?", arrayOf(id.toString()))
+            if (downloaded > 0L) put("status", DownloadManager.STATUS_RUNNING)
+        }, "id=? AND status IN (?,?)", arrayOf(
+            id.toString(), DownloadManager.STATUS_RUNNING.toString(), STATUS_PREPARING.toString()
+        ))
     }
 
     @Synchronized
