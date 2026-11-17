@@ -522,9 +522,16 @@ internal class DownloadUiController(
         }
 
         fun updateProgress(item: com.marcorx6.library.data.DownloadEntry, views: RowViews) {
+            val isPreparing = item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
+                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
+                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING
+            val waitingForWifi = (item.status == DownloadManager.STATUS_PENDING ||
+                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED) &&
+                downloadRepository.isWaitingForWifi()
             val statusLabel = when (item.status) {
-                DownloadManager.STATUS_PENDING -> translate("في الانتظار")
-                com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED,
+                DownloadManager.STATUS_PENDING,
+                com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED -> if (waitingForWifi)
+                    translate("بانتظار اتصال Wi-Fi") else translate("في الانتظار")
                 com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING,
                 com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING,
                 com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING -> translate("جارٍ تجهيز الملف")
@@ -534,10 +541,7 @@ internal class DownloadUiController(
                 DownloadManager.STATUS_FAILED -> translate("فشل")
                 else -> translate("غير معروف")
             }
-            val percent = if ((item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED ||
-                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
-                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
-                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING)) {
+            val percent = if (isPreparing) {
                 item.preparationPercent.coerceIn(0, 100)
             } else if (item.totalBytes > 0L) {
                 (item.downloadedBytes * 100L / item.totalBytes).coerceIn(0L, 100L).toInt()
@@ -559,11 +563,7 @@ internal class DownloadUiController(
             val speed = if (measuredSpeed > 0L) measuredSpeed else
                 cachedSpeed?.first?.takeIf { now - cachedSpeed.second <= speedGracePeriodMillis } ?: 0L
             if (views.title.text.toString() != item.title) views.title.text = item.title
-            val statusText = if (item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED ||
-                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
-                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
-                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING ||
-                item.totalBytes > 0L) "$statusLabel  •  $percent%" else statusLabel
+            val statusText = if (isPreparing || item.totalBytes > 0L) "$statusLabel  •  $percent%" else statusLabel
             if (views.status.text.toString() != statusText) views.status.text = statusText
             val statusColor = when (item.status) {
                 DownloadManager.STATUS_SUCCESSFUL -> Color.rgb(36, 170, 112)
@@ -572,19 +572,14 @@ internal class DownloadUiController(
             }
             if (views.status.currentTextColor != statusColor) views.status.setTextColor(statusColor)
             val downloaded = android.text.format.Formatter.formatFileSize(activity, item.downloadedBytes.coerceAtLeast(0L))
-            val details = if ((item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED ||
-                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING ||
-                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING ||
-                item.status == com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING)) {
-                StringBuilder(translate("جارٍ حجز مساحة التخزين قبل بدء التنزيل"))
-            } else StringBuilder(downloaded)
-            if (item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING &&
-                item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING &&
-                item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING && item.totalBytes > 0L) {
+            val details = when {
+                waitingForWifi -> StringBuilder(translate("بانتظار اتصال Wi-Fi"))
+                isPreparing -> StringBuilder(translate("جارٍ حجز مساحة التخزين قبل بدء التنزيل"))
+                else -> StringBuilder(downloaded)
+            }
+            if (!isPreparing && !waitingForWifi && item.totalBytes > 0L) {
                 details.append(" / ").append(android.text.format.Formatter.formatFileSize(activity, item.totalBytes))
-            } else if (item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_PREPARING &&
-                item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_INITIALIZING &&
-                item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_RESOLVING &&
+            } else if (!isPreparing && !waitingForWifi &&
                 item.status != com.marcorx6.library.data.DownloadDatabase.STATUS_SCHEDULED) {
                 details.append(" / ").append(translate("الحجم غير معروف"))
             }
