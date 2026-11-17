@@ -321,6 +321,7 @@ class MainActivity : ComponentActivity() {
             },
             onSignedIn = {
                 FirebasePushTokenRepository().syncCurrentToken()
+        com.marcorx6.library.ui.AppUpdateChecker.resumePendingUpdate(this)
                 // After authentication, open the editable account profile directly.
                 showFirebaseAccount()
             },
