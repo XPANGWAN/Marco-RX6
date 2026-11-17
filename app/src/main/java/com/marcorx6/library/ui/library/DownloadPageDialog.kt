@@ -614,11 +614,11 @@ internal class DownloadPageDialog(
                             orientation = LinearLayout.HORIZONTAL
                             gravity = Gravity.CENTER_VERTICAL
                             setPadding(dp(8), dp(3), dp(4), dp(3))
-                            background = GradientDrawable().apply {
+                            setBackground(GradientDrawable().apply {
                                 setColor(surface)
                                 cornerRadius = dp(10).toFloat()
                                 setStroke(dp(1), border)
-                            }
+                            })
                         }
                         item.addView(TextView(activity).apply {
                             text = host
