@@ -400,10 +400,13 @@ internal class DownloadPageDialog(
             clipToOutline = false
         }
         browserFrame.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
+        // Keep the refresh container for the existing browser layout, but disable
+        // pull-to-refresh: some sites use nested/custom scrolling and the gesture
+        // can otherwise be mistaken for a page refresh.
         val swipeRefresh = androidx.swiperefreshlayout.widget.SwipeRefreshLayout(activity).apply {
             setColorSchemeColors(primary)
             setProgressBackgroundColorSchemeColor(surface)
-            setOnRefreshListener { webView.reload() }
+            isEnabled = false
         }
         swipeRefresh.addView(browserFrame, android.view.ViewGroup.LayoutParams(-1, -1))
         root.addView(swipeRefresh, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -626,6 +629,24 @@ internal class DownloadPageDialog(
             addView(adToggle, android.widget.FrameLayout.LayoutParams(dp(46), dp(46)))
             addView(blockedBadge, android.widget.FrameLayout.LayoutParams(-2, dp(18), Gravity.END or Gravity.TOP))
         }
+        val refreshButton = android.widget.ImageButton(activity).apply {
+            setImageResource(com.marcorx6.library.R.drawable.ic_action_refresh)
+            imageTintList = android.content.res.ColorStateList.valueOf(accentText)
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            contentDescription = translate("تحديث الصفحة")
+            isClickable = true
+            isFocusable = true
+            setBackground(GradientDrawable().apply {
+                setColor(surface)
+                cornerRadius = dp(14).toFloat()
+                setStroke(dp(1), border)
+            })
+            setOnClickListener {
+                swipeRefresh.isRefreshing = false
+                webView.reload()
+            }
+        }
+        addressRow.addView(refreshButton,  LinearLayout.LayoutParams(dp(42), dp(46)).apply { marginStart = dp(6) })
         addressRow.addView(shieldContainer, LinearLayout.LayoutParams(dp(46), dp(46)).apply { marginStart = dp(7) })
         val activePageUrl = AtomicReference(safeStartUrl)
         fun isBlockedAdRequest(url: String): Boolean =
