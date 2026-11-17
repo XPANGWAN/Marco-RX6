@@ -371,8 +371,11 @@ internal class DownloadRepository(context: Context) {
         hintedDisposition: String,
         hintedMimeType: String,
         referrer: String,
-        resolutionDepth: Int = 0
+        resolutionDepth: Int = 0,
+        deadlineNanos: Long = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(90)
     ): DownloadProbe {
+        val remainingProbeMillis = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(deadlineNanos - System.nanoTime())
+        if (remainingProbeMillis <= 0L) throw java.net.SocketTimeoutException("Download source resolution exceeded its 90-second limit")
         val connection = com.marcorx6.library.network.RedirectingHttpConnection.open(
             link,
             onResponse = { response, responseUrl ->
@@ -383,7 +386,7 @@ internal class DownloadRepository(context: Context) {
                         CookieManager.getInstance().setCookie(responseUrl.toString(), cookie)
                     }
             }
-        ) { request, currentUrl, isInitial ->
+        , maxDurationMillis = remainingProbeMillis) { request, currentUrl, isInitial ->
             request.readTimeout = 60000
             request.requestMethod = "GET"
             request.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/octet-stream,*/*")
@@ -406,12 +409,12 @@ internal class DownloadRepository(context: Context) {
             }
             if (mime == "text/html" || mime == "application/xhtml+xml") {
                 if (resolutionDepth < 3) {
-                    val html = readBoundedHtml(connection, 1_500_000)
+                    val html = readBoundedHtml(connection, 1_500_000, deadlineNanos)
                     val candidate = com.marcorx6.library.network.DownloadSourceResolver
                         .extractDownloadUrl(finalUrl, html)
                     if (!candidate.isNullOrBlank() && candidate != finalUrl) {
                         connection.disconnect()
-                        return inspect(candidate, userAgent, "", hintedMimeType, finalUrl, resolutionDepth + 1)
+                        return inspect(candidate, userAgent, "", hintedMimeType, finalUrl, resolutionDepth + 1, deadlineNanos)
                     }
                 }
                 return DownloadProbe(finalUrl, mime, false, null)
@@ -437,7 +440,7 @@ internal class DownloadRepository(context: Context) {
         }
     }
 
-    private fun readBoundedHtml(connection: HttpURLConnection, maximumBytes: Int): String {
+    private fun readBoundedHtml(connection: HttpURLConnection, maximumBytes: Int, deadlineNanos: Long): String {
         val stream = runCatching { connection.inputStream }.getOrElse {
             connection.errorStream ?: return ""
         }
@@ -446,6 +449,9 @@ internal class DownloadRepository(context: Context) {
             val buffer = ByteArray(8192)
             var remaining = maximumBytes
             while (remaining > 0) {
+                val remainingMillis = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(deadlineNanos - System.nanoTime())
+                if (remainingMillis <= 0L) throw java.net.SocketTimeoutException("Download source page resolution timed out")
+                connection.readTimeout = remainingMillis.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
                 val count = input.read(buffer, 0, minOf(buffer.size, remaining))
                 if (count < 0) break
                 output.write(buffer, 0, count)
