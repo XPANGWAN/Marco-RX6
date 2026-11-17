@@ -146,6 +146,32 @@ internal class DownloadDatabase private constructor(context: Context) :
         }
     }
 
+    /**
+     * Releases only queued WorkManager reservations when network constraints change.
+     * Running transfers keep their state and checkpoints untouched.
+     */
+    @Synchronized
+    fun releaseScheduled(): List<Long> {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val ids = db.query(
+                "downloads", arrayOf("id"), "status=?",
+                arrayOf(STATUS_SCHEDULED.toString()), null, null, "id ASC"
+            ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getLong(0)) } }
+            db.update(
+                "downloads",
+                ContentValues().apply { put("status", DownloadManager.STATUS_PENDING) },
+                "status=?",
+                arrayOf(STATUS_SCHEDULED.toString())
+            )
+            db.setTransactionSuccessful()
+            return ids
+        } finally {
+            db.endTransaction()
+        }
+    }
+
     @Synchronized
     fun markRunning(id: Long): Boolean {
         val changed = writableDatabase.update(
