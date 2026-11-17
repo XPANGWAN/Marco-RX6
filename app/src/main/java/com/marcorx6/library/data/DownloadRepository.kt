@@ -143,7 +143,12 @@ internal class DownloadRepository(context: Context) {
                         if (!SecureUrlPolicy.isAllowedDownloadUrl(probe.finalUrl)) {
                             throw SecurityException("رابط التحويل النهائي غير آمن أو يستخدم خادمًا غير موثوق")
                         }
-                        val finalTitle = probe.fileName ?: title.ifBlank { "MARCO" }
+                        val finalTitle = DownloadFileNames.safeName(
+                            probe.fileName ?: title.ifBlank { "MARCO" },
+                            probe.mimeType,
+                            id,
+                            probe.finalUrl
+                        )
                         val cookie = CookieManager.getInstance().getCookie(probe.finalUrl).orEmpty()
                         File(appContext.filesDir, "MARCO_RX6_downloads/$id.probing").delete()
                         synchronized(database) {
