@@ -233,17 +233,30 @@ internal class DownloadUiController(
             }
         }
         header.addView(segmentConnectionsButton, LinearLayout.LayoutParams(-2, dp(40)).apply { marginEnd = dp(5) })
+        fun hasWifiConnection(): Boolean {
+            val connectivity = activity.getSystemService(android.content.Context.CONNECTIVITY_SERVICE)
+                as? android.net.ConnectivityManager ?: return false
+            val network = connectivity.activeNetwork ?: return false
+            val capabilities = connectivity.getNetworkCapabilities(network) ?: return false
+            return capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+        }
         val wifiOnlyButton = android.widget.ImageView(activity).apply {
-            setImageResource(com.marcorx6.library.R.drawable.ic_download_wifi)
-            imageTintList = android.content.res.ColorStateList.valueOf(
-                if (downloadRepository.wifiOnlyDownloads()) primary else accentText
-            )
+            fun updateNetworkModeIcon(wifiOnly: Boolean) {
+                setImageResource(
+                    if (wifiOnly) com.marcorx6.library.R.drawable.ic_download_wifi
+                    else com.marcorx6.library.R.drawable.ic_download_mobile
+                )
+                imageTintList = android.content.res.ColorStateList.valueOf(
+                    if (wifiOnly) primary else accentText
+                )
+                contentDescription = translate(
+                    if (wifiOnly) "التنزيل عبر Wi-Fi فقط" else "التنزيل عبر جميع الشبكات"
+                )
+                if (Build.VERSION.SDK_INT >= 26) tooltipText = contentDescription
+            }
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             setPadding(dp(10), dp(10), dp(10), dp(10))
-            contentDescription = translate(
-                if (downloadRepository.wifiOnlyDownloads()) "التنزيل عبر Wi-Fi فقط" else "التنزيل عبر جميع الشبكات"
-            )
-            if (Build.VERSION.SDK_INT >= 26) tooltipText = contentDescription
+            updateNetworkModeIcon(downloadRepository.wifiOnlyDownloads())
             this.background = GradientDrawable().apply {
                 setColor(surface)
                 cornerRadius = dp(12).toFloat()
@@ -252,12 +265,15 @@ internal class DownloadUiController(
             setOnClickListener {
                 val enabled = !downloadRepository.wifiOnlyDownloads()
                 downloadRepository.setWifiOnlyDownloads(enabled)
-                imageTintList = android.content.res.ColorStateList.valueOf(if (enabled) primary else accentText)
-                contentDescription = translate(
-                    if (enabled) "التنزيل عبر Wi-Fi فقط" else "التنزيل عبر جميع الشبكات"
-                )
-                if (Build.VERSION.SDK_INT >= 26) tooltipText = contentDescription
+                updateNetworkModeIcon(enabled)
                 Toast.makeText(activity, contentDescription, Toast.LENGTH_SHORT).show()
+                if (enabled && !hasWifiConnection()) {
+                    Toast.makeText(
+                        activity,
+                        translate("وضع Wi-Fi Only مفعّل؛ التنزيل ينتظر اتصال Wi-Fi. اختر All Network للسماح ببيانات الهاتف."),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
         }
         header.addView(wifiOnlyButton, LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginEnd = dp(5) })
