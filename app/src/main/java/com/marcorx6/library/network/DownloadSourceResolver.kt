@@ -27,6 +27,21 @@ internal object DownloadSourceResolver {
         return "https://drive.google.com/uc?export=download&id=$id"
     }
 
+    /**
+     * These provider URLs are landing pages, not file endpoints. Do not probe them
+     * with an HTTP GET before the browser opens them: the probe can consume a
+     * short-lived route or trigger a redirect to the provider homepage.
+     */
+    fun isKnownLandingPageUrl(rawUrl: String): Boolean {
+        val uri = runCatching { URI(rawUrl.trim()) }.getOrNull() ?: return false
+        val host = uri.host?.lowercase(Locale.ROOT).orEmpty()
+        val landingHosts = setOf(
+            "vik1ngfile.site", "vikingfile.site",
+            "vikingfile.com", "www.vikingfile.com"
+        )
+        return host in landingHosts && uri.path.orEmpty().startsWith("/f/", ignoreCase = true)
+    }
+
     /** Returns a direct candidate only when page markup provides download evidence. */
     fun extractDownloadUrl(pageUrl: String, rawHtml: String): String? {
         if (rawHtml.isBlank()) return null
