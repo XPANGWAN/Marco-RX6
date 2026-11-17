@@ -675,18 +675,27 @@ internal object DownloadDestination {
         truncateDirectTarget(context, uri, 0L)
     }
 
+    private fun isMissingDocument(error: Throwable): Boolean {
+        // MediaDocumentsProvider may report an already-removed SAF document as
+        // IllegalArgumentException wrapping FileNotFoundException ("Missing file
+        // for primary:..."). Cancellation must treat that exact state as deleted.
+        return generateSequence(error) { it.cause }.any { cause ->
+            cause is java.io.FileNotFoundException ||
+                cause.message?.contains("Missing file for primary:", ignoreCase = true) == true
+        }
+    }
+
     @Synchronized
     fun removeDirectTarget(context: Context, id: Long) {
         val sidecar = File(context.filesDir, "MARCO_RX6_downloads/$id.destination")
         val saved = DownloadDatabase.get(context).destinationUri(id)
             ?: runCatching { if (sidecar.isFile) sidecar.readText().trim() else null }.getOrNull()
         val uri = saved?.takeIf { it.isNotBlank() }?.let(Uri::parse)
-        // Never discard the only identity checkpoint when provider deletion fails:
-        // a later retry must reopen this row instead of inserting a '(1)' copy.
+
+        // Deletion is idempotent: the provider may already have removed this file
+        // (for example after a user or file manager deleted it). Verify absence
+        // without mistaking unrelated provider/permission failures for success.
         if (uri != null && !deleteTarget(context, uri)) {
-            // Deletion is intentionally idempotent. A prior cancel/completion may
-            // already have removed the row while a stale sidecar still exists.
-            // Only clear the identity after the provider confirms the row is gone.
             val exists = try {
                 val column = if (isMediaStoreTarget(uri)) {
                     MediaStore.MediaColumns._ID
@@ -697,15 +706,21 @@ internal object DownloadDestination {
                     ?.use { it.moveToFirst() }
                     ?: throw IOException("Could not verify whether the original download file still exists")
             } catch (error: Exception) {
-                throw IOException(
-                    "Could not remove or verify the original download file; its destination identity was retained",
-                    error
-                )
+                if (isMissingDocument(error)) {
+                    false
+                } else {
+                    throw IOException(
+                        "Could not remove or verify the original download file; its destination identity was retained",
+                        error
+                    )
+                }
             }
             if (exists) {
                 throw IOException("Could not remove the original download file; its destination identity was retained to prevent a duplicate")
             }
         }
+
+        // The URI checkpoint is cleared only after deletion or confirmed absence.
         DownloadDatabase.get(context).clearDestinationUri(id)
         sidecar.delete()
         File(sidecar.parentFile, sidecar.name + ".tmp").delete()
