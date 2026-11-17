@@ -139,7 +139,7 @@ jobs:
         id: release_version
         shell: bash
         run: |
-          VERSION_NAME="$(sed -n 's/^[[:space:]]*versionName = "\\([^"]*\\)".*/\\1/p' app/build.gradle.kts | head -n 1)"
+          VERSION_NAME="$(grep -E 'versionName[[:space:]]*=' app/build.gradle.kts | head -n 1 | cut -d '"' -f 2)"
           test -n "$VERSION_NAME"
           NOTES_FILE="docs/RELEASE_NOTES_V${VERSION_NAME}.md"
           test -s "$NOTES_FILE"
