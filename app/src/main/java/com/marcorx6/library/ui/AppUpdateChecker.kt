@@ -3,7 +3,6 @@ package com.marcorx6.library.ui
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
-import android.os.Build
 import android.net.Uri
 import android.widget.Toast
 import com.marcorx6.library.BuildConfig
@@ -12,8 +11,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Performs a quiet, rate-limited release check. When a newer stable release exists,
- * the user can open its APK download in the browser and install it through Android.
+ * Checks the official MARCO RX6 website for stable app updates.
+ * Download selection remains on the website, which offers all three APK variants.
  */
 internal class AppUpdateChecker(
     private val activity: Activity,
@@ -25,58 +24,31 @@ internal class AppUpdateChecker(
         val lastCheck = preferences.getLong(LAST_CHECK_KEY, 0L)
         if (System.currentTimeMillis() - lastCheck < CHECK_INTERVAL_MS) return
 
-        // Record the attempt first to avoid repeated network requests during rapid resumes.
         preferences.edit().putLong(LAST_CHECK_KEY, System.currentTimeMillis()).apply()
         Thread({
             var connection: HttpURLConnection? = null
             try {
-                connection = (URL(RELEASE_API).openConnection() as HttpURLConnection).apply {
+                connection = (URL(UPDATE_API).openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
                     connectTimeout = 12000
                     readTimeout = 12000
                     instanceFollowRedirects = true
-                    setRequestProperty("Accept", "application/vnd.github+json")
+                    setRequestProperty("Accept", "application/json")
                     setRequestProperty("User-Agent", "MARCO-RX6-Android")
-                    setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+                    setRequestProperty("Cache-Control", "no-cache")
                 }
                 if (connection.responseCode !in 200..299) return@Thread
-                val release = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-                if (release.optBoolean("draft", false) || release.optBoolean("prerelease", false)) return@Thread
 
-                val latestVersion = release.optString("tag_name").trim()
+                val update = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                val latestVersion = update.optString("versionName").trim()
                     .removePrefix("v").removePrefix("V")
                 if (latestVersion.isBlank() || compareVersions(latestVersion, BuildConfig.VERSION_NAME) <= 0) {
                     return@Thread
                 }
 
-                val releasePage = release.optString("html_url")
-                    .takeIf { it.startsWith("https://github.com/") }
-                    ?: OFFICIAL_WEBSITE
-                val assets = release.optJSONArray("assets")
-                val assetByName = mutableMapOf<String, String>()
-                if (assets != null) {
-                    for (index in 0 until assets.length()) {
-                        val asset = assets.optJSONObject(index) ?: continue
-                        val name = asset.optString("name")
-                        val url = asset.optString("browser_download_url")
-                        if (name.endsWith(".apk", ignoreCase = true) &&
-                            url.startsWith("https://github.com/")) {
-                            assetByName[name] = url
-                        }
-                    }
-                }
-                // Prefer the most capable ABI supported by this phone; use Universal as fallback.
-                val preferredAsset = when {
-                    Build.SUPPORTED_ABIS.contains("arm64-v8a") ->
-                        "app-arm64-v8a-release.apk"
-                    Build.SUPPORTED_ABIS.contains("armeabi-v7a") ->
-                        "app-armeabi-v7a-release.apk"
-                    else -> "app-universal-release.apk"
-                }
-                val apkUrl = assetByName[preferredAsset]
-                    ?: assetByName["app-universal-release.apk"]
-                val notes = release.optString("body").trim().take(MAX_NOTES_LENGTH)
-                val downloadUrl = apkUrl ?: releasePage
+                val downloadPage = update.optString("downloadPageUrl").ifBlank { OFFICIAL_DOWNLOAD_PAGE }
+                if (!downloadPage.startsWith(OFFICIAL_DOWNLOAD_PREFIX)) return@Thread
+                val notes = update.optString("releaseNotes").trim().take(MAX_NOTES_LENGTH)
 
                 activity.runOnUiThread {
                     if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
@@ -86,21 +58,19 @@ internal class AppUpdateChecker(
                         if (notes.isNotBlank()) {
                             append("\n\n").append(translate("التغييرات")).append(":\n").append(notes)
                         }
-                        if (apkUrl == null) {
-                            append("\n\n").append(translate("سيتم فتح صفحة الإصدار لتنزيل ملف APK"))
-                        }
+                        append("\n\n").append(translate("اختر نسخة APK المناسبة لجهازك من الموقع الرسمي"))
                     }
                     AlertDialog.Builder(activity)
                         .setTitle(translate("يتوفر تحديث جديد"))
                         .setMessage(message)
                         .setNegativeButton(translate("لاحقاً"), null)
                         .setPositiveButton(translate("تحميل التحديث")) { _, _ ->
-                            openUrl(downloadUrl)
+                            openUrl(downloadPage)
                         }
                         .show().also(styleDialog)
                 }
             } catch (_: Exception) {
-                // Automatic checks are deliberately silent when offline or unavailable.
+                // Keep automatic checks silent when offline or when the website is unavailable.
             } finally {
                 connection?.disconnect()
             }
@@ -116,8 +86,8 @@ internal class AppUpdateChecker(
     }
 
     private fun compareVersions(first: String, second: String): Int {
-        val a = Regex("""\d+""").findAll(first).mapNotNull { it.value.toIntOrNull() }.toList()
-        val b = Regex("""\d+""").findAll(second).mapNotNull { it.value.toIntOrNull() }.toList()
+        val a = Regex("""\\d+""").findAll(first).mapNotNull { it.value.toIntOrNull() }.toList()
+        val b = Regex("""\\d+""").findAll(second).mapNotNull { it.value.toIntOrNull() }.toList()
         if (a.isEmpty() || b.isEmpty()) return 0
         for (index in 0 until maxOf(a.size, b.size)) {
             val left = a.getOrElse(index) { 0 }
@@ -128,9 +98,9 @@ internal class AppUpdateChecker(
     }
 
     companion object {
-        private const val RELEASE_API =
-            "https://api.github.com/repos/XPANGWAN/Marco-RX6/releases/latest"
-        private const val OFFICIAL_WEBSITE = "https://marcorx6app.dpdns.org/"
+        private const val UPDATE_API = "https://marcorx6app.dpdns.org/api/update"
+        private const val OFFICIAL_DOWNLOAD_PAGE = "https://marcorx6app.dpdns.org/#download"
+        private const val OFFICIAL_DOWNLOAD_PREFIX = "https://marcorx6app.dpdns.org/"
         private const val PREFERENCES = "app_settings"
         private const val LAST_CHECK_KEY = "last_automatic_update_check"
         private const val CHECK_INTERVAL_MS = 24L * 60L * 60L * 1000L
