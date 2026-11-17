@@ -30,4 +30,52 @@ class DownloadFileNamesTest {
         )
         assertEquals("backup.zip", result)
     }
+    @Test
+    fun addsPkgExtensionFromFinalUrlWhenServerUsesOctetStream() {
+        assertEquals(
+            "Game.pkg",
+            DownloadFileNames.safeName(
+                "Game", "application/octet-stream", 1,
+                "https://cdn.example.org/download/123.pkg?token=abc"
+            )
+        )
+    }
+
+    @Test
+    fun addsApkExtensionFromMimeWhenTitleHasNoExtension() {
+        assertEquals(
+            "Marco.apk",
+            DownloadFileNames.safeName(
+                "Marco", "application/vnd.android.package-archive", 2
+            )
+        )
+    }
+
+    @Test
+    fun doesNotDuplicateAnExistingExtension() {
+        assertEquals(
+            "Game.zip",
+            DownloadFileNames.safeName(
+                "Game.zip", "application/zip", 3,
+                "https://cdn.example.org/Game.zip"
+            )
+        )
+    }
+
+    @Test
+    fun responseFilenameWithoutExtensionGetsExtensionFromUrl() {
+        assertEquals(
+            "download.pkg",
+            DownloadFileNames.safeName(
+                DownloadFileNames.fromResponse(
+                    "attachment; filename=download",
+                    "https://cdn.example.org/file.pkg"
+                ) ?: "download",
+                "application/octet-stream",
+                4,
+                "https://cdn.example.org/file.pkg"
+            )
+        )
+    }
+
 }
