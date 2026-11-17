@@ -373,7 +373,7 @@ internal class DownloadUiController(
             val count = downloadRepository.retryAllFailed()
             Toast.makeText(activity, translate("إعادة محاولة") + " $count " + translate("تنزيلات"), Toast.LENGTH_SHORT).show()
             render?.invoke()
-        }, LinearLayout.LayoutParams(dp(44), dp(44)))
+        }, LinearLayout.LayoutParams(dp(40), dp(40)))
         maintenanceRow.addView(bulkButton("مسح المكتملة") {
             AlertDialog.Builder(activity)
                 .setMessage(translate("إزالة جميع التنزيلات المكتملة من قائمة التنزيلات؟"))
