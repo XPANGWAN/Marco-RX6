@@ -88,8 +88,6 @@ internal class DownloadPageDialog(
             setPadding(0, 0, 0, 0)
             clipToPadding = false
         }
-        // Let WebView handle normal vertical scrolling. SwipeRefreshLayout
-        // intercepts only a downward pull when the page is already at the top.
         val webView = WebView(activity)
         val browserHistory = mutableListOf<Pair<String, String>>()
         val browserBookmarks = mutableListOf<Pair<String, String>>()
@@ -402,8 +400,6 @@ internal class DownloadPageDialog(
             clipToOutline = false
         }
         browserFrame.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
-        // Restore the familiar pull-down refresh gesture. The WebView remains
-        // responsible for scrolling; refresh triggers only at the top of a page.
         val swipeRefresh = androidx.swiperefreshlayout.widget.SwipeRefreshLayout(activity).apply {
             setColorSchemeColors(primary)
             setProgressBackgroundColorSchemeColor(surface)
@@ -630,24 +626,23 @@ internal class DownloadPageDialog(
             addView(adToggle, android.widget.FrameLayout.LayoutParams(dp(46), dp(46)))
             addView(blockedBadge, android.widget.FrameLayout.LayoutParams(-2, dp(18), Gravity.END or Gravity.TOP))
         }
-        val refreshButton = android.widget.ImageButton(activity).apply {
-            setImageResource(com.marcorx6.library.R.drawable.ic_action_refresh)
-            imageTintList = android.content.res.ColorStateList.valueOf(accentText)
-            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-            contentDescription = translate("تحديث الصفحة")
-            isClickable = true
-            isFocusable = true
-            setBackground(GradientDrawable().apply {
-                setColor(surface)
-                cornerRadius = dp(14).toFloat()
-                setStroke(dp(1), border)
-            })
-            setOnClickListener {
-                swipeRefresh.isRefreshing = false
-                webView.reload()
-            }
-        }
-        ad              blockedBadge.contentDescription = translate("عدد الإعلانات المحجوبة: $count")
+        addressRow.addView(shieldContainer, LinearLayout.LayoutParams(dp(46), dp(46)).apply { marginStart = dp(7) })
+        val activePageUrl = AtomicReference(safeStartUrl)
+        fun isBlockedAdRequest(url: String): Boolean =
+            LocalBrowserAdBlocker.shouldBlockRequest(
+                url = url,
+                pageUrl = activePageUrl.get(),
+                enabled = adBlockerEnabled,
+                allowedHosts = allowedHosts,
+                isDirectFile = ::isDirectFileUrl
+            )
+
+        fun recordBlocked(amount: Int = 1) {
+            if (amount <= 0) return
+            val count = blockedRequests.addAndGet(amount)
+            activity.runOnUiThread {
+                blockedBadge.text = if (count > 999) "999+" else count.toString()
+                blockedBadge.contentDescription = translate("عدد الإعلانات المحجوبة: $count")
                 blockedStats.text = translate("الإعلانات والمتتبعات المحجوبة: $count")
             }
         }
