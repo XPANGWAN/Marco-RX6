@@ -83,7 +83,7 @@ internal object SegmentedDownloadEngine {
             mime = probe.contentType?.substringBefore(';')?.trim().orEmpty().ifBlank { item.mimeType }
             // Keep the filename selected during the repository's initial probe.
             // Range responses and redirect hosts are not allowed to rename an active file.
-            safeName = DownloadFileNames.safeName(item.title, mime, item.id)
+            safeName = DownloadFileNames.safeName(item.title, mime, item.id, item.url)
             // Consume the one-byte probe response so the connection can be closed cleanly.
             probe.inputStream.use { it.read() }
         } finally {
