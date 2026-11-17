@@ -88,7 +88,25 @@ internal class DownloadPageDialog(
             setPadding(0, 0, 0, 0)
             clipToPadding = false
         }
-        val webView = WebView(activity)
+        val webView = WebView(activity).apply {
+            // Keep all vertical gestures inside the website. Parent containers
+            // must not steal upward or downward WebView scroll gestures.
+            setOnTouchListener { view, event ->
+                when (event.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN,
+                    android.view.MotionEvent.ACTION_MOVE,
+                    android.view.MotionEvent.ACTION_POINTER_DOWN -> {
+                        view.parent?.requestDisallowInterceptTouchEvent(true)
+                    }
+                    android.view.MotionEvent.ACTION_UP,
+                    android.view.MotionEvent.ACTION_CANCEL,
+                    android.view.MotionEvent.ACTION_POINTER_UP -> {
+                        view.parent?.requestDisallowInterceptTouchEvent(false)
+                    }
+                }
+                false
+            }
+        }
         val browserHistory = mutableListOf<Pair<String, String>>()
         val browserBookmarks = mutableListOf<Pair<String, String>>()
         val browserTabs = mutableListOf<Pair<String, String>>()
