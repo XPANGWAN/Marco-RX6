@@ -350,7 +350,12 @@ internal class DownloadRepository(context: Context) {
         val selectedTree = DownloadStoragePreferences(appContext).treeUri()
         if (selectedTree == null && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
         val visibleName = DownloadFileNames.safeName(title, mimeType, id)
-        DownloadDestination.openTarget(appContext, id, selectedTree, visibleName, mimeType)
+        val target = DownloadDestination.openTarget(appContext, id, selectedTree, visibleName, mimeType)
+        // SAF providers may keep the initially published title when the probe later
+        // discovers the real extension. Rename the same document in place when supported.
+        if (selectedTree != null && target != null) {
+            DownloadDestination.renameDirectTarget(appContext, id, target, visibleName)
+        }
     }
 
     private data class DownloadProbe(
