@@ -144,16 +144,16 @@ internal class DownloadUiController(
             setImageResource(com.marcorx6.library.R.drawable.ic_action_back)
             imageTintList = android.content.res.ColorStateList.valueOf(primary)
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-            setPadding(dp(13), dp(13), dp(13), dp(13))
-            minimumWidth = dp(48)
-            minimumHeight = dp(48)
+            setPadding(dp(11), dp(11), dp(11), dp(11))
+            minimumWidth = dp(44)
+            minimumHeight = dp(44)
             contentDescription = translate("رجوع")
             isClickable = true
             isFocusable = true
             addGlassTouch(this)
             setOnClickListener { onBack() }
         }
-        header.addView(backButton, LinearLayout.LayoutParams(dp(48), dp(48)))
+        header.addView(backButton, LinearLayout.LayoutParams(dp(40), dp(40)))
         val titleBox = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
         titleBox.addView(TextView(activity).apply {
             text = "MARCO  /  ${translate("التنزيلات").uppercase()}"
@@ -175,7 +175,7 @@ internal class DownloadUiController(
             setTypeface(null, android.graphics.Typeface.BOLD)
             setTextColor(accentText)
             gravity = Gravity.CENTER
-            setPadding(dp(12), dp(10), dp(12), dp(10))
+            setPadding(dp(9), dp(8), dp(9), dp(8))
             this.background = GradientDrawable().apply {
                 setColor(surface)
                 cornerRadius = dp(12).toFloat()
@@ -199,14 +199,14 @@ internal class DownloadUiController(
                 styleDialog(picker)
             }
         }
-        header.addView(concurrencyButton, LinearLayout.LayoutParams(-2, dp(44)).apply { marginEnd = dp(7) })
+        header.addView(concurrencyButton, LinearLayout.LayoutParams(-2, dp(40)).apply { marginEnd = dp(5) })
         val segmentConnectionsButton = TextView(activity).apply {
             text = "${downloadRepository.maxSegmentConnections()}×"
             textSize = 11f
             setTypeface(null, android.graphics.Typeface.BOLD)
             setTextColor(accentText)
             gravity = Gravity.CENTER
-            setPadding(dp(10), dp(10), dp(10), dp(10))
+            setPadding(dp(8), dp(8), dp(8), dp(8))
             this.background = GradientDrawable().apply {
                 setColor(surface)
                 cornerRadius = dp(12).toFloat()
@@ -232,7 +232,7 @@ internal class DownloadUiController(
                 styleDialog(picker)
             }
         }
-        header.addView(segmentConnectionsButton, LinearLayout.LayoutParams(-2, dp(44)).apply { marginEnd = dp(7) })
+        header.addView(segmentConnectionsButton, LinearLayout.LayoutParams(-2, dp(40)).apply { marginEnd = dp(5) })
         val wifiOnlyButton = android.widget.ImageView(activity).apply {
             setImageResource(com.marcorx6.library.R.drawable.ic_download_wifi)
             imageTintList = android.content.res.ColorStateList.valueOf(
@@ -260,7 +260,7 @@ internal class DownloadUiController(
                 Toast.makeText(activity, contentDescription, Toast.LENGTH_SHORT).show()
             }
         }
-        header.addView(wifiOnlyButton, LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(7) })
+        header.addView(wifiOnlyButton, LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginEnd = dp(5) })
         // Back is already the first header item; keep the remaining actions after the title.
         root.addView(header)
         root.addView(TextView(activity).apply {
@@ -274,9 +274,9 @@ internal class DownloadUiController(
         val filterButtons = linkedMapOf<String, TextView>()
         fun filterButton(key: String, label: String): TextView = TextView(activity).apply {
             text = translate(label)
-            textSize = 11f
+            textSize = 10f
             gravity = Gravity.CENTER
-            setPadding(dp(12), dp(9), dp(12), dp(9))
+            setPadding(dp(5), dp(6), dp(5), dp(6))
             isClickable = true
             isFocusable = true
             addGlassTouch(this)
@@ -292,7 +292,7 @@ internal class DownloadUiController(
                 render?.invoke()
             }
             this.background = GradientDrawable().apply {
-                cornerRadius = dp(13).toFloat()
+                cornerRadius = dp(11).toFloat()
                 setColor(surface)
                 setStroke(dp(1), if (dark) AccentPalette.surface(Color.rgb(78, 85, 98), primary, 0.42f) else AccentPalette.surface(Color.rgb(210, 216, 225), primary, 0.38f))
             }
@@ -305,8 +305,8 @@ internal class DownloadUiController(
         listOf("all" to "الكل", "active" to "النشطة", "completed" to "المكتملة", "failed" to "الفاشلة").forEach { (key, label) ->
             val button = filterButton(key, label)
             filterButtons[key] = button
-            filterRow.addView(button, LinearLayout.LayoutParams(0, dp(40), 1f).apply {
-                if (key != "all") marginStart = dp(5)
+            filterRow.addView(button, LinearLayout.LayoutParams(0, dp(38), 1f).apply {
+                if (key != "all") marginStart = dp(4)
             })
         }
         filterButtons["all"]?.apply {
@@ -316,7 +316,7 @@ internal class DownloadUiController(
         val bulkRow = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(9), 0, dp(10))
+            setPadding(0, dp(7), 0, dp(8))
         }
         fun bulkButton(label: String, onClick: () -> Unit) = android.widget.ImageView(activity).apply {
             val icon = when {
@@ -350,11 +350,11 @@ internal class DownloadUiController(
             val count = downloadRepository.resumeAllDownloads()
             Toast.makeText(activity, translate("تم استكمال") + " $count " + translate("تنزيلات"), Toast.LENGTH_SHORT).show()
             render?.invoke()
-        }, LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginStart = dp(8) })
+        }, LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginStart = dp(6) })
         val maintenanceRow = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 0, 0, dp(10))
+            setPadding(0, 0, 0, dp(8))
         }
         maintenanceRow.addView(bulkButton("إعادة محاولة الفاشلة") {
             val count = downloadRepository.retryAllFailed()
@@ -385,7 +385,7 @@ internal class DownloadUiController(
             setTypeface(null, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
             setTextColor(accentText)
-            setPadding(dp(14), dp(9), dp(14), dp(9))
+            setPadding(dp(10), dp(7), dp(10), dp(7))
             setCompoundDrawablesWithIntrinsicBounds(com.marcorx6.library.R.drawable.ic_download_speed, 0, 0, 0)
             compoundDrawablePadding = dp(7)
             this.background = GradientDrawable().apply {
@@ -414,8 +414,8 @@ internal class DownloadUiController(
                 styleDialog(picker)
             }
         }
-        root.addView(speedLimitButton, LinearLayout.LayoutParams(-2, dp(40)).apply {
-            bottomMargin = dp(9)
+        root.addView(speedLimitButton, LinearLayout.LayoutParams(-2, dp(36)).apply {
+            bottomMargin = dp(7)
         })
         root.addView(filterRow)
         root.addView(bulkRow)
@@ -644,7 +644,7 @@ internal class DownloadUiController(
                 setImageResource(actionIcon(label))
                 imageTintList = android.content.res.ColorStateList.valueOf(if (filled) primaryForeground else accentText)
                 scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-                setPadding(dp(10), dp(10), dp(10), dp(10))
+                setPadding(dp(8), dp(8), dp(8), dp(8))
                 contentDescription = translate(label)
                 if (Build.VERSION.SDK_INT >= 26) tooltipText = translate(label)
                 this.background = GradientDrawable().apply {
@@ -663,8 +663,8 @@ internal class DownloadUiController(
             views.actionState = signature
             views.actions.removeAllViews()
             fun addAction(view: View, start: Boolean = false) {
-                views.actions.addView(view, LinearLayout.LayoutParams(dp(44), dp(44)).apply {
-                    if (start) marginStart = dp(5) else marginEnd = dp(5)
+                views.actions.addView(view, LinearLayout.LayoutParams(dp(40), dp(40)).apply {
+                    if (start) marginStart = dp(4) else marginEnd = dp(4)
                 })
             }
             if (item.status == DownloadManager.STATUS_PENDING ||
@@ -842,7 +842,7 @@ internal class DownloadUiController(
         fun createRow(item: com.marcorx6.library.data.DownloadEntry): RowViews {
             val card = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(dp(15), dp(14), dp(15), dp(14))
+                setPadding(dp(13), dp(12), dp(13), dp(12))
                 this.background = GradientDrawable().apply {
                     setColors(if (dark)
                         intArrayOf(
@@ -897,12 +897,12 @@ internal class DownloadUiController(
             }
             val actions = LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                setPadding(0, dp(10), 0, 0)
+                setPadding(0, dp(8), 0, 0)
             }
             card.addView(titleView)
             card.addView(statusView)
             card.addView(detailsView)
-            card.addView(progressView, LinearLayout.LayoutParams(-1, dp(7)).apply { topMargin = dp(10) })
+            card.addView(progressView, LinearLayout.LayoutParams(-1, dp(6)).apply { topMargin = dp(8) })
             val actionScroll = android.widget.HorizontalScrollView(activity).apply {
                 isHorizontalScrollBarEnabled = false
                 overScrollMode = View.OVER_SCROLL_NEVER
