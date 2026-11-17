@@ -2,9 +2,23 @@ package com.marcorx6.library.ui
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class LocalBrowserAdBlockerTest {
+    @Before fun installRepresentativeFilterRules() {
+        LocalBrowserAdBlocker.loadRulesForTest(
+            """
+            ||adserver.example^$script,third-party
+            ||cdn.example.net/pagead/ads
+            @@||safe.adserver.example/allowed.js$script,domain=example.org
+            example.org##.advertisement
+            example.org##.sponsor-box
+            example.org#@#.sponsor-box
+            """.trimIndent()
+        )
+    }
+
     private fun blocks(
         url: String,
         page: String = "https://example.org/download/game",
@@ -28,13 +42,25 @@ class LocalBrowserAdBlockerTest {
         assertTrue(blocks("https://x.popads.net/script.js"))
     }
 
-    @Test fun blocksThirdPartyAdScriptsButNotOrdinaryCdnScripts() {
+    @Test fun parsesThirdPartyScriptRulesAndAllowsNormalCdn() {
         assertTrue(blocks(
             "https://cdn.adserver.example/script.js",
             headers = mapOf("Sec-Fetch-Dest" to "script")
         ))
         assertFalse(blocks(
             "https://cdn.jsdelivr.net/npm/example/app.js",
+            headers = mapOf("Sec-Fetch-Dest" to "script")
+        ))
+    }
+
+    @Test fun respectsFilterExceptionsAndDomainOptions() {
+        assertFalse(blocks(
+            "https://safe.adserver.example/allowed.js",
+            headers = mapOf("Sec-Fetch-Dest" to "script")
+        ))
+        assertFalse(blocks(
+            "https://safe.adserver.example/allowed.js",
+            page = "https://other-site.example/",
             headers = mapOf("Sec-Fetch-Dest" to "script")
         ))
     }
@@ -57,5 +83,11 @@ class LocalBrowserAdBlockerTest {
 
     @Test fun blocksKnownAdNetworkTopLevelRedirects() {
         assertTrue(blocks("https://popads.net/redirect", mainFrame = true))
+    }
+
+    @Test fun compilesCosmeticSelectorsAndHonorsCosmeticExceptions() {
+        val script = LocalBrowserAdBlocker.buildCosmeticScript("https://example.org/page")
+        assertTrue(script.contains(".advertisement"))
+        assertFalse(script.contains(".sponsor-box"))
     }
 }
