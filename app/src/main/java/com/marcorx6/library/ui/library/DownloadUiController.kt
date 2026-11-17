@@ -311,15 +311,22 @@ internal class DownloadUiController(
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(9), 0, dp(10))
         }
-        fun bulkButton(label: String, onClick: () -> Unit) = TextView(activity).apply {
-            text = translate(label)
-            textSize = 11f
-            gravity = Gravity.CENTER
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            setTextColor(accentText)
+        fun bulkButton(label: String, onClick: () -> Unit) = android.widget.ImageView(activity).apply {
+            val icon = when {
+                label.contains("إيقاف") -> com.marcorx6.library.R.drawable.ic_download_pause
+                label.contains("استكمال") -> com.marcorx6.library.R.drawable.ic_download_play
+                label.contains("إعادة") -> com.marcorx6.library.R.drawable.ic_download_retry
+                else -> com.marcorx6.library.R.drawable.ic_download_delete
+            }
+            setImageResource(icon)
+            imageTintList = android.content.res.ColorStateList.valueOf(accentText)
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+            contentDescription = translate(label)
+            if (Build.VERSION.SDK_INT >= 26) tooltipText = translate(label)
             this.background = GradientDrawable().apply {
                 setColor(surface)
-                cornerRadius = dp(12).toFloat()
+                cornerRadius = dp(13).toFloat()
                 setStroke(dp(1), if (dark) AccentPalette.surface(Color.rgb(78, 85, 98), primary, 0.42f) else AccentPalette.surface(Color.rgb(210, 216, 225), primary, 0.38f))
             }
             isClickable = true
@@ -331,12 +338,12 @@ internal class DownloadUiController(
             val count = downloadRepository.pauseAllDownloads()
             Toast.makeText(activity, translate("تم إيقاف") + " $count " + translate("تنزيلات مؤقتاً"), Toast.LENGTH_SHORT).show()
             render?.invoke()
-        }, LinearLayout.LayoutParams(0, dp(42), 1f))
+        }, LinearLayout.LayoutParams(dp(44), dp(44)))
         bulkRow.addView(bulkButton("استكمال الكل") {
             val count = downloadRepository.resumeAllDownloads()
             Toast.makeText(activity, translate("تم استكمال") + " $count " + translate("تنزيلات"), Toast.LENGTH_SHORT).show()
             render?.invoke()
-        }, LinearLayout.LayoutParams(0, dp(42), 1f).apply { marginStart = dp(8) })
+        }, LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginStart = dp(8) })
         val maintenanceRow = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -346,7 +353,7 @@ internal class DownloadUiController(
             val count = downloadRepository.retryAllFailed()
             Toast.makeText(activity, translate("إعادة محاولة") + " $count " + translate("تنزيلات"), Toast.LENGTH_SHORT).show()
             render?.invoke()
-        }, LinearLayout.LayoutParams(0, dp(40), 1f))
+        }, LinearLayout.LayoutParams(dp(44), dp(44)))
         maintenanceRow.addView(bulkButton("مسح المكتملة") {
             AlertDialog.Builder(activity)
                 .setMessage(translate("إزالة جميع التنزيلات المكتملة من قائمة التنزيلات؟"))
@@ -356,7 +363,7 @@ internal class DownloadUiController(
                     Toast.makeText(activity, translate("تم حذف") + " $count " + translate("ملفات مكتملة"), Toast.LENGTH_SHORT).show()
                     render?.invoke()
                 }.show()
-        }, LinearLayout.LayoutParams(0, dp(40), 1f).apply { marginStart = dp(8) })
+        }, LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginStart = dp(8) })
         val speedLimitButton = TextView(activity).apply {
             fun labelFor(value: Long): String = when (value) {
                 0L -> "∞"
@@ -608,15 +615,34 @@ internal class DownloadUiController(
             }
         }
 
+        fun actionIcon(label: String): Int {
+            val value = label.lowercase()
+            return when {
+                value.contains("مجلد") || value.contains("folder") -> com.marcorx6.library.R.drawable.ic_download_folder
+                value.contains("مشاركة") || value.contains("share") -> com.marcorx6.library.R.drawable.ic_download_share
+                value.contains("تفاصيل") || value.contains("details") -> com.marcorx6.library.R.drawable.ic_download_info
+                value.contains("إيقاف") || value.contains("pause") -> com.marcorx6.library.R.drawable.ic_download_pause
+                value.contains("استكمال") || value.contains("resume") -> com.marcorx6.library.R.drawable.ic_download_play
+                value.contains("إعادة") || value.contains("تحديث") || value.contains("retry") -> com.marcorx6.library.R.drawable.ic_download_retry
+                value.contains("أولوية") || value.contains("priority") -> com.marcorx6.library.R.drawable.ic_download_priority
+                value.contains("حذف") || value.contains("delete") -> com.marcorx6.library.R.drawable.ic_download_delete
+                else -> com.marcorx6.library.R.drawable.ic_download_close
+            }
+        }
+
         fun smallAction(label: String, filled: Boolean = false, onClick: () -> Unit) =
-            TextView(activity).apply {
-                text = label; textSize = 11f; gravity = Gravity.CENTER
-                minimumHeight = dp(42); setPadding(dp(13), dp(9), dp(13), dp(9))
-                setTextColor(if (filled) primaryForeground else accentText)
+            android.widget.ImageView(activity).apply {
+                setImageResource(actionIcon(label))
+                imageTintList = android.content.res.ColorStateList.valueOf(if (filled) primaryForeground else accentText)
+                scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+                setPadding(dp(10), dp(10), dp(10), dp(10))
+                contentDescription = translate(label)
+                if (Build.VERSION.SDK_INT >= 26) tooltipText = translate(label)
                 this.background = GradientDrawable().apply {
                     setColor(if (filled) Color.argb(225, Color.red(primary), Color.green(primary), Color.blue(primary))
                         else if (dark) Color.argb(190, 35, 38, 45) else Color.WHITE)
-                    cornerRadius = dp(12).toFloat(); setStroke(dp(1), primary)
+                    cornerRadius = dp(13).toFloat()
+                    setStroke(dp(1), if (filled) primary else AccentPalette.surface(primary, Color.WHITE, 0.42f))
                 }
                 isClickable = true; isFocusable = true; addGlassTouch(this)
                 setOnClickListener { onClick() }
@@ -628,9 +654,8 @@ internal class DownloadUiController(
             views.actionState = signature
             views.actions.removeAllViews()
             fun addAction(view: View, start: Boolean = false) {
-                view.minimumWidth = dp(96)
-                views.actions.addView(view, LinearLayout.LayoutParams(-2, -2).apply {
-                    if (start) marginStart = dp(6) else marginEnd = dp(6)
+                views.actions.addView(view, LinearLayout.LayoutParams(dp(44), dp(44)).apply {
+                    if (start) marginStart = dp(5) else marginEnd = dp(5)
                 })
             }
             if (item.status == DownloadManager.STATUS_PENDING ||
