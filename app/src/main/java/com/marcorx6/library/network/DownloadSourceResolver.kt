@@ -35,11 +35,28 @@ internal object DownloadSourceResolver {
     fun isKnownLandingPageUrl(rawUrl: String): Boolean {
         val uri = runCatching { URI(rawUrl.trim()) }.getOrNull() ?: return false
         val host = uri.host?.lowercase(Locale.ROOT).orEmpty()
-        val landingHosts = setOf(
-            "vik1ngfile.site", "vikingfile.site",
-            "vikingfile.com", "www.vikingfile.com"
-        )
-        return host in landingHosts && uri.path.orEmpty().startsWith("/f/", ignoreCase = true)
+        val path = uri.path.orEmpty()
+        // Generic share-page routes are opened in WebView without a preliminary GET.
+        // Keep this limited to an ID-style /f/{id} page, not arbitrary download paths.
+        val isShareLandingPage = Regex("""^/f/[^/]+/?$""", RegexOption.IGNORE_CASE)
+            .matches(path)
+        return isShareLandingPage && host.isNotBlank()
+    }
+
+    /**
+     * Recognizes endpoints that already identify a file. These must keep their exact
+     * URL and query parameters; probing them can consume tokens or follow a one-time redirect.
+     */
+    fun isDirectDownloadEndpointUrl(rawUrl: String): Boolean {
+        val uri = runCatching { URI(rawUrl.trim()) }.getOrNull() ?: return false
+        val host = uri.host?.lowercase(Locale.ROOT).orEmpty()
+        val path = uri.path.orEmpty()
+        if (fileExtension.containsMatchIn(path)) return true
+
+        // NoPayStation serves package files from /get/.../pkg without a filename extension.
+        return host == "nopaystation.com" &&
+            path.startsWith("/get/", ignoreCase = true) &&
+            path.endsWith("/pkg", ignoreCase = true)
     }
 
     /** Returns a direct candidate only when page markup provides download evidence. */
