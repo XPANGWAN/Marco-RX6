@@ -95,11 +95,12 @@ internal object LocalBrowserAdBlocker {
 
     @Volatile private var snapshot = RuleSnapshot(emptyList(), emptyMap(), emptyList(), emptyList(), 0L)
 
-    fun loadCached(preferences: SharedPreferences) {
+    fun loadCached(preferences: SharedPreferences, onLoaded: (() -> Unit)? = null) {
         // Parsing a large filter list must never run on the UI thread.
         executor.execute {
-            val raw = preferences.getString(PREF_RULES, null) ?: return@execute
-            if (raw.isNotBlank()) snapshot = parseLists(raw)
+            val raw = preferences.getString(PREF_RULES, null)
+            if (!raw.isNullOrBlank()) snapshot = parseLists(raw)
+            onLoaded?.invoke()
         }
     }
 
