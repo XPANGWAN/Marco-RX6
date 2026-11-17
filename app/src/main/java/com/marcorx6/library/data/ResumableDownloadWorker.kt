@@ -41,6 +41,13 @@ internal class ResumableDownloadWorker(
             DownloadWorkScheduler.schedule(applicationContext)
             return Result.success()
         }
+        // WorkManager cannot express TRANSPORT_WIFI as a constraint. Never start
+        // a transfer over mobile data when Wi-Fi Only is selected; leave it pending
+        // until MarcoApplication observes Wi-Fi becoming the active network.
+        if (DownloadConcurrencyPreferences(applicationContext).wifiOnly() && !hasWifiConnection()) {
+            database.status(id, DownloadManager.STATUS_PENDING)
+            return Result.success()
+        }
         return try {
             if (!database.markRunning(id)) {
                 Result.success()
@@ -74,6 +81,7 @@ internal class ResumableDownloadWorker(
                     destinationUri = destinationUri,
                     isStopped = {
                         isStopped ||
+                            (DownloadConcurrencyPreferences(applicationContext).wifiOnly() && !hasWifiConnection()) ||
                             database.get(id)?.status == DownloadManager.STATUS_PAUSED ||
                             database.get(id)?.status == DownloadDatabase.STATUS_CANCELLED
                     },
@@ -97,6 +105,7 @@ internal class ResumableDownloadWorker(
                         destinationUri = destinationUri,
                         shouldStop = {
                             isStopped ||
+                                (DownloadConcurrencyPreferences(applicationContext).wifiOnly() && !hasWifiConnection()) ||
                                 database.get(id)?.status == DownloadManager.STATUS_PAUSED ||
                                 database.get(id)?.status == DownloadDatabase.STATUS_CANCELLED
                         },
@@ -140,6 +149,14 @@ internal class ResumableDownloadWorker(
         } finally {
             DownloadWorkScheduler.schedule(applicationContext)
         }
+    }
+
+    private fun hasWifiConnection(): Boolean {
+        val connectivity = applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE)
+            as? android.net.ConnectivityManager ?: return false
+        val network = connectivity.activeNetwork ?: return false
+        val capabilities = connectivity.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
     }
 
     private fun recoverCompletedDirectTarget(
