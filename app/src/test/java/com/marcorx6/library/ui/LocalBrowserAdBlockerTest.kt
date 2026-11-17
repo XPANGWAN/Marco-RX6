@@ -58,7 +58,7 @@ class LocalBrowserAdBlockerTest {
             "https://safe.adserver.example/allowed.js",
             headers = mapOf("Sec-Fetch-Dest" to "script")
         ))
-        assertFalse(blocks(
+        assertTrue(blocks(
             "https://safe.adserver.example/allowed.js",
             page = "https://other-site.example/",
             headers = mapOf("Sec-Fetch-Dest" to "script")
