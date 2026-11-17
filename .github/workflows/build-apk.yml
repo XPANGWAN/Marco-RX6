@@ -12,7 +12,7 @@ on:
       - feature/next-development
 
 permissions:
-  contents: read
+  contents: write
 
 # Keep only the newest build for a branch; rapid fixes should not queue stale APK builds.
 concurrency:
@@ -134,3 +134,39 @@ jobs:
           path: app/build/outputs/apk/release/app-universal-release.apk
           if-no-files-found: error
           retention-days: 3
+
+      - name: Read release version
+        id: release_version
+        shell: bash
+        run: |
+          VERSION_NAME="$(sed -n 's/^[[:space:]]*versionName = "\\([^"]*\\)".*/\\1/p' app/build.gradle.kts | head -n 1)"
+          test -n "$VERSION_NAME"
+          NOTES_FILE="docs/RELEASE_NOTES_V${VERSION_NAME}.md"
+          test -s "$NOTES_FILE"
+          echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "notes=$NOTES_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Publish stable GitHub Release with all three APK variants
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          TAG="V${{ steps.release_version.outputs.name }}"
+          TITLE="MARCO RX6 ${TAG}"
+          APK_DIR="app/build/outputs/apk/release"
+          gh release view "$TAG" >/dev/null 2>&1 && EXISTS=true || EXISTS=false
+          if [ "$EXISTS" = true ]; then
+            gh release upload "$TAG" \
+              "$APK_DIR/app-universal-release.apk" \
+              "$APK_DIR/app-arm64-v8a-release.apk" \
+              "$APK_DIR/app-armeabi-v7a-release.apk" \
+              --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes-file "${{ steps.release_version.outputs.notes }}"
+          else
+            gh release create "$TAG" \
+              "$APK_DIR/app-universal-release.apk" \
+              "$APK_DIR/app-arm64-v8a-release.apk" \
+              "$APK_DIR/app-armeabi-v7a-release.apk" \
+              --title "$TITLE" \
+              --notes-file "${{ steps.release_version.outputs.notes }}"
+          fi
