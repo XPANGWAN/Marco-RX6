@@ -16,7 +16,7 @@ internal object DownloadFileNames {
     fun fromResponse(disposition: String?, url: String): String? {
         val header = disposition.orEmpty()
         val encodedMatch = Regex(
-            """filename\\*\\s*=\\s*([^']*)'[^']*'([^;]+)""",
+            """filename\*\s*=\s*([^']*)'[^']*'([^;]+)""",
             RegexOption.IGNORE_CASE
         ).find(header)
         if (encodedMatch != null) {
@@ -26,7 +26,7 @@ internal object DownloadFileNames {
                 .getOrNull()?.takeIf { it.isNotBlank() }?.let { return clean(it) }
         }
         val regularMatch = Regex(
-            """filename\\s*=\\s*(?:"([^"]*)"|([^;]+))""",
+            """filename\s*=\s*(?:"([^"]*)"|([^;]+))""",
             RegexOption.IGNORE_CASE
         ).find(header)
         val regular = regularMatch?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() }
@@ -35,24 +35,17 @@ internal object DownloadFileNames {
         return urlExtensionName(url)
     }
 
-    /**
-     * Adds an extension from the strongest available source when the supplied title
-     * has none. A generic octet-stream MIME type is deliberately not treated as a
-     * reliable extension source.
-     */
+    /** Generic octet-stream responses are not reliable MIME extension sources. */
     fun safeName(value: String, mimeType: String, id: Long, sourceUrl: String = ""): String {
-        var name = clean(value).replace(Regex("""[\\u0000-\\u001F\\u007F/\\\\:*?"<>|]"""), "_")
+        var name = clean(value).replace(Regex("""[\u0000-\u001F\u007F/\\:*?"<>|]"""), "_")
             .trim(' ', '.', '_')
             .take(180)
         if (name.isBlank()) name = "download_$id"
 
         val existingExtension = name.substringAfterLast('.', "").lowercase(Locale.ROOT)
         if (existingExtension !in knownExtensions) {
-            val extension = extensionFromUrl(sourceUrl)
-                ?: extensionFromMime(mimeType)
-            if (!extension.isNullOrBlank()) {
-                name = name.trimEnd('.') + ".$extension"
-            }
+            val extension = extensionFromUrl(sourceUrl) ?: extensionFromMime(mimeType)
+            if (!extension.isNullOrBlank()) name = name.trimEnd('.') + ".$extension"
         }
         return name
     }
@@ -61,8 +54,7 @@ internal object DownloadFileNames {
         if (url.isBlank()) return null
         val segment = runCatching { Uri.parse(url).lastPathSegment.orEmpty() }.getOrDefault("")
         val decoded = runCatching { Uri.decode(segment) }.getOrDefault(segment)
-        val extension = decoded.substringAfterLast('.', "").substringBefore('?')
-            .lowercase(Locale.ROOT)
+        val extension = decoded.substringAfterLast('.', "").lowercase(Locale.ROOT)
         return extension.takeIf { it in knownExtensions }
     }
 
@@ -75,19 +67,19 @@ internal object DownloadFileNames {
     private fun extensionFromMime(mimeType: String): String? {
         val mime = mimeType.substringBefore(';').trim().lowercase(Locale.ROOT)
         if (mime.isBlank() || mime == "application/octet-stream") return null
-        return when (mime) {
+        val knownMime = when (mime) {
             "application/vnd.android.package-archive" -> "apk"
             "application/zip", "application/x-zip-compressed" -> "zip"
-            "application/vnd Playstation.package" -> "pkg"
-            else -> MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
-                ?.lowercase(Locale.ROOT)?.takeIf { it in knownExtensions }
+            else -> null
         }
+        return knownMime ?: MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
+            ?.lowercase(Locale.ROOT)?.takeIf { it in knownExtensions }
     }
 
     private fun clean(value: String): String = value
-        .replace("\\r", "")
-        .replace("\\n", "")
+        .replace("\r", "")
+        .replace("\n", "")
         .substringAfterLast('/')
-        .substringAfterLast('\\\\')
+        .substringAfterLast('\\')
         .trim()
 }
