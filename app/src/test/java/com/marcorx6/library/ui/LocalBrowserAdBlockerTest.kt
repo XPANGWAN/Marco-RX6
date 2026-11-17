@@ -7,16 +7,15 @@ import org.junit.Test
 
 class LocalBrowserAdBlockerTest {
     @Before fun installRepresentativeFilterRules() {
-        LocalBrowserAdBlocker.loadRulesForTest(
-            """
-            ||adserver.example^${'
-            ||cdn.example.net/pagead/ads
-            @@||safe.adserver.example/allowed.js${'
-            example.org##.advertisement
-            example.org##.sponsor-box
-            example.org#@#.sponsor-box
-            """.trimIndent()
-        )
+        val rules = listOf(
+            "||adserver.example^" + '$' + "script,third-party",
+            "||cdn.example.net/pagead/ads",
+            "@@||safe.adserver.example/allowed.js" + '$' + "script,domain=example.org",
+            "example.org##.advertisement",
+            "example.org##.sponsor-box",
+            "example.org#@#.sponsor-box"
+        ).joinToString("\n")
+        LocalBrowserAdBlocker.loadRulesForTest(rules)
     }
 
     private fun blocks(
