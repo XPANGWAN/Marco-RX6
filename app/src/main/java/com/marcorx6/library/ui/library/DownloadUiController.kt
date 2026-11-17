@@ -1081,6 +1081,13 @@ internal class DownloadUiController(
             insets
         }
         setContentView(root)
+        if (downloadRepository.wifiOnlyDownloads() && !hasWifiConnection()) {
+            Toast.makeText(
+                activity,
+                translate("وضع Wi-Fi Only مفعّل؛ التنزيل ينتظر اتصال Wi-Fi. اختر All Network للسماح ببيانات الهاتف."),
+                Toast.LENGTH_LONG
+            ).show()
+        }
         root.layoutTransition = null
         list.layoutTransition = null
         rows.values.forEach { row ->
