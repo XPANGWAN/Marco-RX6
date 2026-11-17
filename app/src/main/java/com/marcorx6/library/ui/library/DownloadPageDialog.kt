@@ -541,7 +541,6 @@ internal class DownloadPageDialog(
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
         val adPreferences = appPreferences
         var adBlockerEnabled = adPreferences.getBoolean("download_page_ad_blocker", true)
-        LocalBrowserAdBlocker.loadCached(adPreferences)
         val allowedHosts = adPreferences.getString("download_page_ad_allowlist", "").orEmpty()
             .split(',', ';').map { it.trim().lowercase() }.filter { it.isNotBlank() }.toMutableSet()
         lateinit var adToggle: android.widget.ImageButton
@@ -666,6 +665,11 @@ internal class DownloadPageDialog(
                     (JSONTokener(raw ?: "0").nextValue() as? Number)?.toInt() ?: 0
                 }.getOrDefault(0)
                 if (newlyApplied > 0) recordBlocked(newlyApplied)
+            }
+        }
+        LocalBrowserAdBlocker.loadCached(adPreferences) {
+            activity.runOnUiThread {
+                if (!rendererGone && dialog.isShowing && adBlockerEnabled) applyCosmeticFiltering()
             }
         }
         var rendererGone = false
