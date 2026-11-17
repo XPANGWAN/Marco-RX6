@@ -667,12 +667,12 @@ internal class DownloadPageDialog(
                 if (newlyApplied > 0) recordBlocked(newlyApplied)
             }
         }
+        var rendererGone = false
         LocalBrowserAdBlocker.loadCached(adPreferences) {
             activity.runOnUiThread {
                 if (!rendererGone && dialog.isShowing && adBlockerEnabled) applyCosmeticFiltering()
             }
         }
-        var rendererGone = false
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): android.webkit.WebResourceResponse? {
                 val requestUrl = request.url.toString()
