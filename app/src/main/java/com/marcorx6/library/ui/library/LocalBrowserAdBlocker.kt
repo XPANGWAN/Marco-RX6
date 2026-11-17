@@ -78,7 +78,12 @@ internal object LocalBrowserAdBlocker {
         val excludeDomains: Set<String> = emptySet()
     )
 
-    private data class CosmeticRule(val domains: Set<String>, val selector: String, val exception: Boolean)
+    private data class CosmeticRule(
+        val domains: Set<String>,
+        val excludedDomains: Set<String>,
+        val selector: String,
+        val exception: Boolean
+    )
 
     private data class RuleSnapshot(
         val networkRules: List<NetworkRule>,
@@ -147,15 +152,15 @@ internal object LocalBrowserAdBlocker {
         val page = parseUrl(pageUrl)
         val pageHost = page?.host?.let(::normalizeHost).orEmpty()
         val thirdParty = pageHost.isNotBlank() && !sameSite(host, pageHost)
-        val type = resourceType(requestHeaders, target.path)
-
-        // Known ad-network hosts are a safe fallback even before remote lists load.
-        if (builtInDomains.any { domainMatches(host, it) }) return true
+        val type = if (isMainFrame) "document" else resourceType(requestHeaders, target.path)
 
         val current = snapshot
         val applicable = current.networkRules.asSequence()
             .filter { rule -> ruleApplies(rule.options, host, pageHost, type, thirdParty) }
         if (applicable.any { it.exception && matches(it, url, host) }) return false
+
+        // Known ad-network hosts are a safe fallback before remote lists load.
+        if (builtInDomains.any { domainMatches(host, it) }) return true
         if (applicable.any { !it.exception && matches(it, url, host) }) return true
 
         // Top-level navigations are blocked only by explicit filter rules or known ad domains.
@@ -168,15 +173,22 @@ internal object LocalBrowserAdBlocker {
         if (host.isBlank()) return ""
         val rules = snapshot.cosmeticRules
         val exceptions = rules.asSequence()
-            .filter { it.exception && domainApplies(it.domains, host) }
+            .filter { it.exception && domainApplies(it.domains, it.excludedDomains, host) }
             .map { it.selector }.toSet()
-        val selectors = rules.asSequence()
-            .filter { !it.exception && domainApplies(it.domains, host) }
+        val fallback = listOf(
+            "[id^=google_ads]", "[id*=ad-container]", "[id*=ad_wrapper]",
+            "[class*=ad-container]", "[class*=ad-wrapper]", "[class*=advertisement]",
+            "[class*=sponsored]", "[data-ad]", "[data-ad-slot]", "ins.adsbygoogle",
+            "amp-ad", "iframe[src*=doubleclick]", "iframe[src*=googlesyndication]",
+            "iframe[src*=taboola]", "iframe[src*=outbrain]"
+        )
+        val selectors = (rules.asSequence()
+            .filter { !it.exception && domainApplies(it.domains, it.excludedDomains, host) }
             .map { it.selector }
             .filter { it !in exceptions }
+            .toList() + fallback)
             .distinct()
             .take(500)
-            .toList()
         if (selectors.isEmpty()) return ""
         val json = JSONArray(selectors).toString()
         return """(function(){try{
@@ -198,6 +210,10 @@ internal object LocalBrowserAdBlocker {
 
     fun parsedNetworkRuleCount(): Int = snapshot.networkRules.size
     fun parsedCosmeticRuleCount(): Int = snapshot.cosmeticRules.size
+
+    internal fun loadRulesForTest(content: String) {
+        snapshot = parseLists(content)
+    }
 
     private data class ParsedUrl(val scheme: String, val host: String?, val path: String, val query: String)
 
@@ -221,8 +237,9 @@ internal object LocalBrowserAdBlocker {
     private fun sameSite(host: String, pageHost: String): Boolean =
         host == pageHost || host.endsWith(".$pageHost") || pageHost.endsWith(".$host")
 
-    private fun domainApplies(domains: Set<String>, host: String): Boolean =
-        domains.isEmpty() || domains.any { domainMatches(host, it) }
+    private fun domainApplies(domains: Set<String>, excluded: Set<String>, host: String): Boolean =
+        (domains.isEmpty() || domains.any { domainMatches(host, it) }) &&
+            excluded.none { domainMatches(host, it) }
 
     private fun resourceType(headers: Map<String, String>, path: String): String {
         val destination = headers.entries.firstOrNull {
@@ -281,11 +298,12 @@ internal object LocalBrowserAdBlocker {
                 val selector = line.substring(cosmeticIndex + if (cosmeticException) 3 else 2).trim()
                 if (selector.isNotBlank() && selector.length <= 500 &&
                     !selector.startsWith("+js(") && !selector.startsWith(":-abp-")) {
-                    val domains = domainPart.split(',').mapNotNull { token ->
-                        val value = token.trim()
-                        if (value.isBlank()) null else normalizeHost(value.removePrefix("~"))
-                    }.toSet()
-                    cosmetic += CosmeticRule(domains, selector, cosmeticException)
+                    val domainTokens = domainPart.split(',').map { it.trim() }.filter { it.isNotBlank() }
+                    val domains = domainTokens.filterNot { it.startsWith("~") }
+                        .mapNotNull(::normalizeHost).toSet()
+                    val excluded = domainTokens.filter { it.startsWith("~") }
+                        .mapNotNull { normalizeHost(it.drop(1)) }.toSet()
+                    cosmetic += CosmeticRule(domains, excluded, selector, cosmeticException)
                 }
                 return@forEach
             }
