@@ -44,7 +44,10 @@ internal class ResumableDownloadWorker(
         // WorkManager cannot express TRANSPORT_WIFI as a constraint. Never start
         // a transfer over mobile data when Wi-Fi Only is selected; leave it pending
         // until MarcoApplication observes Wi-Fi becoming the active network.
-        if (DownloadConcurrencyPreferences(applicationContext).wifiOnly() && !hasWifiConnection()) {
+        if (!DownloadNetworkPolicy.canStart(
+                wifiOnly = DownloadConcurrencyPreferences(applicationContext).wifiOnly(),
+                activeNetworkIsWifi = hasWifiConnection()
+            )) {
             database.status(id, DownloadManager.STATUS_PENDING)
             return Result.success()
         }
