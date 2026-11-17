@@ -37,6 +37,41 @@ internal object LocalBrowserAdBlocker {
         Regex("""(?:^|[./_-])(?:ads?|adserver|adservice|adnetwork|advert|sponsor|popunder|popup)(?:[./_-]|$)""", RegexOption.IGNORE_CASE)
     )
 
+    /** Site-specific protection for VikingFile's documented third-party ad-script pattern. */
+    fun shouldBlockVikingFileAdScript(
+        url: String,
+        pageUrl: String,
+        requestHeaders: Map<String, String>,
+        enabled: Boolean,
+        allowedHosts: Set<String>,
+        isDirectFile: (String) -> Boolean
+    ): Boolean {
+        if (!enabled || isDirectFile(url)) return false
+        val pageHost = hostOf(pageUrl) ?: return false
+        if (pageHost != "vik1ngfile.site" && !pageHost.endsWith(".vik1ngfile.site")) return false
+
+        val host = hostOf(url) ?: return false
+        if (isAllowed(host, allowedHosts)) return false
+        val sameSite = host == pageHost || host.endsWith(".$pageHost") || pageHost.endsWith(".$host")
+        if (sameSite) return false
+
+        val destination = requestHeaders.entries
+            .firstOrNull { it.key.equals("Sec-Fetch-Dest", ignoreCase = true) }
+            ?.value?.lowercase()
+        val accept = requestHeaders.entries
+            .firstOrNull { it.key.equals("Accept", ignoreCase = true) }
+            ?.value.orEmpty().lowercase()
+        val path = runCatching { Uri.parse(url).path.orEmpty().lowercase() }.getOrDefault("")
+        val isScript = destination == "script" ||
+            accept.contains("javascript") ||
+            path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")
+        if (!isScript) return false
+
+        // These are the site's documented functional/CDN exceptions.
+        val trustedScriptHosts = setOf("jsdelivr.net", "cloudflare.com", "vikingfile.com")
+        return trustedScriptHosts.none { host == it || host.endsWith(".$it") }
+    }
+
     fun shouldBlockRequest(
         url: String,
         pageUrl: String,
