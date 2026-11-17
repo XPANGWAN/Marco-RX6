@@ -107,7 +107,7 @@ internal class AppUpdateChecker(
 
     private fun compareVersions(first: String, second: String): Int {
         val a = Regex("""\d+""").findAll(first).mapNotNull { it.value.toIntOrNull() }.toList()
-        val b = Regex("""\\d+""").findAll(second).mapNotNull { it.value.toIntOrNull() }.toList()
+        val b = Regex("""\d+""").findAll(second).mapNotNull { it.value.toIntOrNull() }.toList()
         if (a.isEmpty() || b.isEmpty()) return 0
         for (index in 0 until maxOf(a.size, b.size)) {
             val left = a.getOrElse(index) { 0 }
