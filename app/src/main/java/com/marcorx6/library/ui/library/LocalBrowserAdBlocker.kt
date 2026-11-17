@@ -257,7 +257,11 @@ internal object LocalBrowserAdBlocker {
         val destination = headers.entries.firstOrNull {
             it.key.equals("Sec-Fetch-Dest", true)
         }?.value?.lowercase(Locale.ROOT).orEmpty()
-        if (destination.isNotBlank()) return if (destination == "frame") "subdocument" else destination
+        if (destination.isNotBlank()) return when (destination) {
+            "frame", "iframe" -> "subdocument"
+            "empty" -> "xmlhttprequest"
+            else -> destination
+        }
         val accept = headers.entries.firstOrNull {
             it.key.equals("Accept", true)
         }?.value?.lowercase(Locale.ROOT).orEmpty()
