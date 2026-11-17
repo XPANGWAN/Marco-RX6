@@ -345,9 +345,15 @@ internal class AppearanceSettingsController(
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
         root.addView(settingRow(
             translate("التحقق من تحديث التطبيق"),
-            translate("تحقق من وجود إصدار أحدث من MARCO على GitHub")
+            translate("افتح الموقع الرسمي لـ MARCO RX6 لمشاهدة أحدث إصدار وتحميله")
         ) {
-            AppUpdateChecker(activity, translate).check()
+            runCatching {
+                activity.startActivity(
+                    Intent(Intent.ACTION_VIEW, Uri.parse("https://marcorx6app.dpdns.org/"))
+                )
+            }.onFailure {
+                Toast.makeText(activity, translate("تعذر فتح الرابط"), Toast.LENGTH_SHORT).show()
+            }
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
         root.addView(settingRow(
             translate("استثناء مواقع من حجب الإعلانات"),
