@@ -40,7 +40,11 @@ internal object DownloadSourceResolver {
         // Keep this limited to an ID-style /f/{id} page, not arbitrary download paths.
         val isShareLandingPage = Regex("""^/f/[^/]+/?$""", RegexOption.IGNORE_CASE)
             .matches(path)
-        return isShareLandingPage && host.isNotBlank()
+        val knownVikingHost = host in setOf(
+            "vik1ngfile.site", "vikingfile.site",
+            "vikingfile.com", "www.vikingfile.com"
+        )
+        return isShareLandingPage && knownVikingHost
     }
 
     /**
