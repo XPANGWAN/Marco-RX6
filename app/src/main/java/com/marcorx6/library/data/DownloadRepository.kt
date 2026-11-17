@@ -138,7 +138,11 @@ internal class DownloadRepository(context: Context) {
                             }
                         }
                         DownloadDestination.removeDirectTarget(appContext, id)
-                        DownloadStartResult.OpenInBrowser(probe.finalUrl)
+                        // A landing-page probe is a GET and may consume one-time tokens or trigger
+                        // provider redirects. Let the WebView make the first real page request
+                        // using the exact Blogger destination instead of opening the probe's
+                        // final redirect target (which can collapse to the provider homepage).
+                        DownloadStartResult.OpenInBrowser(secureLink)
                     } else {
                         if (!SecureUrlPolicy.isAllowedDownloadUrl(probe.finalUrl)) {
                             throw SecurityException("رابط التحويل النهائي غير آمن أو يستخدم خادمًا غير موثوق")
