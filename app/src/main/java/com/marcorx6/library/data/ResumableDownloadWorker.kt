@@ -55,6 +55,16 @@ internal class ResumableDownloadWorker(
                         applicationContext, id, selectedTree, visibleName, item.mimeType
                     )
                 } else null
+                // A previous worker may have verified every byte and then been
+                // interrupted while committing the final database state. Reuse the
+                // exact destination and finish that transaction before contacting the
+                // server again; never restart such an item at PREPARING 0%.
+                val recoveredCompletion = recoverCompletedDirectTarget(
+                    id, item, database, destinationUri
+                )
+                if (recoveredCompletion) {
+                    Result.success()
+                } else {
                 // Do not reset a resumed transfer to PREPARING 0%.
                 // Engines enter PREPARING only while they actually reserve storage.
                 val segmentedCompleted = SegmentedDownloadEngine.download(
@@ -99,6 +109,7 @@ internal class ResumableDownloadWorker(
                     )
                     Result.success()
                 }
+                }
             }
         } catch (error: Exception) {
             val latest = database.get(id)
@@ -129,6 +140,38 @@ internal class ResumableDownloadWorker(
         } finally {
             DownloadWorkScheduler.schedule(applicationContext)
         }
+    }
+
+    private fun recoverCompletedDirectTarget(
+        id: Long,
+        item: StoredDownload,
+        database: DownloadDatabase,
+        destinationUri: android.net.Uri?
+    ): Boolean {
+        val total = item.totalBytes
+        if (destinationUri == null || total <= 0L || item.downloadedBytes != total) return false
+        val actualSize = runCatching {
+            DownloadDestination.directTargetSize(applicationContext, destinationUri)
+        }.getOrNull() ?: return false
+        if (actualSize != total) return false
+
+        // The sequential engine persists total bytes only after response-length and
+        // integrity checks; the segmented engine now does so only after all ranges
+        // have joined and passed their integrity checks.
+        if (!database.complete(id, destinationUri.toString(), item.mimeType)) return false
+
+        DownloadDestination.forgetDirectTarget(applicationContext, id)
+        val directory = File(applicationContext.filesDir, "MARCO_RX6_downloads")
+        File(directory, "$id.part").delete()
+        File(directory, "$id.part.progress").delete()
+        File(directory, "$id.part.progress.tmp").delete()
+        (0 until 4).forEach { index ->
+            File(directory, "$id.seg$index").delete()
+            File(directory, "$id.seg$index.progress").delete()
+            File(directory, "$id.seg$index.progress.tmp").delete()
+        }
+        updateProgressNotification(item.title, id, total, total)
+        return true
     }
 
     private fun updatePreparingNotification(title: String, downloadId: Long, percent: Int = 100) {
