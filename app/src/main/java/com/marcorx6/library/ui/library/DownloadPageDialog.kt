@@ -705,7 +705,16 @@ internal class DownloadPageDialog(
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): android.webkit.WebResourceResponse? {
                 // Retain narrow local fallbacks for known forced-redirect destinations.
-                if (isBlockedAdRequest(request.url.toString())) {
+                val requestUrl = request.url.toString()
+                val blockedBySiteRule = LocalBrowserAdBlocker.shouldBlockVikingFileAdScript(
+                    url = requestUrl,
+                    pageUrl = activePageUrl.get(),
+                    requestHeaders = request.requestHeaders,
+                    enabled = adBlockerEnabled,
+                    allowedHosts = allowedHosts,
+                    isDirectFile = ::isDirectFileUrl
+                )
+                if (isBlockedAdRequest(requestUrl) || blockedBySiteRule) {
                     recordBlocked()
                     return android.webkit.WebResourceResponse(
                         "text/plain",
