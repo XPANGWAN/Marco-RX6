@@ -543,6 +543,8 @@ internal class DownloadPageDialog(
         var adBlockerEnabled = adPreferences.getBoolean("download_page_ad_blocker", true)
         val allowedHosts = adPreferences.getString("download_page_ad_allowlist", "").orEmpty()
             .split(',', ';').map { it.trim().lowercase() }.filter { it.isNotBlank() }.toMutableSet()
+        val blockedSites = adPreferences.getString("download_page_blocked_sites", "").orEmpty()
+            .split(',', ';').map { it.trim().lowercase() }.filter { it.isNotBlank() }.toMutableSet()
         lateinit var adToggle: android.widget.ImageButton
         fun showAdSettings() {
             val content = LinearLayout(activity).apply {
@@ -574,9 +576,103 @@ internal class DownloadPageDialog(
                 setPadding(0, dp(10), 0, dp(5))
             })
             content.addView(allowlistInput, LinearLayout.LayoutParams(-1, dp(48)))
+
+            content.addView(TextView(activity).apply {
+                text = translate("حظر المواقع يدوياً")
+                textSize = 13f
+                setTypeface(null, Typeface.BOLD)
+                setTextColor(heading)
+                setPadding(0, dp(16), 0, dp(6))
+            })
+            val blockedSiteInput = EditText(activity).apply {
+                hint = translate("مثال: example.com")
+                textSize = 13f
+                setTextColor(heading)
+                setHintTextColor(muted)
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+                setSingleLine(true)
+                setPadding(dp(12), dp(10), dp(12), dp(10))
+                setBackground(GradientDrawable().apply {
+                    setColor(surface); cornerRadius = dp(12).toFloat(); setStroke(dp(1), border)
+                })
+            }
+            content.addView(blockedSiteInput, LinearLayout.LayoutParams(-1, dp(46)))
+            val workingBlockedSites = blockedSites.toMutableSet()
+            val blockedList = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
+            fun refreshBlockedList() {
+                blockedList.removeAllViews()
+                if (workingBlockedSites.isEmpty()) {
+                    blockedList.addView(TextView(activity).apply {
+                        text = translate("لا توجد مواقع محظورة يدوياً")
+                        textSize = 11f
+                        setTextColor(muted)
+                        setPadding(dp(4), dp(8), dp(4), dp(8))
+                    })
+                } else {
+                    workingBlockedSites.sorted().forEach { host ->
+                        val item = LinearLayout(activity).apply {
+                            orientation = LinearLayout.HORIZONTAL
+                            gravity = Gravity.CENTER_VERTICAL
+                            setPadding(dp(8), dp(3), dp(4), dp(3))
+                            background = GradientDrawable().apply {
+                                setColor(surface)
+                                cornerRadius = dp(10).toFloat()
+                                setStroke(dp(1), border)
+                            }
+                        }
+                        item.addView(TextView(activity).apply {
+                            text = host
+                            textSize = 12f
+                            setTextColor(heading)
+                            gravity = Gravity.CENTER_VERTICAL
+                        }, LinearLayout.LayoutParams(0, dp(40), 1f))
+                        item.addView(TextView(activity).apply {
+                            text = translate("إزالة")
+                            textSize = 11f
+                            setTextColor(primary)
+                            gravity = Gravity.CENTER
+                            setPadding(dp(10), dp(8), dp(10), dp(8))
+                            setOnClickListener {
+                                workingBlockedSites.remove(host)
+                                refreshBlockedList()
+                            }
+                        })
+                        blockedList.addView(item, LinearLayout.LayoutParams(-1, -2).apply {
+                            bottomMargin = dp(5)
+                        })
+                    }
+                }
+            }
+            val addBlockedSite = android.widget.Button(activity).apply {
+                text = translate("إضافة إلى قائمة الحظر")
+                setOnClickListener {
+                    val raw = blockedSiteInput.text.toString().trim()
+                        .removePrefix("https://").removePrefix("http://")
+                        .substringBefore('/').substringBefore('?').substringBefore('#')
+                        .substringBefore(':').trim().trim('.').lowercase()
+                    val valid = raw.length <= 253 &&
+                        raw.matches(Regex("(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}"))
+                    if (!valid) {
+                        blockedSiteInput.error = translate("أدخل اسم نطاق صحيحاً مثل example.com")
+                    } else if (workingBlockedSites.size >= 100 && raw !in workingBlockedSites) {
+                        Toast.makeText(activity, translate("وصلت إلى الحد الأقصى للمواقع المحظورة"), Toast.LENGTH_SHORT).show()
+                    } else {
+                        workingBlockedSites.add(raw)
+                        blockedSiteInput.text.clear()
+                        refreshBlockedList()
+                    }
+                }
+            }
+            content.addView(addBlockedSite, LinearLayout.LayoutParams(-1, dp(44)).apply {
+                topMargin = dp(5)
+            })
+            content.addView(blockedList, LinearLayout.LayoutParams(-1, -2).apply {
+                topMargin = dp(8)
+            })
+            refreshBlockedList()
             AlertDialog.Builder(activity)
-                .setTitle(translate("إعدادات حجب الإعلانات"))
-                .setView(content)
+                .setTitle(translate("إعدادات الدرع والحماية"))
+                .setView(ScrollView(activity).apply { addView(content) })
                 .setNegativeButton(translate("إلغاء"), null)
                 .setPositiveButton(translate("حفظ")) { _, _ ->
                     adBlockerEnabled = enabled.isChecked
@@ -587,9 +683,12 @@ internal class DownloadPageDialog(
                     appPreferences.edit()
                         .putBoolean("download_page_ad_blocker", adBlockerEnabled)
                         .putString("download_page_ad_allowlist", cleaned.joinToString(","))
+                        .putString("download_page_blocked_sites", workingBlockedSites.sorted().joinToString(","))
                         .apply()
                     allowedHosts.clear()
                     allowedHosts.addAll(cleaned)
+                    blockedSites.clear()
+                    blockedSites.addAll(workingBlockedSites)
                     adToggle.imageTintList = android.content.res.ColorStateList.valueOf(
                         if (adBlockerEnabled) heading else muted
                     )
@@ -642,6 +741,7 @@ internal class DownloadPageDialog(
             pageUrl = activePageUrl.get(),
             enabled = adBlockerEnabled,
             allowedHosts = allowedHosts,
+            blockedHosts = blockedSites,
             isDirectFile = ::isDirectFileUrl,
             requestHeaders = requestHeaders,
             isMainFrame = isMainFrame
