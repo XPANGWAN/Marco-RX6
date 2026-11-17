@@ -162,7 +162,7 @@ internal object SequentialDownloadEngine {
                 // The repository resolves and stores the final filename before transfer.
                 // A redirect or a later Content-Disposition header must never rename a
                 // destination that already has durable bytes or a resume checkpoint.
-                val safeName = DownloadFileNames.safeName(item.title, mime, item.id)
+                val safeName = DownloadFileNames.safeName(item.title, mime, item.id, item.url)
                 if (directUri != null && total > 0L &&
                     (DownloadDestination.isMediaStoreTarget(directUri) ||
                         directSize != total || item.preparationPercent < 100 ||
