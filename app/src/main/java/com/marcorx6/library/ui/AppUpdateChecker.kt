@@ -127,7 +127,7 @@ internal class AppUpdateChecker(
         lateinit var poll: Runnable
         poll = Runnable {
             if (activity.isFinishing || activity.isDestroyed) {
-                handler.removeCallbacks(this)
+                handler.removeCallbacks(poll)
                 return@Runnable
             }
             val query = DownloadManager.Query().setFilterById(id)
