@@ -220,11 +220,17 @@ internal class DownloadMiniPanelDialog(
                         // Never infer it from downloadedBytes reaching totalBytes: that labels
                         // a finished transfer as "Preparing" and hides the real pre-download phase.
                         // Keep the mini panel aligned with the full download list state machine.
-                        val isPreparing = item.status == DownloadDatabase.STATUS_PREPARING
+                        val isPreparing = item.status == DownloadDatabase.STATUS_PREPARING ||
+                            item.status == DownloadDatabase.STATUS_INITIALIZING ||
+                            item.status == DownloadDatabase.STATUS_RESOLVING ||
+                            item.status == DownloadDatabase.STATUS_SCHEDULED
                         val statusLabel = when (item.status) {
-                            DownloadManager.STATUS_PENDING, DownloadDatabase.STATUS_SCHEDULED -> translate("في الانتظار")
-                            DownloadManager.STATUS_RUNNING -> translate("قيد التنزيل")
+                            DownloadManager.STATUS_PENDING -> translate("في الانتظار")
+                            DownloadDatabase.STATUS_SCHEDULED,
+                            DownloadDatabase.STATUS_INITIALIZING,
+                            DownloadDatabase.STATUS_RESOLVING,
                             DownloadDatabase.STATUS_PREPARING -> translate("جارٍ تجهيز الملف")
+                            DownloadManager.STATUS_RUNNING -> translate("قيد التنزيل")
                             DownloadManager.STATUS_PAUSED -> translate("متوقف مؤقتاً")
                             DownloadManager.STATUS_SUCCESSFUL -> translate("اكتمل")
                             DownloadManager.STATUS_FAILED -> translate("فشل")
@@ -241,7 +247,7 @@ internal class DownloadMiniPanelDialog(
                             ((item.downloadedBytes - previous.first) * 1000L) / (now - previous.second).coerceAtLeast(1L)
                         } else 0L
                         if (item.status == DownloadManager.STATUS_RUNNING) speedSamples[item.id] = item.downloadedBytes to now else speedSamples.remove(item.id)
-                        row.status.text = if (item.totalBytes > 0L) "$statusLabel • $percent%" else statusLabel
+                        row.status.text = if (isPreparing || item.totalBytes > 0L) "$statusLabel • $percent%" else statusLabel
                         val downloaded = android.text.format.Formatter.formatFileSize(activity, item.downloadedBytes.coerceAtLeast(0L))
                         val total = if (item.totalBytes > 0L) android.text.format.Formatter.formatFileSize(activity, item.totalBytes) else translate("حجم غير معروف")
                         val speedText = if (item.status == DownloadManager.STATUS_RUNNING) " • " + android.text.format.Formatter.formatFileSize(activity, speed) + "/s" else ""
@@ -259,7 +265,13 @@ internal class DownloadMiniPanelDialog(
                         if (!row.progress.isIndeterminate) row.progress.progress = percent
                         row.progress.visibility = if (item.status == DownloadManager.STATUS_SUCCESSFUL || item.status == DownloadManager.STATUS_FAILED) View.GONE else View.VISIBLE
                         row.actions.removeAllViews()
-                        if (item.status == DownloadManager.STATUS_PENDING || item.status == DownloadDatabase.STATUS_SCHEDULED || item.status == DownloadManager.STATUS_RUNNING) {
+                        if (item.status == DownloadManager.STATUS_PENDING ||
+                            item.status == DownloadDatabase.STATUS_SCHEDULED ||
+                            item.status == DownloadDatabase.STATUS_INITIALIZING ||
+                            item.status == DownloadDatabase.STATUS_RESOLVING ||
+                            item.status == DownloadDatabase.STATUS_PREPARING ||
+                            item.status == DownloadManager.STATUS_RUNNING
+                        ) {
                             row.actions.addView(action(translate("إيقاف")) {
                                 refreshExecutor.execute {
                                     repository.pauseDownload(item.id)
