@@ -285,6 +285,15 @@ internal class DownloadRepository(context: Context) {
 
     fun wifiOnlyDownloads(): Boolean = concurrencyPreferences.wifiOnly()
 
+    fun isWaitingForWifi(): Boolean {
+        if (!wifiOnlyDownloads()) return false
+        val connectivity = appContext.getSystemService(Context.CONNECTIVITY_SERVICE)
+            as? android.net.ConnectivityManager ?: return true
+        val network = connectivity.activeNetwork ?: return true
+        val capabilities = connectivity.getNetworkCapabilities(network) ?: return true
+        return !capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+    }
+
     fun setWifiOnlyDownloads(enabled: Boolean) {
         concurrencyPreferences.setWifiOnly(enabled)
         DownloadWorkScheduler.rescheduleForNetworkChange(appContext)
