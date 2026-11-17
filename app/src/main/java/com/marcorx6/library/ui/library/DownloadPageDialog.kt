@@ -88,25 +88,9 @@ internal class DownloadPageDialog(
             setPadding(0, 0, 0, 0)
             clipToPadding = false
         }
-        val webView = WebView(activity).apply {
-            // Keep all vertical gestures inside the website. Parent containers
-            // must not steal upward or downward WebView scroll gestures.
-            setOnTouchListener { view, event ->
-                when (event.actionMasked) {
-                    android.view.MotionEvent.ACTION_DOWN,
-                    android.view.MotionEvent.ACTION_MOVE,
-                    android.view.MotionEvent.ACTION_POINTER_DOWN -> {
-                        view.parent?.requestDisallowInterceptTouchEvent(true)
-                    }
-                    android.view.MotionEvent.ACTION_UP,
-                    android.view.MotionEvent.ACTION_CANCEL,
-                    android.view.MotionEvent.ACTION_POINTER_UP -> {
-                        view.parent?.requestDisallowInterceptTouchEvent(false)
-                    }
-                }
-                false
-            }
-        }
+        // Let WebView handle normal vertical scrolling. SwipeRefreshLayout
+        // intercepts only a downward pull when the page is already at the top.
+        val webView = WebView(activity)
         val browserHistory = mutableListOf<Pair<String, String>>()
         val browserBookmarks = mutableListOf<Pair<String, String>>()
         val browserTabs = mutableListOf<Pair<String, String>>()
@@ -418,13 +402,12 @@ internal class DownloadPageDialog(
             clipToOutline = false
         }
         browserFrame.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
-        // Keep the refresh container for the existing browser layout, but disable
-        // pull-to-refresh: some sites use nested/custom scrolling and the gesture
-        // can otherwise be mistaken for a page refresh.
+        // Restore the familiar pull-down refresh gesture. The WebView remains
+        // responsible for scrolling; refresh triggers only at the top of a page.
         val swipeRefresh = androidx.swiperefreshlayout.widget.SwipeRefreshLayout(activity).apply {
             setColorSchemeColors(primary)
             setProgressBackgroundColorSchemeColor(surface)
-            isEnabled = false
+            setOnRefreshListener { webView.reload() }
         }
         swipeRefresh.addView(browserFrame, android.view.ViewGroup.LayoutParams(-1, -1))
         root.addView(swipeRefresh, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -664,24 +647,7 @@ internal class DownloadPageDialog(
                 webView.reload()
             }
         }
-        addressRow.addView(refreshButton,  LinearLayout.LayoutParams(dp(42), dp(46)).apply { marginStart = dp(6) })
-        addressRow.addView(shieldContainer, LinearLayout.LayoutParams(dp(46), dp(46)).apply { marginStart = dp(7) })
-        val activePageUrl = AtomicReference(safeStartUrl)
-        fun isBlockedAdRequest(url: String): Boolean =
-            LocalBrowserAdBlocker.shouldBlockRequest(
-                url = url,
-                pageUrl = activePageUrl.get(),
-                enabled = adBlockerEnabled,
-                allowedHosts = allowedHosts,
-                isDirectFile = ::isDirectFileUrl
-            )
-
-        fun recordBlocked(amount: Int = 1) {
-            if (amount <= 0) return
-            val count = blockedRequests.addAndGet(amount)
-            activity.runOnUiThread {
-                blockedBadge.text = if (count > 999) "999+" else count.toString()
-                blockedBadge.contentDescription = translate("عدد الإعلانات المحجوبة: $count")
+        ad              blockedBadge.contentDescription = translate("عدد الإعلانات المحجوبة: $count")
                 blockedStats.text = translate("الإعلانات والمتتبعات المحجوبة: $count")
             }
         }
