@@ -43,6 +43,18 @@ class MainActivity : ComponentActivity() {
         var startupExperienceShown = false
     }
 
+    private val automaticUpdateCheckHandler by lazy { android.os.Handler(mainLooper) }
+    private val automaticUpdateCheckRunnable by lazy {
+        Runnable {
+            if (!isFinishing && !isDestroyed &&
+                lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
+                userExperienceRuntimeFeature.isSetupCompleted()
+            ) {
+                com.marcorx6.library.ui.AppUpdateChecker(this, ::tr).checkAutomatically()
+            }
+        }
+    }
+
     private val secondaryScreenBackCallback = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
             createInterface()
@@ -639,6 +651,10 @@ class MainActivity : ComponentActivity() {
         FirebasePushTokenRepository().syncCurrentToken()
         firebaseSessionCoordinator.ensureGuestSession()
         lifecycleCoordinator.onResume()
+        // Check for a new stable APK quietly after the main screen settles.
+        // The checker itself limits network checks to once every 24 hours.
+        automaticUpdateCheckHandler.removeCallbacks(automaticUpdateCheckRunnable)
+        automaticUpdateCheckHandler.postDelayed(automaticUpdateCheckRunnable, 9000L)
         handleDownloadNotificationIntent()
     }
 
@@ -662,6 +678,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onPause() {
+        automaticUpdateCheckHandler.removeCallbacks(automaticUpdateCheckRunnable)
         com.marcorx6.library.ui.UiDiagnosticsMonitor.logLifecycle(this, "onPause")
         super.onPause()
     }
