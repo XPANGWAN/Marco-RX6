@@ -87,16 +87,20 @@ internal object LocalBrowserAdBlocker {
 
     private data class RuleSnapshot(
         val networkRules: List<NetworkRule>,
+        val hostRules: Map<String, List<NetworkRule>>,
+        val genericRules: List<NetworkRule>,
         val cosmeticRules: List<CosmeticRule>,
         val loadedAt: Long
     )
 
-    @Volatile private var snapshot = RuleSnapshot(emptyList(), emptyList(), 0L)
+    @Volatile private var snapshot = RuleSnapshot(emptyList(), emptyMap(), emptyList(), emptyList(), 0L)
 
     fun loadCached(preferences: SharedPreferences) {
-        val raw = preferences.getString(PREF_RULES, null) ?: return
-        if (raw.isBlank()) return
-        snapshot = parseLists(raw)
+        // Parsing a large filter list must never run on the UI thread.
+        executor.execute {
+            val raw = preferences.getString(PREF_RULES, null) ?: return@execute
+            if (raw.isNotBlank()) snapshot = parseLists(raw)
+        }
     }
 
     fun refreshInBackground(
@@ -155,7 +159,14 @@ internal object LocalBrowserAdBlocker {
         val type = if (isMainFrame) "document" else resourceType(requestHeaders, target.path)
 
         val current = snapshot
-        val applicable = current.networkRules.asSequence()
+        val candidates = ArrayList<NetworkRule>()
+        var candidateHost = host
+        while (candidateHost.contains('.')) {
+            current.hostRules[candidateHost]?.let(candidates::addAll)
+            candidateHost = candidateHost.substringAfter('.')
+        }
+        candidates.addAll(current.genericRules)
+        val applicable = candidates.asSequence()
             .filter { rule -> ruleApplies(rule.options, host, pageHost, type, thirdParty) }
         if (applicable.any { it.exception && matches(it, url, host) }) return false
 
@@ -322,7 +333,9 @@ internal object LocalBrowserAdBlocker {
                 network += NetworkRule(pattern, regex, hostSuffix, options, exception)
             }
         }
-        return RuleSnapshot(network, cosmetic, System.currentTimeMillis())
+        val hostIndex = network.filter { it.hostSuffix != null }.groupBy { it.hostSuffix!! }
+        val generic = network.filter { it.hostSuffix == null }.take(12_000)
+        return RuleSnapshot(network, hostIndex, generic, cosmetic, System.currentTimeMillis())
     }
 
     private fun String.substringBeforeAny(vararg chars: Char): String {
