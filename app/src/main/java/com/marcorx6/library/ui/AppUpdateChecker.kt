@@ -163,7 +163,8 @@ internal class AppUpdateChecker(
                         Toast.makeText(activity, translate("اكتمل التنزيل لكن تعذر فتح ملف APK"), Toast.LENGTH_LONG).show()
                     } else {
                         activity.getSharedPreferences(PREFERENCES, Activity.MODE_PRIVATE)
-                            .edit().putString(PENDING_INSTALL_URI, uri.toString()).apply()
+                            .edit().putString(PENDING_INSTALL_URI, uri.toString())
+                            .putBoolean(INSTALL_PERMISSION_PROMPTED, false).apply()
                         installPendingUpdate(activity, translate)
                     }
                 }
@@ -221,6 +222,7 @@ internal class AppUpdateChecker(
         private const val LAST_CHECK_KEY = "last_automatic_update_check"
         private const val PENDING_DOWNLOAD_ID = "pending_app_update_download_id"
         private const val PENDING_INSTALL_URI = "pending_app_update_install_uri"
+        private const val INSTALL_PERMISSION_PROMPTED = "app_update_install_permission_prompted"
         private const val CHECK_INTERVAL_MS = 24L * 60L * 60L * 1000L
         private const val POLL_INTERVAL_MS = 500L
         private const val MAX_NOTES_LENGTH = 2400
@@ -254,21 +256,29 @@ internal class AppUpdateChecker(
         fun installPendingUpdate(activity: Activity, translate: (String) -> String = { it }) {
             val preferences = activity.getSharedPreferences(PREFERENCES, Activity.MODE_PRIVATE)
             val uriText = preferences.getString(PENDING_INSTALL_URI, null) ?: return
+            if (activity is androidx.lifecycle.LifecycleOwner &&
+                !activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
+            ) return
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                 !activity.packageManager.canRequestPackageInstalls()
             ) {
+                if (preferences.getBoolean(INSTALL_PERMISSION_PROMPTED, false)) {
+                    Toast.makeText(activity, translate("اسمح بتثبيت التطبيقات من هذا المصدر لإكمال التحديث"), Toast.LENGTH_LONG).show()
+                    return
+                }
+                preferences.edit().putBoolean(INSTALL_PERMISSION_PROMPTED, true).apply()
                 runCatching {
                     activity.startActivity(
                         Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                             Uri.parse("package:${activity.packageName}"))
                     )
                 }.onFailure {
-                    Toast.makeText(activity, translate("اسمح بتثبيت التطبيقات من هذا المصدر لإكمال التحديث"), Toast.LENGTH_LONG).show()
+                    preferences.edit().putBoolean(INSTALL_PERMISSION_PROMPTED, false).apply()
+                    Toast.makeText(activity, translate("تعذر فتح إعدادات تثبيت التطبيقات"), Toast.LENGTH_LONG).show()
                 }
                 return
             }
             val uri = Uri.parse(uriText)
-            preferences.edit().remove(PENDING_INSTALL_URI).apply()
             runCatching {
                 activity.startActivity(
                     Intent(Intent.ACTION_VIEW).apply {
@@ -276,6 +286,8 @@ internal class AppUpdateChecker(
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                 )
+                preferences.edit().remove(PENDING_INSTALL_URI)
+                    .putBoolean(INSTALL_PERMISSION_PROMPTED, false).apply()
             }.onFailure {
                 Toast.makeText(activity, translate("تعذر فتح مثبت تحديث Android"), Toast.LENGTH_LONG).show()
             }
