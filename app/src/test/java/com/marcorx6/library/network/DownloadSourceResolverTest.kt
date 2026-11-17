@@ -43,6 +43,20 @@ class DownloadSourceResolverTest {
     }
 
     @Test
+    fun preservesDirectNoPayStationPackageEndpoints() {
+        val url = "https://nopaystation.com/get/PS3/NPEB00882/GTAIVDIGITAL0001/1.06/pkg?version=1.01"
+        assertEquals(url, DownloadSourceResolver.normalizeKnownProviderUrl(url))
+        assertEquals(true, DownloadSourceResolver.isDirectDownloadEndpointUrl(url))
+    }
+
+    @Test
+    fun recognizesGenericShareLandingPagesButNotDirectFileUrls() {
+        assertEquals(true, DownloadSourceResolver.isKnownLandingPageUrl("https://files.example.org/f/AFklphNAHo"))
+        assertEquals(false, DownloadSourceResolver.isKnownLandingPageUrl("https://files.example.org/download/game.pkg"))
+        assertEquals(true, DownloadSourceResolver.isDirectDownloadEndpointUrl("https://cdn.example.org/files/game.pkg?token=abc"))
+    }
+
+    @Test
     fun extractsMediaFireDownloadButtonUrl() {
         val html = """<html><a class="input popsok" id="downloadButton" href="https://download123.mediafire.com/token/game.pkg">Download</a></html>"""
         assertEquals(
