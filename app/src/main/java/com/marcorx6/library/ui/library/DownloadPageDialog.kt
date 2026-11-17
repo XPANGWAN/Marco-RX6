@@ -758,9 +758,25 @@ internal class DownloadPageDialog(
                 return true
             }
         }
+        // Automatic popup attempts are blocked and reported once per short interval,
+        // so aggressive ad scripts cannot flood the user with warning messages.
+        var lastPopupWarningAt = 0L
         webView.webChromeClient = object : WebChromeClient() {
             override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message): Boolean {
-                if (adBlockerEnabled) recordBlocked()
+                if (adBlockerEnabled) {
+                    recordBlocked()
+                    if (!isUserGesture) {
+                        val now = android.os.SystemClock.elapsedRealtime()
+                        if (now - lastPopupWarningAt >= 4_000L) {
+                            lastPopupWarningAt = now
+                            Toast.makeText(
+                                activity,
+                                translate("تم حظر نافذة منبثقة غير مطلوبة؛ بقيت في الصفحة الأصلية"),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
                 return false
             }
             override fun onProgressChanged(view: WebView, newProgress: Int) {
