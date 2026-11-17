@@ -144,15 +144,19 @@ internal object LocalBrowserAdBlocker {
         pageUrl: String,
         enabled: Boolean,
         allowedHosts: Set<String>,
+        blockedHosts: Set<String> = emptySet(),
         isDirectFile: (String) -> Boolean,
         requestHeaders: Map<String, String> = emptyMap(),
         isMainFrame: Boolean = false
     ): Boolean {
-        if (!enabled || isDirectFile(url)) return false
+        if (!enabled) return false
         val target = parseUrl(url) ?: return false
         if (target.scheme != "http" && target.scheme != "https") return false
         val host = normalizeHost(target.host ?: return false) ?: return false
         if (allowedHosts.any { domainMatches(host, normalizeHost(it) ?: it) }) return false
+        // User-managed blocked sites take precedence over direct-file exemptions.
+        if (blockedHosts.any { domainMatches(host, normalizeHost(it) ?: return@any false) }) return true
+        if (isDirectFile(url)) return false
 
         val page = parseUrl(pageUrl)
         val pageHost = page?.host?.let(::normalizeHost).orEmpty()
