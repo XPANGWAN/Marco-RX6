@@ -222,11 +222,13 @@ internal class DownloadMiniPanelDialog(
                         // Keep the mini panel aligned with the full download list state machine.
                         val isPreparing = item.status == DownloadDatabase.STATUS_PREPARING ||
                             item.status == DownloadDatabase.STATUS_INITIALIZING ||
-                            item.status == DownloadDatabase.STATUS_RESOLVING ||
-                            item.status == DownloadDatabase.STATUS_SCHEDULED
+                            item.status == DownloadDatabase.STATUS_RESOLVING
+                        val waitingForWifi = (item.status == DownloadManager.STATUS_PENDING ||
+                            item.status == DownloadDatabase.STATUS_SCHEDULED) && repository.isWaitingForWifi()
                         val statusLabel = when (item.status) {
-                            DownloadManager.STATUS_PENDING -> translate("في الانتظار")
-                            DownloadDatabase.STATUS_SCHEDULED,
+                            DownloadManager.STATUS_PENDING,
+                            DownloadDatabase.STATUS_SCHEDULED -> if (waitingForWifi)
+                                translate("بانتظار اتصال Wi-Fi") else translate("في الانتظار")
                             DownloadDatabase.STATUS_INITIALIZING,
                             DownloadDatabase.STATUS_RESOLVING,
                             DownloadDatabase.STATUS_PREPARING -> translate("جارٍ تجهيز الملف")
@@ -257,9 +259,11 @@ internal class DownloadMiniPanelDialog(
                                 else if (seconds >= 60L) "${seconds / 60L}m ${seconds % 60L}s" else "${seconds}s"
                             " • " + translate("متبقي") + " " + eta
                         } else ""
-                        row.details.text = if (isPreparing) {
-                            translate("جارٍ حجز مساحة التخزين قبل بدء التنزيل")
-                        } else "$downloaded / $total$speedText$etaText"
+                        row.details.text = when {
+                            waitingForWifi -> translate("بانتظار اتصال Wi-Fi")
+                            isPreparing -> translate("جارٍ حجز مساحة التخزين قبل بدء التنزيل")
+                            else -> "$downloaded / $total$speedText$etaText"
+                        }
                         row.progress.isIndeterminate =
                             item.status == DownloadManager.STATUS_RUNNING && item.totalBytes <= 0L
                         if (!row.progress.isIndeterminate) row.progress.progress = percent
