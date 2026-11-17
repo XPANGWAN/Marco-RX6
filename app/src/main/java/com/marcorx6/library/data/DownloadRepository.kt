@@ -287,7 +287,7 @@ internal class DownloadRepository(context: Context) {
 
     fun setWifiOnlyDownloads(enabled: Boolean) {
         concurrencyPreferences.setWifiOnly(enabled)
-        DownloadWorkScheduler.schedule(appContext)
+        DownloadWorkScheduler.rescheduleForNetworkChange(appContext)
     }
 
     fun maxConcurrentDownloads(): Int = concurrencyPreferences.maxConcurrent()
