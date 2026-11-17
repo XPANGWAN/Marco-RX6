@@ -101,6 +101,28 @@ class LocalBrowserAdBlockerTest {
     }
 
     @Test
+    fun blocksRefpaAffiliateRedirectAndSubdomains() {
+        assertTrue(
+            blocks(
+                "https://refpa-78460.com/L?tag=d_6341606m_1599c_",
+                mainFrame = true
+            )
+        )
+        assertTrue(
+            blocks(
+                "https://track.refpa-78460.com/L?click_id=test",
+                mainFrame = true
+            )
+        )
+        assertFalse(
+            blocks(
+                "https://nopaystation.com/get/PS3/NPEB00882/GTAIVDIGITAL0001/1.",
+                mainFrame = true
+            )
+        )
+    }
+
+    @Test
     fun compilesCosmeticSelectorsAndHonorsCosmeticExceptions() {
         val script = LocalBrowserAdBlocker.buildCosmeticScript("https://example.org/page")
         assertTrue(script.contains(".advertisement"))
