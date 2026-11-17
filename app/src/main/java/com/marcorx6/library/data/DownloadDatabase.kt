@@ -27,7 +27,7 @@ internal data class StoredDownload(
 )
 
 internal class DownloadDatabase private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "marco_downloads.db", null, 6) {
+    SQLiteOpenHelper(context.applicationContext, "marco_downloads.db", null, 7) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -63,6 +63,24 @@ internal class DownloadDatabase private constructor(context: Context) :
         if (oldVersion < 6) {
             db.execSQL("ALTER TABLE downloads ADD COLUMN source_url TEXT NOT NULL DEFAULT ''")
             db.execSQL("UPDATE downloads SET source_url=url WHERE source_url=''")
+        }
+        if (oldVersion < 7) {
+            // App-defined states must never overlap Android DownloadManager states.
+            // In older databases STATUS_PREPARING was 8, which is Android's
+            // STATUS_SUCCESSFUL. Keep genuine completed rows (they have a final
+            // local_path) and move all other legacy custom states into a private range.
+            db.execSQL(
+                """UPDATE downloads SET status = CASE
+                    WHEN status = 6 THEN 104
+                    WHEN status = 7 THEN 103
+                    WHEN status = 8 AND local_path<>'' THEN 8
+                    WHEN status = 8 THEN 100
+                    WHEN status = 9 THEN 101
+                    WHEN status = 10 THEN 102
+                    ELSE status
+                END
+                WHERE status IN (6,7,8,9,10)"""
+            )
         }
     }
 
@@ -446,11 +464,14 @@ internal class DownloadDatabase private constructor(context: Context) :
     )
 
     companion object {
-        const val STATUS_CANCELLED = 6
-        const val STATUS_SCHEDULED = 7
-        const val STATUS_PREPARING = 8
-        const val STATUS_INITIALIZING = 9
-        const val STATUS_RESOLVING = 10
+        // Keep application-only states well outside Android DownloadManager's
+        // public status values (PENDING=1, RUNNING=2, PAUSED=4,
+        // SUCCESSFUL=8, FAILED=16).
+        const val STATUS_CANCELLED = 104
+        const val STATUS_SCHEDULED = 103
+        const val STATUS_PREPARING = 100
+        const val STATUS_INITIALIZING = 101
+        const val STATUS_RESOLVING = 102
         @Volatile private var instance: DownloadDatabase? = null
         fun get(context: Context): DownloadDatabase =
             instance ?: synchronized(this) {
