@@ -326,10 +326,11 @@ internal class DownloadUiController(
             compoundDrawableTintList = android.content.res.ColorStateList.valueOf(primaryForeground)
             (background as? GradientDrawable)?.setColor(primary)
         }
+        // One compact four-action row, matching the equal-width filter buttons above.
         val bulkRow = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(7), 0, dp(8))
+            setPadding(0, dp(6), 0, dp(8))
         }
         fun bulkButton(label: String, onClick: () -> Unit) = android.widget.ImageView(activity).apply {
             val icon = when {
@@ -354,36 +355,41 @@ internal class DownloadUiController(
             addGlassTouch(this)
             setOnClickListener { onClick() }
         }
-        bulkRow.addView(bulkButton("إيقاف الكل") {
-            val count = downloadRepository.pauseAllDownloads()
-            Toast.makeText(activity, translate("تم إيقاف") + " $count " + translate("تنزيلات مؤقتاً"), Toast.LENGTH_SHORT).show()
-            render?.invoke()
-        }, LinearLayout.LayoutParams(dp(40), dp(40)))
-        bulkRow.addView(bulkButton("استكمال الكل") {
-            val count = downloadRepository.resumeAllDownloads()
-            Toast.makeText(activity, translate("تم استكمال") + " $count " + translate("تنزيلات"), Toast.LENGTH_SHORT).show()
-            render?.invoke()
-        }, LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginStart = dp(6) })
-        val maintenanceRow = LinearLayout(activity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 0, 0, dp(8))
+        val bulkActions = listOf(
+            "إيقاف الكل" to {
+                val count = downloadRepository.pauseAllDownloads()
+                Toast.makeText(activity, translate("تم إيقاف") + " $count " + translate("تنزيلات مؤقتاً"), Toast.LENGTH_SHORT).show()
+                render?.invoke()
+            },
+            "استكمال الكل" to {
+                val count = downloadRepository.resumeAllDownloads()
+                Toast.makeText(activity, translate("تم استكمال") + " $count " + translate("تنزيلات"), Toast.LENGTH_SHORT).show()
+                render?.invoke()
+            },
+            "إعادة محاولة الفاشلة" to {
+                val count = downloadRepository.retryAllFailed()
+                Toast.makeText(activity, translate("إعادة محاولة") + " $count " + translate("تنزيلات"), Toast.LENGTH_SHORT).show()
+                render?.invoke()
+            },
+            "مسح المكتملة" to {
+                AlertDialog.Builder(activity)
+                    .setMessage(translate("إزالة جميع التنزيلات المكتملة من قائمة التنزيلات؟"))
+                    .setNegativeButton(translate("إلغاء"), null)
+                    .setPositiveButton(translate("حذف")) { _, _ ->
+                        val count = downloadRepository.clearCompletedDownloads()
+                        Toast.makeText(activity, translate("تم حذف") + " $count " + translate("ملفات مكتملة"), Toast.LENGTH_SHORT).show()
+                        render?.invoke()
+                    }.show()
+            }
+        )
+        bulkActions.forEachIndexed { index, (label, action) ->
+            bulkRow.addView(
+                bulkButton(label, action),
+                LinearLayout.LayoutParams(0, dp(38), 1f).apply {
+                    if (index > 0) marginStart = dp(4)
+                }
+            )
         }
-        maintenanceRow.addView(bulkButton("إعادة محاولة الفاشلة") {
-            val count = downloadRepository.retryAllFailed()
-            Toast.makeText(activity, translate("إعادة محاولة") + " $count " + translate("تنزيلات"), Toast.LENGTH_SHORT).show()
-            render?.invoke()
-        }, LinearLayout.LayoutParams(dp(40), dp(40)))
-        maintenanceRow.addView(bulkButton("مسح المكتملة") {
-            AlertDialog.Builder(activity)
-                .setMessage(translate("إزالة جميع التنزيلات المكتملة من قائمة التنزيلات؟"))
-                .setNegativeButton(translate("إلغاء"), null)
-                .setPositiveButton(translate("حذف")) { _, _ ->
-                    val count = downloadRepository.clearCompletedDownloads()
-                    Toast.makeText(activity, translate("تم حذف") + " $count " + translate("ملفات مكتملة"), Toast.LENGTH_SHORT).show()
-                    render?.invoke()
-                }.show()
-        }, LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginStart = dp(6) })
         val speedLimitButton = TextView(activity).apply {
             fun labelFor(value: Long): String = when (value) {
                 0L -> "∞"
@@ -432,7 +438,6 @@ internal class DownloadUiController(
         })
         root.addView(filterRow)
         root.addView(bulkRow)
-        root.addView(maintenanceRow)
 
         val list = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
         class RowViews(
