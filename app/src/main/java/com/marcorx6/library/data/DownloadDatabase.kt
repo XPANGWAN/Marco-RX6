@@ -372,8 +372,12 @@ internal class DownloadDatabase private constructor(context: Context) :
         val changed = writableDatabase.update("downloads", ContentValues().apply {
             put("local_path", path); put("mime_type", mime)
             put("status", DownloadManager.STATUS_SUCCESSFUL); put("error", "")
-        }, "id=? AND status=? AND (total<=0 OR downloaded=total)",
-            arrayOf(id.toString(), DownloadManager.STATUS_RUNNING.toString()))
+        }, "id=? AND status IN (?,?) AND (total<=0 OR downloaded=total)",
+            arrayOf(
+                id.toString(),
+                DownloadManager.STATUS_RUNNING.toString(),
+                STATUS_PREPARING.toString()
+            ))
         return changed > 0
     }
 
