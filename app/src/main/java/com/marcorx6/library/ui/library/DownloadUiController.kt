@@ -233,27 +233,34 @@ internal class DownloadUiController(
             }
         }
         header.addView(segmentConnectionsButton, LinearLayout.LayoutParams(-2, dp(44)).apply { marginEnd = dp(7) })
-        val wifiOnlyButton = TextView(activity).apply {
-            text = if (downloadRepository.wifiOnlyDownloads()) "Wi-Fi" else "ALL"
-            textSize = 10f
-            setTypeface(null, android.graphics.Typeface.BOLD)
-            setTextColor(accentText)
-            gravity = Gravity.CENTER
+        val wifiOnlyButton = android.widget.ImageView(activity).apply {
+            setImageResource(com.marcorx6.library.R.drawable.ic_download_wifi)
+            imageTintList = android.content.res.ColorStateList.valueOf(
+                if (downloadRepository.wifiOnlyDownloads()) primary else accentText
+            )
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             setPadding(dp(10), dp(10), dp(10), dp(10))
+            contentDescription = translate(
+                if (downloadRepository.wifiOnlyDownloads()) "التنزيل عبر Wi-Fi فقط" else "التنزيل عبر جميع الشبكات"
+            )
+            if (Build.VERSION.SDK_INT >= 26) tooltipText = contentDescription
             this.background = GradientDrawable().apply {
                 setColor(surface)
                 cornerRadius = dp(12).toFloat()
                 setStroke(dp(1), if (dark) AccentPalette.surface(Color.rgb(78, 85, 98), primary, 0.42f) else AccentPalette.surface(Color.rgb(210, 216, 225), primary, 0.38f))
             }
-            contentDescription = translate("التنزيل عبر Wi-Fi فقط")
             setOnClickListener {
                 val enabled = !downloadRepository.wifiOnlyDownloads()
                 downloadRepository.setWifiOnlyDownloads(enabled)
-                text = if (enabled) "Wi-Fi" else "ALL"
-                Toast.makeText(activity, translate(if (enabled) "التنزيل عبر Wi-Fi فقط" else "التنزيل عبر جميع الشبكات"), Toast.LENGTH_SHORT).show()
+                imageTintList = android.content.res.ColorStateList.valueOf(if (enabled) primary else accentText)
+                contentDescription = translate(
+                    if (enabled) "التنزيل عبر Wi-Fi فقط" else "التنزيل عبر جميع الشبكات"
+                )
+                if (Build.VERSION.SDK_INT >= 26) tooltipText = contentDescription
+                Toast.makeText(activity, contentDescription, Toast.LENGTH_SHORT).show()
             }
         }
-        header.addView(wifiOnlyButton, LinearLayout.LayoutParams(-2, dp(44)).apply { marginEnd = dp(7) })
+        header.addView(wifiOnlyButton, LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(7) })
         // Back is already the first header item; keep the remaining actions after the title.
         root.addView(header)
         root.addView(TextView(activity).apply {
@@ -379,6 +386,8 @@ internal class DownloadUiController(
             gravity = Gravity.CENTER
             setTextColor(accentText)
             setPadding(dp(14), dp(9), dp(14), dp(9))
+            setCompoundDrawablesWithIntrinsicBounds(com.marcorx6.library.R.drawable.ic_download_speed, 0, 0, 0)
+            compoundDrawablePadding = dp(7)
             this.background = GradientDrawable().apply {
                 setColor(surface)
                 cornerRadius = dp(12).toFloat()
