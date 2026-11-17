@@ -624,7 +624,7 @@ internal class DownloadUiController(
                 value.contains("إيقاف") || value.contains("pause") -> com.marcorx6.library.R.drawable.ic_download_pause
                 value.contains("استكمال") || value.contains("resume") -> com.marcorx6.library.R.drawable.ic_download_play
                 value.contains("إعادة") || value.contains("تحديث") || value.contains("retry") -> com.marcorx6.library.R.drawable.ic_download_retry
-                value.contains("أولوية") || value.contains("priority") -> com.marcorx6.library.R.drawable.ic_download_priority
+                value.contains("أولوية") || value.contains("الأولو") || value.contains("priority") -> com.marcorx6.library.R.drawable.ic_download_priority
                 value.contains("حذف") || value.contains("delete") -> com.marcorx6.library.R.drawable.ic_download_delete
                 else -> com.marcorx6.library.R.drawable.ic_download_close
             }
