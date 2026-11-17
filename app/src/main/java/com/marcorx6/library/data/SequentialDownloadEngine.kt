@@ -159,11 +159,10 @@ internal object SequentialDownloadEngine {
                 val etag = connection.getHeaderField("ETag") ?: item.etag
                 val modified = connection.getHeaderField("Last-Modified") ?: item.lastModified
                 val mime = connection.contentType?.substringBefore(';')?.trim().orEmpty().ifBlank { item.mimeType }
-                val responseName = DownloadFileNames.fromResponse(
-                    connection.getHeaderField("Content-Disposition"),
-                    connection.url.toString()
-                )
-                val safeName = DownloadFileNames.safeName(responseName ?: item.title, mime, item.id)
+                // The repository resolves and stores the final filename before transfer.
+                // A redirect or a later Content-Disposition header must never rename a
+                // destination that already has durable bytes or a resume checkpoint.
+                val safeName = DownloadFileNames.safeName(item.title, mime, item.id)
                 if (directUri != null && total > 0L &&
                     (DownloadDestination.isMediaStoreTarget(directUri) ||
                         directSize != total || item.preparationPercent < 100 ||
@@ -184,10 +183,6 @@ internal object SequentialDownloadEngine {
                 // No matter which storage provider or size metadata the server supplies,
                 // preparation ends here: immediately before the first response byte is read.
                 database.finishPreparing(item.id)
-                if (directUri != null) {
-                    directUri = DownloadDestination.renameDirectTarget(context, item.id, directUri, safeName)
-                }
-                database.renameTitle(item.id, safeName)
                 database.progress(item.id, offset, total, etag, modified)
                 // Persist even a zero-byte checkpoint so retries and pauses keep using
                 // this same visible target instead of restarting through the range probe.
