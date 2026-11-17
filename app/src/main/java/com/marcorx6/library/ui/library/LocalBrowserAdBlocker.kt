@@ -59,7 +59,7 @@ internal object LocalBrowserAdBlocker {
         "plugrush.com", "popmyads.com", "rapidadexchange.com", "usrpubtrck.com",
         "betweendigital.com", "bluekai.com", "rlcdn.com", "adnxs-simple.com",
         "scorecardresearch.com", "hotjar.com", "mouseflow.com", "fullstory.com",
-        "clarity.ms", "analytics.yahoo.com"
+        "clarity.ms", "analytics.yahoo.com", "refpa-78460.com"
     )
 
     private data class NetworkRule(
