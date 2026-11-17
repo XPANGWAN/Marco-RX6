@@ -403,6 +403,11 @@ internal class DownloadPageDialog(
         val swipeRefresh = androidx.swiperefreshlayout.widget.SwipeRefreshLayout(activity).apply {
             setColorSchemeColors(primary)
             setProgressBackgroundColorSchemeColor(surface)
+            // The direct child is browserFrame (a LinearLayout), not the WebView.
+            // Delegate the scroll-up check to the actual page so ordinary vertical
+            // gestures remain WebView scrolling; pull-to-refresh is available only
+            // when the page itself is already at its top edge.
+            setOnChildScrollUpCallback { _, _ -> webView.canScrollVertically(-1) }
             setOnRefreshListener { webView.reload() }
         }
         swipeRefresh.addView(browserFrame, android.view.ViewGroup.LayoutParams(-1, -1))
