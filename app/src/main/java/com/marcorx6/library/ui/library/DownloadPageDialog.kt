@@ -668,6 +668,17 @@ internal class DownloadPageDialog(
             }
         }
         var rendererGone = false
+        var lastAdRedirectWarningAt = 0L
+        fun warnBlockedAdRedirect() {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (now - lastAdRedirectWarningAt < 4_000L) return
+            lastAdRedirectWarningAt = now
+            Toast.makeText(
+                activity,
+                translate("تم حظر تحويل إعلاني غير مرغوب؛ بقيت في الصفحة الأصلية"),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
         LocalBrowserAdBlocker.loadCached(adPreferences) {
             activity.runOnUiThread {
                 if (!rendererGone && dialog.isShowing && adBlockerEnabled) applyCosmeticFiltering()
@@ -693,6 +704,7 @@ internal class DownloadPageDialog(
                 val destination = request.url.toString()
                 if (adBlockerEnabled && isBlockedAdRequest(destination, request.requestHeaders, request.isForMainFrame)) {
                     recordBlocked()
+                    if (request.isForMainFrame) warnBlockedAdRedirect()
                     return true
                 }
                 if (isDirectFileUrl(request.url.toString())) {
