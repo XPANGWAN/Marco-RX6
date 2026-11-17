@@ -153,7 +153,7 @@ internal class DownloadUiController(
             addGlassTouch(this)
             setOnClickListener { onBack() }
         }
-        header.addView(backButton, LinearLayout.LayoutParams(dp(40), dp(40)))
+        header.addView(backButton, LinearLayout.LayoutParams(dp(44), dp(44)))
         val titleBox = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
         titleBox.addView(TextView(activity).apply {
             text = "MARCO  /  ${translate("التنزيلات").uppercase()}"
@@ -358,7 +358,7 @@ internal class DownloadUiController(
             val count = downloadRepository.pauseAllDownloads()
             Toast.makeText(activity, translate("تم إيقاف") + " $count " + translate("تنزيلات مؤقتاً"), Toast.LENGTH_SHORT).show()
             render?.invoke()
-        }, LinearLayout.LayoutParams(dp(44), dp(44)))
+        }, LinearLayout.LayoutParams(dp(40), dp(40)))
         bulkRow.addView(bulkButton("استكمال الكل") {
             val count = downloadRepository.resumeAllDownloads()
             Toast.makeText(activity, translate("تم استكمال") + " $count " + translate("تنزيلات"), Toast.LENGTH_SHORT).show()
@@ -383,7 +383,7 @@ internal class DownloadUiController(
                     Toast.makeText(activity, translate("تم حذف") + " $count " + translate("ملفات مكتملة"), Toast.LENGTH_SHORT).show()
                     render?.invoke()
                 }.show()
-        }, LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginStart = dp(8) })
+        }, LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginStart = dp(6) })
         val speedLimitButton = TextView(activity).apply {
             fun labelFor(value: Long): String = when (value) {
                 0L -> "∞"
