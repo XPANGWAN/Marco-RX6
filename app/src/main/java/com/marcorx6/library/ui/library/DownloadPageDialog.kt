@@ -633,14 +633,19 @@ internal class DownloadPageDialog(
         }
         addressRow.addView(shieldContainer, LinearLayout.LayoutParams(dp(46), dp(46)).apply { marginStart = dp(7) })
         val activePageUrl = AtomicReference(safeStartUrl)
-        fun isBlockedAdRequest(url: String): Boolean =
-            LocalBrowserAdBlocker.shouldBlockRequest(
-                url = url,
-                pageUrl = activePageUrl.get(),
-                enabled = adBlockerEnabled,
-                allowedHosts = allowedHosts,
-                isDirectFile = ::isDirectFileUrl
-            )
+        fun isBlockedAdRequest(
+            url: String,
+            requestHeaders: Map<String, String> = emptyMap(),
+            isMainFrame: Boolean = false
+        ): Boolean = LocalBrowserAdBlocker.shouldBlockRequest(
+            url = url,
+            pageUrl = activePageUrl.get(),
+            enabled = adBlockerEnabled,
+            allowedHosts = allowedHosts,
+            isDirectFile = ::isDirectFileUrl,
+            requestHeaders = requestHeaders,
+            isMainFrame = isMainFrame
+        )
 
         fun recordBlocked(amount: Int = 1) {
             if (amount <= 0) return
@@ -709,17 +714,8 @@ internal class DownloadPageDialog(
         var rendererGone = false
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): android.webkit.WebResourceResponse? {
-                // Retain narrow local fallbacks for known forced-redirect destinations.
                 val requestUrl = request.url.toString()
-                val blockedBySiteRule = LocalBrowserAdBlocker.shouldBlockVikingFileAdScript(
-                    url = requestUrl,
-                    pageUrl = activePageUrl.get(),
-                    requestHeaders = request.requestHeaders,
-                    enabled = adBlockerEnabled,
-                    allowedHosts = allowedHosts,
-                    isDirectFile = ::isDirectFileUrl
-                )
-                if (isBlockedAdRequest(requestUrl) || blockedBySiteRule) {
+                if (isBlockedAdRequest(requestUrl, request.requestHeaders, request.isForMainFrame)) {
                     recordBlocked()
                     return android.webkit.WebResourceResponse(
                         "text/plain",
@@ -734,7 +730,7 @@ internal class DownloadPageDialog(
                 val scheme = request.url.scheme?.lowercase()
                 if (scheme != "https") return true
                 val destination = request.url.toString()
-                if (adBlockerEnabled && isBlockedAdRequest(destination)) {
+                if (adBlockerEnabled && isBlockedAdRequest(destination, request.requestHeaders, request.isForMainFrame)) {
                     recordBlocked()
                     return true
                 }
