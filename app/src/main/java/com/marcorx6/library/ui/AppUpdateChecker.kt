@@ -3,6 +3,7 @@ package com.marcorx6.library.ui
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
+import android.os.Build
 import android.net.Uri
 import android.widget.Toast
 import com.marcorx6.library.BuildConfig
@@ -52,7 +53,7 @@ internal class AppUpdateChecker(
                     .takeIf { it.startsWith("https://github.com/") }
                     ?: OFFICIAL_WEBSITE
                 val assets = release.optJSONArray("assets")
-                var apkUrl: String? = null
+                val assetByName = mutableMapOf<String, String>()
                 if (assets != null) {
                     for (index in 0 until assets.length()) {
                         val asset = assets.optJSONObject(index) ?: continue
@@ -60,11 +61,20 @@ internal class AppUpdateChecker(
                         val url = asset.optString("browser_download_url")
                         if (name.endsWith(".apk", ignoreCase = true) &&
                             url.startsWith("https://github.com/")) {
-                            apkUrl = url
-                            break
+                            assetByName[name] = url
                         }
                     }
                 }
+                // Prefer the most capable ABI supported by this phone; use Universal as fallback.
+                val preferredAsset = when {
+                    Build.SUPPORTED_ABIS.contains("arm64-v8a") ->
+                        "app-arm64-v8a-release.apk"
+                    Build.SUPPORTED_ABIS.contains("armeabi-v7a") ->
+                        "app-armeabi-v7a-release.apk"
+                    else -> "app-universal-release.apk"
+                }
+                val apkUrl = assetByName[preferredAsset]
+                    ?: assetByName["app-universal-release.apk"]
                 val notes = release.optString("body").trim().take(MAX_NOTES_LENGTH)
                 val downloadUrl = apkUrl ?: releasePage
 
