@@ -208,15 +208,28 @@ internal object LocalBrowserAdBlocker {
           var styleId='marco-rx6-adblock-css';
           var style=document.getElementById(styleId);
           if(!style){style=document.createElement('style');style.id=styleId;(document.head||document.documentElement).appendChild(style);}
-          style.textContent=selectors.map(function(s){return s+'{display:none!important;visibility:hidden!important;}' }).join('\n');
+          style.textContent=selectors.map(function(s){return s+'{display:none!important;visibility:hidden!important;}' }).join('\\n');
+          var hidden=0;
+          function mark(root){
+            selectors.forEach(function(s){try{
+              if(root&&root.nodeType===1&&root.matches&&root.matches(s)&&root.getAttribute('data-marco-ad-hidden')!=='1'){
+                root.setAttribute('data-marco-ad-hidden','1');hidden++;
+              }
+              if(root&&root.querySelectorAll)root.querySelectorAll(s).forEach(function(e){
+                if(e.getAttribute('data-marco-ad-hidden')!=='1'){e.setAttribute('data-marco-ad-hidden','1');hidden++;}
+              });
+            }catch(ignore){}});
+          }
+          mark(document);
           if(!window.__marcoAdBlockObserver){
-            var queued=false;
-            window.__marcoAdBlockObserver=new MutationObserver(function(){
-              if(queued)return;queued=true;
-              requestAnimationFrame(function(){queued=false;});
+            window.__marcoAdBlockObserver=new MutationObserver(function(records){
+              records.forEach(function(record){record.addedNodes.forEach(function(node){
+                if(node&&node.nodeType===1)mark(node);
+              });});
             });
             window.__marcoAdBlockObserver.observe(document.documentElement,{childList:true,subtree:true});
           }
+          return hidden;
         }catch(e){}})();"""
     }
 
