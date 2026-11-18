@@ -1,7 +1,6 @@
 package com.marcorx6.library.ui
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.app.Dialog
 import android.app.DownloadManager
 import android.app.ProgressDialog
@@ -25,8 +24,7 @@ import java.net.URL
  */
 internal class AppUpdateChecker(
     private val activity: Activity,
-    private val translate: (String) -> String,
-    private val styleDialog: (AlertDialog) -> Unit = {}
+    private val translate: (String) -> String
 ) {
     fun checkAutomatically() {
         val preferences = activity.getSharedPreferences(PREFERENCES, Activity.MODE_PRIVATE)
@@ -67,15 +65,6 @@ internal class AppUpdateChecker(
                 activity.runOnUiThread {
                     if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
                     val variant = preferredVariant()
-                    val message = buildString {
-                        append(translate("الإصدار الحالي")).append(": ").append(BuildConfig.VERSION_NAME)
-                        append("\n").append(translate("الإصدار الجديد")).append(": ").append(latestVersion)
-                        append("\n").append(translate("نسخة الجهاز")).append(": ").append(variantLabel(variant))
-                        if (notes.isNotBlank()) {
-                            append("\n\n").append(translate("التغييرات")).append(":\n").append(notes)
-                        }
-                        append("\n\n").append(translate("سيتم تنزيل النسخة المناسبة مباشرة داخل التطبيق"))
-                    }
                     showFullScreenUpdate(latestVersion, variant, notes)
                 }
             } catch (_: Exception) {
