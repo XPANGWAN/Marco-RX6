@@ -42,6 +42,13 @@ class LanguageTranslatorTest {
     }
 
     @Test
+    fun translatesGameDownloadSectionHeadingIntoAllSupportedLanguages() {
+        assertEquals("Download links", LanguageTranslator.translate("روابط التحميل", "en"))
+        assertEquals("Liens de téléchargement", LanguageTranslator.translate("روابط التحميل", "fr"))
+        assertEquals("Enlaces de descarga", LanguageTranslator.translate("روابط التحميل", "es"))
+    }
+
+    @Test
     fun translatesStaticLabelsIntoAllSupportedLanguages() {
         assertEquals("Downloads", LanguageTranslator.translate("التنزيلات", "en"))
         assertEquals("Téléchargements", LanguageTranslator.translate("التنزيلات", "fr"))
