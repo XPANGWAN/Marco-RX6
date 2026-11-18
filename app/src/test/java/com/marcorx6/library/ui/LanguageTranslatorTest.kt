@@ -14,6 +14,14 @@ class LanguageTranslatorTest {
     }
 
     @Test
+    fun translatesFullScreenUpdateActionsIntoAllSupportedLanguages() {
+        assertEquals("Update now", LanguageTranslator.translate("تحديث الآن", "en"))
+        assertEquals("Mettre à jour", LanguageTranslator.translate("تحديث الآن", "fr"))
+        assertEquals("Actualizar ahora", LanguageTranslator.translate("تحديث الآن", "es"))
+        assertEquals("تحديث الآن", LanguageTranslator.translate("تحديث الآن", "ar"))
+    }
+
+    @Test
     fun translatesStaticLabelsIntoAllSupportedLanguages() {
         assertEquals("Downloads", LanguageTranslator.translate("التنزيلات", "en"))
         assertEquals("Téléchargements", LanguageTranslator.translate("التنزيلات", "fr"))
