@@ -40,7 +40,7 @@ internal class GameDownloadLinksViewFactory(
             setPadding(dp(14), dp(8), dp(14), dp(8))
         }
         downloadSection.addView(TextView(activity).apply {
-            text = "روابط التحميل"
+            text = translate("روابط التحميل")
             textSize = 16f
             setTextColor(white())
             setTypeface(null, Typeface.BOLD)
