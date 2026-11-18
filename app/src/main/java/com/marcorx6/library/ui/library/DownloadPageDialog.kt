@@ -671,7 +671,13 @@ internal class DownloadPageDialog(
             })
             refreshBlockedList()
             AlertDialog.Builder(activity)
-                .setTitle(translate("إعدادات الدرع والحماية"))
+                .setCustomTitle(TextView(activity).apply {
+                    text = translate("إعدادات الدرع والحماية")
+                    textSize = 19f
+                    setTypeface(null, Typeface.BOLD)
+                    setTextColor(heading)
+                    setPadding(dp(20), dp(12), dp(20), dp(4))
+                })
                 .setView(ScrollView(activity).apply { addView(content) })
                 .setNegativeButton(translate("إلغاء"), null)
                 .setPositiveButton(translate("حفظ")) { _, _ ->
@@ -702,8 +708,6 @@ internal class DownloadPageDialog(
                             cornerRadius = dp(20).toFloat()
                             setStroke(dp(1), border)
                         })
-                        settingsDialog.findViewById<TextView>(android.R.id.alertTitle)
-                            ?.setTextColor(heading)
                         listOf(
                             android.app.AlertDialog.BUTTON_NEGATIVE,
                             android.app.AlertDialog.BUTTON_POSITIVE
