@@ -13,11 +13,11 @@ internal class GameFavoriteToggleFactory(
     private val saveGames: () -> Unit,
     private val renderGames: () -> Unit
 ) {
-    fun create(game: Game): TextView {
+    private fun localized(value: String): String {\n        val language = activity.getSharedPreferences("app_settings", Activity.MODE_PRIVATE).getString("language", "ar") ?: "ar"\n        return LanguageTranslator.translate(value, language)\n    }\n\n    fun create(game: Game): TextView {
         return TextView(activity).apply {
             text = ""
             setCompoundDrawablesRelativeWithIntrinsicBounds(0, if (game.isFavorite) com.marcorx6.library.R.drawable.ic_action_favorite_star else com.marcorx6.library.R.drawable.ic_action_favorite_star_outline, 0, 0)
-            contentDescription = game.name + ", " + if (game.isFavorite) "إزالة من المفضلة" else "إضافة إلى المفضلة"
+            contentDescription = game.name + ", " + localized(if (game.isFavorite) "إزالة من المفضلة" else "إضافة إلى المفضلة")
             textSize = 25f
             gravity = android.view.Gravity.CENTER
             setTextColor(if (game.isFavorite) red() else white())
@@ -36,7 +36,7 @@ internal class GameFavoriteToggleFactory(
                     saveGames()
                     text = ""
                     setCompoundDrawablesRelativeWithIntrinsicBounds(0, if (games[index].isFavorite) com.marcorx6.library.R.drawable.ic_action_favorite_star else com.marcorx6.library.R.drawable.ic_action_favorite_star_outline, 0, 0)
-                    contentDescription = games[index].name + ", " + if (games[index].isFavorite) "إزالة من المفضلة" else "إضافة إلى المفضلة"
+                    contentDescription = games[index].name + ", " + localized(if (games[index].isFavorite) "إزالة من المفضلة" else "إضافة إلى المفضلة")
                     setTextColor(if (games[index].isFavorite) red() else white())
                     renderGames()
                 }
