@@ -15,7 +15,7 @@ internal class GameDetailsTopBarFactory(
     private val white: () -> Int,
     private val red: () -> Int
 ) {
-    fun create(game: Game, onClose: () -> Unit): LinearLayout {
+    private fun localized(value: String): String {\n        val language = activity.getSharedPreferences("app_settings", Activity.MODE_PRIVATE).getString("language", "ar") ?: "ar"\n        return LanguageTranslator.translate(value, language)\n    }\n\n    fun create(game: Game, onClose: () -> Unit): LinearLayout {
         val topBar = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
@@ -25,7 +25,7 @@ internal class GameDetailsTopBarFactory(
         }
         val close = android.widget.ImageView(activity).apply {
             setImageResource(com.marcorx6.library.R.drawable.ic_action_back)
-            contentDescription = "إغلاق تفاصيل اللعبة"
+            contentDescription = localized("إغلاق تفاصيل اللعبة")
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             imageTintList = android.content.res.ColorStateList.valueOf(white())
             setPadding(dp(12), dp(12), dp(12), dp(12))
