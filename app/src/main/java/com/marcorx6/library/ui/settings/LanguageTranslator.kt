@@ -66,6 +66,8 @@ internal object LanguageTranslator {
             "أنت تستعمل أحدث إصدار" to listOf("You are using the latest version", "Vous utilisez la dernière version", "Estás usando la versión más reciente"),
             "يتوفر تحديث جديد" to listOf("A new update is available", "Une nouvelle mise à jour est disponible", "Hay una nueva actualización disponible"),
             "تحديث الآن" to listOf("Update now", "Mettre à jour", "Actualizar ahora"),
+            "إزالة من المفضلة" to listOf("Remove from favorites", "Retirer des favoris", "Quitar de favoritos"),
+            "إضافة إلى المفضلة" to listOf("Add to favorites", "Ajouter aux favoris", "Añadir a favoritos"),
             "بدء تشغيل النظام" to listOf("SYSTEM STARTUP", "DÉMARRAGE DU SYSTÈME", "INICIO DEL SISTEMA"),
             "تهيئة واجهة التطبيق" to listOf("Preparing the app interface", "Préparation de l’interface", "Preparando la interfaz de la aplicación"),
             "تجهيز مكتبتك" to listOf("Preparing your library", "Préparation de votre bibliothèque", "Preparando tu biblioteca"),
