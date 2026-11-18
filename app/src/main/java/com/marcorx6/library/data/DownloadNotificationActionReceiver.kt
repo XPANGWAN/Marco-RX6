@@ -44,12 +44,18 @@ internal class DownloadNotificationActionReceiver : BroadcastReceiver() {
         }
     }
 
+    private fun localized(context: Context, value: String): String {
+        val language = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            .getString("language", "ar") ?: "ar"
+        return com.marcorx6.library.ui.LanguageTranslator.translate(value, language)
+    }
+
     private fun ensureNotificationChannel(context: Context, manager: NotificationManager) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
             manager.getNotificationChannel(CHANNEL_ID) == null
         ) {
             manager.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "تنزيلات MARCO", NotificationManager.IMPORTANCE_LOW)
+                NotificationChannel(CHANNEL_ID, localized(context, "تنزيلات MARCO"), NotificationManager.IMPORTANCE_LOW)
             )
         }
     }
@@ -61,18 +67,18 @@ internal class DownloadNotificationActionReceiver : BroadcastReceiver() {
         NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher)
             .setContentTitle("MARCO RX6")
-            .setContentText("التنزيل متوقف مؤقتاً")
+            .setContentText(localized(context, "التنزيل متوقف مؤقتاً"))
             .setOngoing(false)
             .setOnlyAlertOnce(true)
             .setContentIntent(openApp(context, id))
             .addAction(
                 android.R.drawable.ic_media_play,
-                "استئناف",
+                localized(context, "استئناف"),
                 action(context, id, ACTION_RESUME)
             )
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
-                "إلغاء",
+                localized(context, "إلغاء"),
                 action(context, id, ACTION_CANCEL)
             )
             .build()
