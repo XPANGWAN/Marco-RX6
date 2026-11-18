@@ -43,6 +43,26 @@ class DownloadSourceResolverTest {
     }
 
     @Test
+    fun recognizesRootzShareLinksAsBrowserLandingPages() {
+        assertEquals(
+            true,
+            DownloadSourceResolver.isKnownLandingPageUrl("https://www.rootz.so/d/1Kg8fY")
+        )
+        assertEquals(
+            true,
+            DownloadSourceResolver.isKnownLandingPageUrl("https://rootz.so/d/anotherId/")
+        )
+        assertEquals(
+            false,
+            DownloadSourceResolver.isKnownLandingPageUrl("https://rootz.so/")
+        )
+        assertEquals(
+            false,
+            DownloadSourceResolver.isKnownLandingPageUrl("https://rootz.so/d/1Kg8fY/file.zip")
+        )
+    }
+
+    @Test
     fun preservesDirectNoPayStationPackageEndpoints() {
         val url = "https://nopaystation.com/get/PS3/NPEB00882/GTAIVDIGITAL0001/1.06/pkg?version=1.01"
         assertEquals(url, DownloadSourceResolver.normalizeKnownProviderUrl(url))

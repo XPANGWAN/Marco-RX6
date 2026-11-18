@@ -44,7 +44,12 @@ internal object DownloadSourceResolver {
             "vik1ngfile.site", "vikingfile.site",
             "vikingfile.com", "www.vikingfile.com"
         )
-        return isShareLandingPage && knownVikingHost
+        // Rootz share links use /d/{id}. Treat them as browser landing pages:
+        // a preliminary HTTP GET can consume a short-lived redirect/session before
+        // WebView executes the site's normal JavaScript download flow.
+        val isRootzSharePage = host in setOf("rootz.so", "www.rootz.so") &&
+            Regex("""^/d/[^/]+/?$""", RegexOption.IGNORE_CASE).matches(path)
+        return (isShareLandingPage && knownVikingHost) || isRootzSharePage
     }
 
     /**
