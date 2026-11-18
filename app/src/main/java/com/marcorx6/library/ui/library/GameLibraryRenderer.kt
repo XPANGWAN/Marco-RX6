@@ -537,6 +537,18 @@ internal class GameLibraryRenderer(
                 }
             }
             if (gridMode) {
+                // A final row with one remaining game must keep the same two-column
+                // card width as every other row instead of stretching across the grid.
+                currentGridRow?.takeIf { it.childCount == 1 }?.addView(
+                    View(activity).apply {
+                        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                    },
+                    LinearLayout.LayoutParams(0, dp(300), 1f).apply {
+                        marginStart = dp(4)
+                        marginEnd = dp(4)
+                        bottomMargin = dp(10)
+                    }
+                )
                 gameList.addView(grid, LinearLayout.LayoutParams(-1, -2))
             } else {
                 // In the ALL library view, each game card participates in a subtle
