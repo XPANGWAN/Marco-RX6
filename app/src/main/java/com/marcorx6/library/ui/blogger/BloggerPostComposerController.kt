@@ -180,12 +180,12 @@ internal class BloggerPostComposerController(
             size.setText(existing.packageSize)
             version.setText(existing.version)
             format.setText(existing.fileFormat.ifBlank { "PKG" })
-            language.setText(existing.language.ifBlank { "الإنجليزية" })
+            language.setText(existing.language.ifBlank { translate("الإنجليزية") })
             password.setText(existing.password)
             rights.setText(existing.rights)
         } else {
             format.setText("PKG")
-            language.setText("الإنجليزية")
+            language.setText(translate("الإنجليزية"))
             if (pendingCoverPublicUrl().isNotBlank()) coverUrl.setText(pendingCoverPublicUrl())
         }
 
