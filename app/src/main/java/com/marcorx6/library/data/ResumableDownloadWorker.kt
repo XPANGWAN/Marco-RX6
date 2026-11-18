@@ -268,12 +268,12 @@ internal class ResumableDownloadWorker(
             .setContentIntent(openAppPendingIntent(applicationContext, downloadId))
             .addAction(
                 android.R.drawable.ic_media_pause,
-                "إيقاف مؤقت",
+                localize("إيقاف مؤقت"),
                 actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_PAUSE)
             )
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
-                "إلغاء",
+                localize("إلغاء"),
                 actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_CANCEL)
             )
             .build()
