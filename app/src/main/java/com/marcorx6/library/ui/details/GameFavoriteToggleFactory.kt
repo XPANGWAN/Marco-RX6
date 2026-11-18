@@ -13,7 +13,12 @@ internal class GameFavoriteToggleFactory(
     private val saveGames: () -> Unit,
     private val renderGames: () -> Unit
 ) {
-    private fun localized(value: String): String {\n        val language = activity.getSharedPreferences("app_settings", Activity.MODE_PRIVATE).getString("language", "ar") ?: "ar"\n        return LanguageTranslator.translate(value, language)\n    }\n\n    fun create(game: Game): TextView {
+    private fun localized(value: String): String {
+        val language = activity.getSharedPreferences("app_settings", Activity.MODE_PRIVATE).getString("language", "ar") ?: "ar"
+        return LanguageTranslator.translate(value, language)
+    }
+
+    fun create(game: Game): TextView {
         return TextView(activity).apply {
             text = ""
             setCompoundDrawablesRelativeWithIntrinsicBounds(0, if (game.isFavorite) com.marcorx6.library.R.drawable.ic_action_favorite_star else com.marcorx6.library.R.drawable.ic_action_favorite_star_outline, 0, 0)
