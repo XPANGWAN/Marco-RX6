@@ -1014,7 +1014,7 @@ internal object LanguageTranslator {
 
     /** Returns keys whose catalog entries do not cover all three non-Arabic languages. */
     internal fun incompleteTranslationKeys(): List<String> =
-        translations.filterValues { it.size != 3 }.keys.toList()
+        translations.filterValues { values -> values.size != 3 || values.any { it.isBlank() } }.keys.toList()
 
     fun translate(ar: String, lang: String): String {
         if (lang == "ar") return ar
