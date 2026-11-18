@@ -49,6 +49,16 @@ class LanguageTranslatorTest {
     }
 
     @Test
+    fun translatesFavoriteAccessibilityActionsIntoAllSupportedLanguages() {
+        assertEquals("Add to favorites", LanguageTranslator.translate("إضافة إلى المفضلة", "en"))
+        assertEquals("Ajouter aux favoris", LanguageTranslator.translate("إضافة إلى المفضلة", "fr"))
+        assertEquals("Añadir a favoritos", LanguageTranslator.translate("إضافة إلى المفضلة", "es"))
+        assertEquals("Remove from favorites", LanguageTranslator.translate("إزالة من المفضلة", "en"))
+        assertEquals("Retirer des favoris", LanguageTranslator.translate("إزالة من المفضلة", "fr"))
+        assertEquals("Quitar de favoritos", LanguageTranslator.translate("إزالة من المفضلة", "es"))
+    }
+
+    @Test
     fun translatesStaticLabelsIntoAllSupportedLanguages() {
         assertEquals("Downloads", LanguageTranslator.translate("التنزيلات", "en"))
         assertEquals("Téléchargements", LanguageTranslator.translate("التنزيلات", "fr"))
