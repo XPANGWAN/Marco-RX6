@@ -694,7 +694,29 @@ internal class DownloadPageDialog(
                     )
                     webView.reload()
                 }
-                .show()
+                .create()
+                .also { settingsDialog ->
+                    settingsDialog.setOnShowListener {
+                        settingsDialog.window?.setBackgroundDrawable(GradientDrawable().apply {
+                            setColor(surface)
+                            cornerRadius = dp(20).toFloat()
+                            setStroke(dp(1), border)
+                        })
+                        settingsDialog.findViewById<TextView>(android.R.id.alertTitle)
+                            ?.setTextColor(heading)
+                        listOf(
+                            android.app.AlertDialog.BUTTON_NEGATIVE,
+                            android.app.AlertDialog.BUTTON_POSITIVE
+                        ).forEach { which ->
+                            settingsDialog.getButton(which)?.apply {
+                                setTextColor(accentText)
+                                isAllCaps = false
+                                setTypeface(typeface, Typeface.BOLD)
+                            }
+                        }
+                    }
+                    settingsDialog.show()
+                }
         }
         adToggle = android.widget.ImageButton(activity).apply {
             setImageResource(com.marcorx6.library.R.drawable.ic_action_shield)
