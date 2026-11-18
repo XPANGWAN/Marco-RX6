@@ -65,6 +65,7 @@ internal object LanguageTranslator {
             "جارٍ التحقق من وجود تحديث..." to listOf("Checking for updates...", "Recherche des mises à jour...", "Buscando actualizaciones..."),
             "أنت تستعمل أحدث إصدار" to listOf("You are using the latest version", "Vous utilisez la dernière version", "Estás usando la versión más reciente"),
             "يتوفر تحديث جديد" to listOf("A new update is available", "Une nouvelle mise à jour est disponible", "Hay una nueva actualización disponible"),
+            "تحديث الآن" to listOf("Update now", "Mettre à jour", "Actualizar ahora"),
             "الإصدار الحالي" to listOf("Current version", "Version actuelle", "Versión actual"),
             "الإصدار الجديد" to listOf("New version", "Nouvelle version", "Nueva versión"),
             "التغييرات" to listOf("What's new", "Nouveautés", "Novedades"),
