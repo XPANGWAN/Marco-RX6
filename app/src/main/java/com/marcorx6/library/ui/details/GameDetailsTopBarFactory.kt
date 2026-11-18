@@ -15,7 +15,12 @@ internal class GameDetailsTopBarFactory(
     private val white: () -> Int,
     private val red: () -> Int
 ) {
-    private fun localized(value: String): String {\n        val language = activity.getSharedPreferences("app_settings", Activity.MODE_PRIVATE).getString("language", "ar") ?: "ar"\n        return LanguageTranslator.translate(value, language)\n    }\n\n    fun create(game: Game, onClose: () -> Unit): LinearLayout {
+    private fun localized(value: String): String {
+        val language = activity.getSharedPreferences("app_settings", Activity.MODE_PRIVATE).getString("language", "ar") ?: "ar"
+        return LanguageTranslator.translate(value, language)
+    }
+
+    fun create(game: Game, onClose: () -> Unit): LinearLayout {
         val topBar = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
