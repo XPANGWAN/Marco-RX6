@@ -1,7 +1,7 @@
 package com.marcorx6.library.ui
 
 import android.app.Activity
-import android.app.AlertDialog
+import android.app.Dialog
 import android.app.DownloadManager
 import android.app.ProgressDialog
 import android.content.Context
@@ -75,14 +75,7 @@ internal class AppUpdateChecker(
                         }
                         append("\n\n").append(translate("سيتم تنزيل النسخة المناسبة مباشرة داخل التطبيق"))
                     }
-                    AlertDialog.Builder(activity)
-                        .setTitle(translate("يتوفر تحديث جديد"))
-                        .setMessage(message)
-                        .setNegativeButton(translate("لاحقاً"), null)
-                        .setPositiveButton(translate("تحميل التحديث")) { _, _ ->
-                            startApkDownload(variant, latestVersion)
-                        }
-                        .show().also(styleDialog)
+                    showFullScreenUpdate(latestVersion, variant, notes)
                 }
             } catch (_: Exception) {
                 // Keep automatic checks silent when offline or when the website is unavailable.
@@ -91,6 +84,119 @@ internal class AppUpdateChecker(
             }
         }, "marco-update-check").start()
     }
+
+    /**
+     * Full-screen update experience. DownloadManager and the existing install
+     * hand-off remain unchanged; this only replaces the old compact alert.
+     */
+    private fun showFullScreenUpdate(version: String, variant: String, notes: String) {
+        val preferences = activity.getSharedPreferences(PREFERENCES, Activity.MODE_PRIVATE)
+        val dark = preferences.getBoolean("dark_mode", true)
+        val accent = AccentPalette.color(preferences.getString(AccentPalette.PREFERENCE_KEY, AccentPalette.DEFAULT_ID) ?: AccentPalette.DEFAULT_ID)
+        val background = if (dark) android.graphics.Color.rgb(9, 11, 15) else android.graphics.Color.rgb(246, 248, 251)
+        val surface = if (dark) android.graphics.Color.rgb(22, 25, 31) else android.graphics.Color.WHITE
+        val foreground = if (dark) android.graphics.Color.rgb(239, 242, 247) else android.graphics.Color.rgb(27, 31, 38)
+        val muted = if (dark) android.graphics.Color.rgb(165, 173, 185) else android.graphics.Color.rgb(103, 111, 123)
+        val stroke = if (dark) android.graphics.Color.rgb(57, 63, 73) else android.graphics.Color.rgb(222, 226, 233)
+        val dialog = Dialog(activity)
+        val root = android.widget.LinearLayout(activity).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(dp(22), dp(28), dp(22), dp(22))
+            setBackgroundColor(background)
+            layoutDirection = if (activity.resources.configuration.layoutDirection == android.view.View.LAYOUT_DIRECTION_RTL)
+                android.view.View.LAYOUT_DIRECTION_RTL else android.view.View.LAYOUT_DIRECTION_LTR
+        }
+        val scroll = android.widget.ScrollView(activity).apply {
+            isFillViewport = true
+            clipToPadding = false
+            addView(root, android.widget.ScrollView.LayoutParams(-1, -2))
+        }
+        fun label(value: String, size: Float, color: Int, bold: Boolean = false): android.widget.TextView =
+            android.widget.TextView(activity).apply {
+                text = value
+                textSize = size
+                setTextColor(color)
+                if (bold) typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD)
+                includeFontPadding = true
+            }
+        fun panel(): android.widget.LinearLayout = android.widget.LinearLayout(activity).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(surface)
+                cornerRadius = dp(18).toFloat()
+                setStroke(dp(1), stroke)
+            }
+        }
+        root.addView(label("MARCO RX6", 13f, accent, true), android.widget.LinearLayout.LayoutParams(-1, -2))
+        val heading = label(translate("يتوفر تحديث جديد"), 27f, foreground, true).apply {
+            setPadding(0, dp(16), 0, dp(8))
+        }
+        root.addView(heading)
+        root.addView(label(translate("سيتم تنزيل النسخة المناسبة مباشرة داخل التطبيق"), 14f, muted), android.widget.LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(22) })
+
+        val versions = panel()
+        val currentRow = android.widget.LinearLayout(activity).apply { orientation = android.widget.LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL }
+        currentRow.addView(label(translate("الإصدار الحالي"), 14f, muted), android.widget.LinearLayout.LayoutParams(0, -2, 1f))
+        currentRow.addView(label(BuildConfig.VERSION_NAME, 16f, foreground, true))
+        versions.addView(currentRow)
+        val separator = android.view.View(activity).apply { setBackgroundColor(stroke) }
+        versions.addView(separator, android.widget.LinearLayout.LayoutParams(-1, dp(1)).apply { topMargin = dp(13); bottomMargin = dp(13) })
+        val newRow = android.widget.LinearLayout(activity).apply { orientation = android.widget.LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL }
+        newRow.addView(label(translate("الإصدار الجديد"), 14f, muted), android.widget.LinearLayout.LayoutParams(0, -2, 1f))
+        newRow.addView(label(version, 19f, accent, true))
+        versions.addView(newRow)
+        val variantText = label("${translate("نسخة الجهاز")}: ${variantLabel(variant)}", 13f, muted).apply { setPadding(0, dp(12), 0, 0) }
+        versions.addView(variantText)
+        root.addView(versions, android.widget.LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
+
+        if (notes.isNotBlank()) {
+            val notesPanel = panel()
+            notesPanel.addView(label(translate("التغييرات"), 16f, foreground, true))
+            notesPanel.addView(label(notes, 14f, muted).apply { setPadding(0, dp(10), 0, 0); setLineSpacing(dp(3).toFloat(), 1f) })
+            root.addView(notesPanel, android.widget.LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(18) })
+        }
+        val spacer = android.view.View(activity).apply { minimumHeight = dp(8) }
+        root.addView(spacer, android.widget.LinearLayout.LayoutParams(-1, 0, 1f))
+        fun actionButton(text: String, filled: Boolean, click: () -> Unit): android.widget.TextView =
+            android.widget.TextView(activity).apply {
+                this.text = text
+                textSize = 15f
+                typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD)
+                gravity = android.view.Gravity.CENTER
+                setTextColor(if (filled) AccentPalette.foregroundForColor(accent) else foreground)
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(if (filled) accent else surface)
+                    cornerRadius = dp(15).toFloat()
+                    if (!filled) setStroke(dp(1), stroke)
+                }
+                isClickable = true
+                isFocusable = true
+                setPadding(dp(16), dp(15), dp(16), dp(15))
+                setOnClickListener { click() }
+            }
+        root.addView(actionButton(translate("تحديث الآن"), true) {
+            dialog.dismiss()
+            startApkDownload(variant, version)
+        }, android.widget.LinearLayout.LayoutParams(-1, dp(54)).apply { topMargin = dp(12) })
+        root.addView(actionButton(translate("لاحقاً"), false) {
+            dialog.dismiss()
+        }, android.widget.LinearLayout.LayoutParams(-1, dp(50)).apply { topMargin = dp(10) })
+
+        dialog.setContentView(scroll)
+        dialog.setCancelable(true)
+        dialog.setCanceledOnTouchOutside(false)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(background))
+        dialog.show()
+        dialog.window?.setLayout(-1, -1)
+        dialog.window?.statusBarColor = background
+        dialog.window?.navigationBarColor = background
+        if (android.os.Build.VERSION.SDK_INT >= 26) {
+            dialog.window?.decorView?.systemUiVisibility = if (dark) 0 else android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        }
+    }
+
+    private fun dp(value: Int): Int = (value * activity.resources.displayMetrics.density).toInt()
 
     private fun startApkDownload(variant: String, version: String) {
         runCatching {
