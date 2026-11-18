@@ -2078,8 +2078,8 @@ internal class FirebaseAccountController(
                                 AlertDialog.Builder(activity)
                                     .setIcon(com.marcorx6.library.R.drawable.ic_action_delete)
                                     .setMessage(translate("حذف هذه الرسالة لدى الطرفين؟"))
-                                    .setNegativeButton("إلغاء", null)
-                                    .setPositiveButton("حذف") { _, _ ->
+                                    .setNegativeButton(translate("إلغاء"), null)
+                                    .setPositiveButton(translate("حذف")) { _, _ ->
                                         messaging.deleteMessage(user.uid, otherUid, snapshot.id)
                                             .addOnFailureListener { error ->
                                                 toast(error.localizedMessage ?: translate("تعذر حذف الرسالة."))
