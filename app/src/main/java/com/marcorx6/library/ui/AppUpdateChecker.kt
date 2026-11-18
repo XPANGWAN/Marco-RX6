@@ -47,15 +47,20 @@ internal class AppUpdateChecker(
                 if (connection.responseCode !in 200..299) return@Thread
 
                 val update = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-                preferences.edit().putLong(LAST_CHECK_KEY, System.currentTimeMillis()).apply()
                 val latestVersion = update.optString("versionName").trim()
                     .removePrefix("v").removePrefix("V")
-                if (latestVersion.isBlank() || compareVersions(latestVersion, BuildConfig.VERSION_NAME) <= 0) {
-                    return@Thread
-                }
+                if (latestVersion.isBlank()) return@Thread
 
                 val downloadPage = update.optString("downloadPageUrl").ifBlank { OFFICIAL_DOWNLOAD_PAGE }
                 if (!downloadPage.startsWith(OFFICIAL_DOWNLOAD_PREFIX)) return@Thread
+
+                // Only a valid API response counts as a completed check. Network, JSON,
+                // or malformed-response failures remain immediately retryable.
+                preferences.edit().putLong(LAST_CHECK_KEY, System.currentTimeMillis()).apply()
+
+                if (compareVersions(latestVersion, BuildConfig.VERSION_NAME) <= 0) {
+                    return@Thread
+                }
                 val notes = update.optString("releaseNotes").trim().take(MAX_NOTES_LENGTH)
 
                 activity.runOnUiThread {
@@ -223,7 +228,7 @@ internal class AppUpdateChecker(
         private const val PENDING_DOWNLOAD_ID = "pending_app_update_download_id"
         private const val PENDING_INSTALL_URI = "pending_app_update_install_uri"
         private const val INSTALL_PERMISSION_PROMPTED = "app_update_install_permission_prompted"
-        private const val CHECK_INTERVAL_MS = 24L * 60L * 60L * 1000L
+        private const val CHECK_INTERVAL_MS = 3L * 60L * 60L * 1000L
         private const val POLL_INTERVAL_MS = 500L
         private const val MAX_NOTES_LENGTH = 2400
         private const val APK_MIME = "application/vnd.android.package-archive"
