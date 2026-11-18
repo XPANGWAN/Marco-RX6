@@ -228,7 +228,7 @@ internal class AppUpdateChecker(
         private const val PENDING_DOWNLOAD_ID = "pending_app_update_download_id"
         private const val PENDING_INSTALL_URI = "pending_app_update_install_uri"
         private const val INSTALL_PERMISSION_PROMPTED = "app_update_install_permission_prompted"
-        private const val CHECK_INTERVAL_MS = 3L * 60L * 60L * 1000L
+        private const val CHECK_INTERVAL_MS = 15L * 60L * 1000L
         private const val POLL_INTERVAL_MS = 500L
         private const val MAX_NOTES_LENGTH = 2400
         private const val APK_MIME = "application/vnd.android.package-archive"

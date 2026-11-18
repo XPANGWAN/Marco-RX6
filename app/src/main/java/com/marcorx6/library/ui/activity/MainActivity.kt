@@ -55,6 +55,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // While the library is being rebuilt, Back must remain free to finish the Activity.
+    private var renderingMainLibrary = false
+
     private val secondaryScreenBackCallback = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
             createInterface()
@@ -76,7 +79,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showRootScreen(view: View) {
-        secondaryScreenBackCallback.isEnabled = true
+        secondaryScreenBackCallback.isEnabled = !renderingMainLibrary
         // Finish outgoing transitions before replacing the screen, then normalize the incoming root.
         val content = findViewById<android.view.ViewGroup>(android.R.id.content)
         for (index in 0 until content.childCount) cancelScreenMotion(content.getChildAt(index))
@@ -653,7 +656,7 @@ class MainActivity : ComponentActivity() {
         firebaseSessionCoordinator.ensureGuestSession()
         lifecycleCoordinator.onResume()
         // Check for a new stable APK quietly after the main screen settles.
-        // The checker itself limits network checks to once every 24 hours.
+        // The checker itself limits successful automatic checks to once every 15 minutes.
         automaticUpdateCheckHandler.removeCallbacks(automaticUpdateCheckRunnable)
         automaticUpdateCheckHandler.postDelayed(automaticUpdateCheckRunnable, 9000L)
         handleDownloadNotificationIntent()
@@ -814,8 +817,13 @@ class MainActivity : ComponentActivity() {
         userExperienceRuntimeFeature.showStartupExperience(onStartupFinished)
 
     private fun createInterface() {
-        secondaryScreenBackCallback.isEnabled = false
-        libraryRuntimeFeature.create()
+        renderingMainLibrary = true
+        try {
+            libraryRuntimeFeature.create()
+        } finally {
+            renderingMainLibrary = false
+            secondaryScreenBackCallback.isEnabled = false
+        }
     }
     private fun renderGames() = libraryRuntimeFeature.renderGames()
 
