@@ -84,7 +84,7 @@ internal class AppUpdateChecker(
         val appearance = AppearancePreferencesStore.appearance(activity)
         val dark = AppearancePreferencesStore.isDarkMode(appearance)
         val accent = AccentPalette.color(appearance.getString(AccentPalette.PREFERENCE_KEY, AccentPalette.DEFAULT_ID) ?: AccentPalette.DEFAULT_ID)
-        val background = if (dark) android.graphics.Color.rgb(9, 11, 15) else android.graphics.Color.rgb(246, 248, 251)
+        val screenBackground = if (dark) android.graphics.Color.rgb(9, 11, 15) else android.graphics.Color.rgb(246, 248, 251)
         val surface = if (dark) android.graphics.Color.rgb(22, 25, 31) else android.graphics.Color.WHITE
         val foreground = if (dark) android.graphics.Color.rgb(239, 242, 247) else android.graphics.Color.rgb(27, 31, 38)
         val muted = if (dark) android.graphics.Color.rgb(165, 173, 185) else android.graphics.Color.rgb(103, 111, 123)
@@ -93,14 +93,14 @@ internal class AppUpdateChecker(
         val root = android.widget.LinearLayout(activity).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(dp(22), dp(28), dp(22), dp(22))
-            setBackgroundColor(background)
+            setBackgroundColor(screenBackground)
             layoutDirection = if ((preferences.getString("language", "ar") ?: "ar") == "ar")
                 android.view.View.LAYOUT_DIRECTION_RTL else android.view.View.LAYOUT_DIRECTION_LTR
         }
         val scroll = android.widget.ScrollView(activity).apply {
             isFillViewport = true
             clipToPadding = false
-            addView(root, android.widget.ScrollView.LayoutParams(-1, -2))
+            addView(root, android.view.ViewGroup.LayoutParams(-1, -2))
         }
         fun label(value: String, size: Float, color: Int, bold: Boolean = false): android.widget.TextView =
             android.widget.TextView(activity).apply {
@@ -177,11 +177,11 @@ internal class AppUpdateChecker(
         dialog.setContentView(scroll)
         dialog.setCancelable(true)
         dialog.setCanceledOnTouchOutside(false)
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(background))
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(screenBackground))
         dialog.show()
         dialog.window?.setLayout(-1, -1)
-        dialog.window?.statusBarColor = background
-        dialog.window?.navigationBarColor = background
+        dialog.window?.statusBarColor = screenBackground
+        dialog.window?.navigationBarColor = screenBackground
         if (android.os.Build.VERSION.SDK_INT >= 26) {
             dialog.window?.decorView?.systemUiVisibility = if (dark) 0 else android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         }
