@@ -66,6 +66,26 @@ class LanguageTranslatorTest {
     }
 
     @Test
+    fun translatesShieldAndAdBlockingSettingsIntoAllSupportedLanguages() {
+        val cases = listOf(
+            "إعدادات الدرع والحماية" to listOf("Shield & protection settings", "Paramètres du bouclier et de la protection", "Ajustes del escudo y la protección"),
+            "حظر المواقع يدوياً" to listOf("Block websites manually", "Bloquer des sites manuellement", "Bloquear sitios manualmente"),
+            "مثال: example.com" to listOf("Example: example.com", "Exemple : example.com", "Ejemplo: example.com"),
+            "لا توجد مواقع محظورة يدوياً" to listOf("No manually blocked websites", "Aucun site bloqué manuellement", "No hay sitios bloqueados manualmente"),
+            "إضافة إلى قائمة الحظر" to listOf("Add to blocklist", "Ajouter à la liste de blocage", "Añadir a la lista de bloqueo"),
+            "إزالة" to listOf("Remove", "Supprimer", "Eliminar"),
+            "أدخل اسم نطاق صحيحاً مثل example.com" to listOf("Enter a valid domain, such as example.com", "Saisissez un nom de domaine valide, par exemple example.com", "Introduce un dominio válido, por ejemplo example.com"),
+            "وصلت إلى الحد الأقصى للمواقع المحظورة" to listOf("You have reached the blocked websites limit", "Vous avez atteint la limite de sites bloqués", "Has alcanzado el límite de sitios bloqueados")
+        )
+        cases.forEach { (source, expected) ->
+            assertEquals(expected[0], LanguageTranslator.translate(source, "en"))
+            assertEquals(expected[1], LanguageTranslator.translate(source, "fr"))
+            assertEquals(expected[2], LanguageTranslator.translate(source, "es"))
+            assertEquals(source, LanguageTranslator.translate(source, "ar"))
+        }
+    }
+
+    @Test
     fun translatesBrandNameInAllSupportedLanguagesWithoutIndexOverflow() {
         assertEquals("MARCO RX6", LanguageTranslator.translate("MARCO RX6", "en"))
         assertEquals("MARCO RX6", LanguageTranslator.translate("MARCO RX6", "fr"))
