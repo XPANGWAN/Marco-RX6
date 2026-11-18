@@ -73,7 +73,7 @@ internal class StartupExperienceController(
             setPadding(dp(30), dp(10), dp(30), dp(24))
             setBackgroundColor(Color.TRANSPARENT)
         }
-        val signature = makeText("MARCO  /  SYSTEM STARTUP", 10f, silver, true).apply {
+        val signature = makeText(translate("بدء تشغيل النظام"), 10f, silver, true).apply {
             gravity = Gravity.CENTER
             textAlignment = View.TEXT_ALIGNMENT_CENTER
             letterSpacing = 0.20f
@@ -86,7 +86,7 @@ internal class StartupExperienceController(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        val status = makeText("تهيئة واجهة التطبيق", 11f, silver, true).apply {
+        val status = makeText(translate("تهيئة واجهة التطبيق"), 11f, silver, true).apply {
             gravity = Gravity.CENTER
             textAlignment = View.TEXT_ALIGNMENT_CENTER
             maxLines = 1
@@ -157,12 +157,12 @@ internal class StartupExperienceController(
                     progress.progress = value
                     percent.text = "$value%"
                     val message = when {
-                        value < 18 -> "تهيئة واجهة التطبيق"
-                        value < 36 -> "تجهيز مكتبتك"
-                        value < 54 -> "تحميل عناصر البداية"
-                        value < 72 -> "ضبط المظهر والتفضيلات"
-                        value < 90 -> "إتمام التجهيزات"
-                        else -> "لحظات وننطلق"
+                        value < 18 -> translate("تهيئة واجهة التطبيق")
+                        value < 36 -> translate("تجهيز مكتبتك")
+                        value < 54 -> translate("تحميل عناصر البداية")
+                        value < 72 -> translate("ضبط المظهر والتفضيلات")
+                        value < 90 -> translate("إتمام التجهيزات")
+                        else -> translate("لحظات وننطلق")
                     }
                     if (status.text.toString() != message) {
                         status.animate().alpha(0f).setDuration(110L).withEndAction {
