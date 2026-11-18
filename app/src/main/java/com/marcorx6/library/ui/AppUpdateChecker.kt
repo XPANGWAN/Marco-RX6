@@ -1,6 +1,7 @@
 package com.marcorx6.library.ui
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.app.Dialog
 import android.app.DownloadManager
 import android.app.ProgressDialog
@@ -103,7 +104,7 @@ internal class AppUpdateChecker(
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(dp(22), dp(28), dp(22), dp(22))
             setBackgroundColor(background)
-            layoutDirection = if (activity.resources.configuration.layoutDirection == android.view.View.LAYOUT_DIRECTION_RTL)
+            layoutDirection = if ((preferences.getString("language", "ar") ?: "ar") == "ar")
                 android.view.View.LAYOUT_DIRECTION_RTL else android.view.View.LAYOUT_DIRECTION_LTR
         }
         val scroll = android.widget.ScrollView(activity).apply {
