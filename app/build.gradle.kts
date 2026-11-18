@@ -30,8 +30,8 @@ android {
         applicationId = "com.marcorx6.library"
         minSdk = 26
         targetSdk = 36
-        versionCode = 47
-        versionName = "8.30"
+        versionCode = 48
+        versionName = "8.31"
 
         // Phone APKs target ARM devices; omit x86 emulator/desktop native binaries.
         ndk {
