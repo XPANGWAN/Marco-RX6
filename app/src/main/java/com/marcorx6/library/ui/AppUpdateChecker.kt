@@ -81,8 +81,9 @@ internal class AppUpdateChecker(
      */
     private fun showFullScreenUpdate(version: String, variant: String, notes: String) {
         val preferences = activity.getSharedPreferences(PREFERENCES, Activity.MODE_PRIVATE)
-        val dark = preferences.getBoolean("dark_mode", true)
-        val accent = AccentPalette.color(preferences.getString(AccentPalette.PREFERENCE_KEY, AccentPalette.DEFAULT_ID) ?: AccentPalette.DEFAULT_ID)
+        val appearance = AppearancePreferencesStore.appearance(activity)
+        val dark = AppearancePreferencesStore.isDarkMode(appearance)
+        val accent = AccentPalette.color(appearance.getString(AccentPalette.PREFERENCE_KEY, AccentPalette.DEFAULT_ID) ?: AccentPalette.DEFAULT_ID)
         val background = if (dark) android.graphics.Color.rgb(9, 11, 15) else android.graphics.Color.rgb(246, 248, 251)
         val surface = if (dark) android.graphics.Color.rgb(22, 25, 31) else android.graphics.Color.WHITE
         val foreground = if (dark) android.graphics.Color.rgb(239, 242, 247) else android.graphics.Color.rgb(27, 31, 38)
