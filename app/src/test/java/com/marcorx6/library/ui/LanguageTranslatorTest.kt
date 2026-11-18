@@ -22,6 +22,26 @@ class LanguageTranslatorTest {
     }
 
     @Test
+    fun translatesStartupAndDownloadNotificationStringsIntoAllSupportedLanguages() {
+        val cases = listOf(
+            "بدء تشغيل النظام" to listOf("SYSTEM STARTUP", "DÉMARRAGE DU SYSTÈME", "INICIO DEL SISTEMA"),
+            "تهيئة واجهة التطبيق" to listOf("Preparing the app interface", "Préparation de l’interface", "Preparando la interfaz de la aplicación"),
+            "تجهيز مكتبتك" to listOf("Preparing your library", "Préparation de votre bibliothèque", "Preparando tu biblioteca"),
+            "تحميل عناصر البداية" to listOf("Loading startup components", "Chargement des éléments de démarrage", "Cargando los componentes iniciales"),
+            "ضبط المظهر والتفضيلات" to listOf("Applying appearance and preferences", "Application de l’apparence et des préférences", "Aplicando la apariencia y las preferencias"),
+            "إتمام التجهيزات" to listOf("Finishing setup", "Finalisation de la configuration", "Terminando la configuración"),
+            "لحظات وننطلق" to listOf("Almost ready", "Presque prêt", "Casi listo"),
+            "التنزيل متوقف مؤقتاً" to listOf("Download paused", "Téléchargement en pause", "Descarga pausada")
+        )
+        cases.forEach { (source, expected) ->
+            assertEquals(expected[0], LanguageTranslator.translate(source, "en"))
+            assertEquals(expected[1], LanguageTranslator.translate(source, "fr"))
+            assertEquals(expected[2], LanguageTranslator.translate(source, "es"))
+            assertEquals(source, LanguageTranslator.translate(source, "ar"))
+        }
+    }
+
+    @Test
     fun translatesStaticLabelsIntoAllSupportedLanguages() {
         assertEquals("Downloads", LanguageTranslator.translate("التنزيلات", "en"))
         assertEquals("Téléchargements", LanguageTranslator.translate("التنزيلات", "fr"))
