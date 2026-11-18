@@ -65,7 +65,7 @@ internal class MainLibraryInterfaceController(
     private lateinit var filters: LinearLayout
     private lateinit var countText: TextView
     private lateinit var gameList: LinearLayout
-    private var publishAction: TextView? = null
+    private var publishAction: View? = null
     private var selected: String
         get() = getSelected()
         set(value) = setSelected(value)
@@ -876,35 +876,6 @@ internal class MainLibraryInterfaceController(
 
         root.addView(gameList, LinearLayout.LayoutParams(-1, -2))
 
-        val publish = TextView(context).apply {
-            text = tr("نشر")
-            setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_action_add, 0, 0, 0)
-            compoundDrawablePadding = dp(7)
-            if (android.os.Build.VERSION.SDK_INT >= 23) compoundDrawableTintList =
-                android.content.res.ColorStateList.valueOf(AccentPalette.foregroundForColor(red))
-            textSize = 11f
-            setTextColor(AccentPalette.foregroundForColor(red))
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            gravity = Gravity.CENTER
-            background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
-                intArrayOf(red, accentShade())).apply {
-                cornerRadius = dp(15).toFloat()
-                setStroke(dp(1), Color.argb(190, Color.red(red), Color.green(red), Color.blue(red)))
-            }
-            isClickable = true
-            isFocusable = true
-            if (android.os.Build.VERSION.SDK_INT >= 23) foreground = android.graphics.drawable.RippleDrawable(
-                android.content.res.ColorStateList.valueOf(Color.argb(100, Color.red(red), Color.green(red), Color.blue(red))),
-                null,
-                GradientDrawable().apply { setColor(Color.WHITE); cornerRadius = dp(15).toFloat() }
-            )
-            setPadding(dp(18), dp(13), dp(18), dp(13))
-            elevation = dp(3).toFloat()
-            setOnClickListener { showGameDialog() }
-            visibility = if (adminSession()) View.VISIBLE else View.GONE
-        }
-        publishAction = publish
-        root.addView(publish, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(9) })
 
         applyTypography(root)
         val pageScroll = ScrollView(context).apply {
@@ -1042,6 +1013,51 @@ internal class MainLibraryInterfaceController(
             leftMargin = dp(12); rightMargin = dp(12); bottomMargin = dp(8)
         }
         shell.addView(dock, dockParams)
+
+        // Admin-only floating publish action. The same Blogger composer and its
+        // existing validation/save pipeline remain the single source of behavior.
+        val publishFab = ImageView(context).apply {
+            setImageResource(R.drawable.ic_action_add)
+            imageTintList = android.content.res.ColorStateList.valueOf(
+                AccentPalette.foregroundForColor(red)
+            )
+            scaleType = ImageView.ScaleType.CENTER
+            contentDescription = tr("نشر")
+            tooltipText = tr("نشر")
+            isClickable = true
+            isFocusable = true
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                colors = intArrayOf(red, accentShade())
+                setStroke(dp(1), Color.argb(210, Color.red(red), Color.green(red), Color.blue(red)))
+            }
+            if (android.os.Build.VERSION.SDK_INT >= 23) {
+                foreground = android.graphics.drawable.RippleDrawable(
+                    android.content.res.ColorStateList.valueOf(
+                        Color.argb(105, Color.red(red), Color.green(red), Color.blue(red))
+                    ),
+                    null,
+                    GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(Color.WHITE)
+                    }
+                )
+            }
+            elevation = dp(10).toFloat()
+            translationZ = dp(2).toFloat()
+            setOnClickListener {
+                if (adminSession()) showGameDialog() else updateAdminAction()
+            }
+            visibility = if (adminSession()) View.VISIBLE else View.GONE
+        }
+        publishAction = publishFab
+        val publishFabParams = FrameLayout.LayoutParams(dp(58), dp(58), Gravity.BOTTOM or Gravity.END).apply {
+            marginEnd = dp(18)
+            bottomMargin = dp(82)
+        }
+        // Add after the dock so the floating action remains visually above all navigation surfaces.
+        shell.addView(publishFab, publishFabParams)
         dock.post { updateDockDensity() }
 
         // Hide the floating bottom dock while the user scrolls down and reveal it
@@ -1103,6 +1119,8 @@ internal class MainLibraryInterfaceController(
             setDockVisible(!imeVisible)
             dockParams.bottomMargin = dp(8) + safeBottom
             dock.layoutParams = dockParams
+            publishFabParams.bottomMargin = dp(82) + safeBottom
+            publishFab.layoutParams = publishFabParams
             // When typing, reclaim the dock's reserved space so the focused field
             // and the final form controls remain reachable above the keyboard.
             val effectiveSafeTop = 0
