@@ -575,14 +575,16 @@ internal class MainLibraryInterfaceController(
         // on game content; do not duplicate the old MARCO/library title or actions.
 
         // Featured cover-flow sits above platform filters and uses only real library entries.
-        val featuredPlatforms = setOf("PS4", "PS3", "PS2")
+        val featuredPlatforms = setOf("PS5", "PS4", "PS3", "PS2")
         val featuredGroups = games()
             .mapNotNull { game ->
                 val platform = GameLibraryManager.normalizePlatform(game.platform)
                 if (platform in featuredPlatforms) platform to game else null
             }
             .groupBy({ it.first }, { it.second })
-        val popularByPlatform = listOf("PS4", "PS3", "PS2").flatMap { platform ->
+        // Keep the featured row deterministic and include up to three real PS5 titles
+        // whenever they exist in the locally available library.
+        val popularByPlatform = listOf("PS5", "PS4", "PS3", "PS2").flatMap { platform ->
             featuredGroups[platform].orEmpty()
                 .sortedWith(compareByDescending<Game> { it.isFavorite }.thenBy { it.name.lowercase() })
                 .take(3)
