@@ -125,7 +125,7 @@ internal class GameLibraryRenderer(
             while (renderTarget.childCount > 0) {
                 val child = renderTarget.getChildAt(0)
                 renderTarget.removeViewAt(0)
-                renderTarget.addView(child)
+                gameList.addView(child)
             }
         }
         for (i in 0 until filters.childCount) {
