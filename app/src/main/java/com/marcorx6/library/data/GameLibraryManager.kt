@@ -133,11 +133,15 @@ internal object GameLibraryManager {
     private fun allPlatformOrder(game: Game): Int {
         val platform = normalizePlatform(game.platform) ?: game.platform.trim().uppercase(Locale.ROOT)
         return when (platform) {
-            "PS5" -> 0
-            "PS4", "PS2_PORT_PS4" -> 1
-            "PS3", "PS3_ARABIC", "PS2_PORT_PS3" -> 2
-            "PS2", "PS1", "PSP" -> 3
-            else -> 4
+            "PS1" -> 0
+            "PS2" -> 1
+            "PS3", "PS2_PORT_PS3" -> 2
+            "PS4", "PS2_PORT_PS4" -> 3
+            "PS5" -> 4
+            "PS3_ARABIC" -> 5
+            "BLOG" -> 6
+            "PSP" -> 7
+            else -> 8
         }
     }
 
