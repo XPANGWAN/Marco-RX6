@@ -35,8 +35,16 @@ internal class BloggerFeedClient(
         ),
     )
 
-    fun fetch(): BloggerFeedResult {
-        val main = fetchAllPages(feedUrl)
+    fun fetch(): BloggerFeedResult = fetchProgressively { _, _ -> }
+
+    /**
+     * Emits each page as soon as it has been parsed. The callback runs on the
+     * calling (background) thread; callers must dispatch UI work themselves.
+     */
+    fun fetchProgressively(onBatch: (String, List<Game>) -> Unit): BloggerFeedResult {
+        val main = fetchAllPages(feedUrl) { page ->
+            if (page.games.isNotEmpty()) onBatch(page.blogId, page.games)
+        }
         val merged = LinkedHashMap<String, Game>()
 
         main.games.forEach { game ->
@@ -48,7 +56,13 @@ internal class BloggerFeedClient(
             val labelsToTry = (listOf(section.label) + section.fallbackLabels).distinct()
             var sectionGames = emptyList<Game>()
             for (label in labelsToTry) {
-                val result = runCatching { fetchAllPages(labelFeedUrl(label)) }.getOrNull()
+                val result = runCatching {
+                    fetchAllPages(labelFeedUrl(label)) { page ->
+                        if (page.games.isNotEmpty()) {
+                            onBatch(page.blogId.ifBlank { main.blogId }, page.games.map { it.copy(platform = section.platform) })
+                        }
+                    }
+                }.getOrNull()
                 if (result != null && result.games.isNotEmpty()) {
                     sectionGames = result.games
                     break
@@ -79,7 +93,7 @@ internal class BloggerFeedClient(
      * Blogger returns up to 100 raw entries per page. Continue while the raw
      * page is full even if the parser produced fewer Game objects from it.
      */
-    private fun fetchAllPages(url: String): BloggerFeedResult {
+    private fun fetchAllPages(url: String, onPage: (BloggerFeedResult) -> Unit = {}): BloggerFeedResult {
         val base = url.substringBefore('?')
         val query = url.substringAfter('?', "")
         val allGames = LinkedHashMap<String, Game>()
@@ -101,6 +115,7 @@ internal class BloggerFeedClient(
             val result = fetchFeed(pageUrl)
             if (blogId.isBlank()) blogId = result.blogId
             totalRawEntries += result.rawEntryCount
+            onPage(result)
             result.games.forEach { game ->
                 val key = game.sourcePostUrl.ifBlank { game.url }
                 if (key.isNotBlank()) allGames[key] = game
