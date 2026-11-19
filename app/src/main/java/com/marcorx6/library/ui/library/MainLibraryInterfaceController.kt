@@ -3,6 +3,7 @@ package com.marcorx6.library.ui.library
 import com.marcorx6.library.R
 import com.marcorx6.library.data.Game
 import com.marcorx6.library.data.GameLibraryManager
+import com.marcorx6.library.data.LibrarySectionCatalog
 
 import com.marcorx6.library.ui.*
 
