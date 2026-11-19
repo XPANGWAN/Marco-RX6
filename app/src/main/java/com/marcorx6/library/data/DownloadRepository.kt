@@ -111,7 +111,9 @@ internal class DownloadRepository(context: Context) {
                             writeText("resolving")
                         }
                         activeProbes.add(id)
-                        ensureVisibleDefaultTarget(id, title.ifBlank { "MARCO" }, hintedMimeType)
+                        // Do not create a public MediaStore file until inspection confirms
+                        // that this URL is a direct file. Landing pages must open in the
+                        // in-app WebView without touching the download destination.
                         EnqueueReservation(id = id, previous = previous)
                     }
                 }
@@ -144,6 +146,9 @@ internal class DownloadRepository(context: Context) {
                         // final redirect target (which can collapse to the provider homepage).
                         DownloadStartResult.OpenInBrowser(secureLink)
                     } else {
+                        // Allocate the visible destination only after a direct file endpoint
+                        // has been confirmed. Provider landing pages are handled by WebView.
+                        ensureVisibleDefaultTarget(id, title.ifBlank { "MARCO" }, probe.mimeType)
                         if (!SecureUrlPolicy.isAllowedDownloadUrl(probe.finalUrl)) {
                             throw SecurityException("رابط التحويل النهائي غير آمن أو يستخدم خادمًا غير موثوق")
                         }
