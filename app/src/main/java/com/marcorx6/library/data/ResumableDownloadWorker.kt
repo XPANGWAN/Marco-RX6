@@ -77,12 +77,12 @@ internal class ResumableDownloadWorker(
                 } else {
                 // Do not reset a resumed transfer to PREPARING 0%.
                 // Engines enter PREPARING only while they actually reserve storage.
-                val segmentedCompleted = SegmentedDownloadEngine.download(
+                DownloadEngineV2.download(
                     context = applicationContext,
                     item = item,
                     database = database,
                     destinationUri = destinationUri,
-                    isStopped = {
+                    shouldStop = {
                         isStopped ||
                             (DownloadConcurrencyPreferences(applicationContext).wifiOnly() && !hasWifiConnection()) ||
                             database.get(id)?.status == DownloadManager.STATUS_PAUSED ||
@@ -92,35 +92,10 @@ internal class ResumableDownloadWorker(
                         updateProgressNotification(item.title, id, downloaded, total)
                     },
                     onPreparing = { percent ->
-                        val current = database.get(id)
-                        database.preparing(
-                            id, percent, current?.totalBytes ?: -1L,
-                            current?.etag.orEmpty(), current?.lastModified.orEmpty()
-                        )
                         updatePreparingNotification(item.title, id, percent)
                     }
                 )
-                if (segmentedCompleted) Result.success() else {
-                    SequentialDownloadEngine.download(
-                        context = applicationContext,
-                        item = item,
-                        database = database,
-                        destinationUri = destinationUri,
-                        shouldStop = {
-                            isStopped ||
-                                (DownloadConcurrencyPreferences(applicationContext).wifiOnly() && !hasWifiConnection()) ||
-                                database.get(id)?.status == DownloadManager.STATUS_PAUSED ||
-                                database.get(id)?.status == DownloadDatabase.STATUS_CANCELLED
-                        },
-                        onProgress = { downloaded, total ->
-                            updateProgressNotification(item.title, id, downloaded, total)
-                        },
-                        onPreparing = { percent ->
-                            updatePreparingNotification(item.title, id, percent)
-                        }
-                    )
-                    Result.success()
-                }
+                Result.success()
                 }
             }
         } catch (error: Exception) {
