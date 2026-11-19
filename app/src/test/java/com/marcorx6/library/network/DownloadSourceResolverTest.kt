@@ -47,6 +47,7 @@ class DownloadSourceResolverTest {
         val shareUrls = listOf(
             "https://www.mediafire.com/file/abc123/game.zip/file",
             "https://mediafire.com/file/abc123/game.pkg/file",
+            "https://www.mediafire.com/file/abc123",
             "https://www.mediafire.com/download/abc123/game.iso"
         )
         shareUrls.forEach { url ->
