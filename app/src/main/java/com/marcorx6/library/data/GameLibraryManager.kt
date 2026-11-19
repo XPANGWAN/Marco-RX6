@@ -42,7 +42,8 @@ internal object GameLibraryManager {
                     genre = old.genre.ifBlank { incoming.genre },
                     releaseYear = old.releaseYear.ifBlank { incoming.releaseYear },
                     bloggerPostId = incoming.bloggerPostId,
-                    bloggerHtml = incoming.bloggerHtml
+                    bloggerHtml = incoming.bloggerHtml,
+                    bloggerLabels = incoming.bloggerLabels.ifEmpty { old.bloggerLabels }
                 )
                 updated++
             } else {
