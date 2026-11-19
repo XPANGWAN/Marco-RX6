@@ -125,7 +125,19 @@ internal object GameLibraryManager {
             "A-Z" -> filtered.sortedBy { it.name.lowercase(Locale.ROOT) }
             "FAVORITES" -> filtered.sortedByDescending { it.isFavorite }
             "NEW" -> filtered.reversed()
-            else -> filtered
+            else -> if (category == "ALL") filtered.sortedBy { allPlatformOrder(it) } else filtered
+        }
+    }
+
+    /** Stable default grouping for the All tab: newest console generations first. */
+    private fun allPlatformOrder(game: Game): Int {
+        val platform = normalizePlatform(game.platform) ?: game.platform.trim().uppercase(Locale.ROOT)
+        return when (platform) {
+            "PS5" -> 0
+            "PS4", "PS2_PORT_PS4" -> 1
+            "PS3", "PS3_ARABIC", "PS2_PORT_PS3" -> 2
+            "PS2", "PS1", "PSP" -> 3
+            else -> 4
         }
     }
 
