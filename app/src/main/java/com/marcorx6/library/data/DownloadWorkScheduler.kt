@@ -25,6 +25,20 @@ internal object DownloadWorkScheduler {
     }
 
     /**
+     * Repairs queue rows left in STATUS_SCHEDULED if Android stopped the process
+     * after SQLite reserved a slot but before WorkManager began the worker.
+     * Re-enqueueing with KEEP preserves any still-running unique work; if the old
+     * work already finished or disappeared, a fresh worker is created.
+     */
+    fun recoverAndSchedule(context: Context) {
+        val appContext = context.applicationContext
+        synchronized(lock) {
+            DownloadDatabase.get(appContext).releaseScheduled()
+            scheduleLocked(appContext, ExistingWorkPolicy.KEEP)
+        }
+    }
+
+    /**
      * Rebuilds queued work after the user's network preference changes.
      * WorkManager has no Wi-Fi-only transport constraint, so workers use CONNECTED
      * and verify the active transport before opening or writing the destination.
