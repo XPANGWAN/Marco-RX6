@@ -623,12 +623,12 @@ internal class GameLibraryRenderer(
                 renderTarget.addView(horizontal, LinearLayout.LayoutParams(-1, -2))
             }
         }
+        publishRenderedContent()
     }
 
     private fun compactCount(value: Long): String = when {
         value >= 1_000_000 -> String.format(Locale.US, "%.1fM", value / 1_000_000.0)
         value >= 1_000 -> String.format(Locale.US, "%.1fK", value / 1_000.0)
         else -> value.toString()
-        publishRenderedContent()
     }
 }
