@@ -37,6 +37,7 @@ internal class GameRepository(context: Context) {
                     .put("language", game.language)
                     .put("password", game.password)
                     .put("rights", game.rights)
+                    .put("bloggerLabels", JSONArray().apply { game.bloggerLabels.forEach(::put) })
             )
         }
         preferences.edit().putString("games", array.toString()).apply()
@@ -71,7 +72,10 @@ internal class GameRepository(context: Context) {
                         fileFormat = item.optString("fileFormat", ""),
                         language = item.optString("language", ""),
                         password = item.optString("password", ""),
-                        rights = item.optString("rights", "")
+                        rights = item.optString("rights", ""),
+                        bloggerLabels = item.optJSONArray("bloggerLabels")?.let { labels ->
+                            (0 until labels.length()).mapNotNull { labels.optString(it).takeIf(String::isNotBlank) }
+                        }.orEmpty()
                     )
                 )
             }
