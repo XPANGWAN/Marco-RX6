@@ -38,7 +38,9 @@ internal class BlogSyncController(
                             val result = merge(games)
                             added += result.first
                             updated += result.second
-                            renderGames()
+                            // Merge and persist every page immediately, but do not rebuild
+                            // the visible library for every page. Re-render once when the
+                            // complete feed has arrived to avoid repeated card flicker.
                         }
                     }
                 }
