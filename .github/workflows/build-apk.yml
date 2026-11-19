@@ -11,6 +11,7 @@ on:
       - maintenance/audit-8.16
       - feature/next-development
       - feature/blogger-proxy-integration
+      - feature/download-engine-v2
 
 permissions:
   contents: write
