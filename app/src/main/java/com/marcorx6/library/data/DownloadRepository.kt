@@ -51,7 +51,9 @@ internal class DownloadRepository(context: Context) {
         database.all().filter { it.id !in activeProbes }.forEach { item ->
             File(appContext.filesDir, "MARCO_RX6_downloads/${item.id}.probing").delete()
         }
-        DownloadWorkScheduler.schedule(appContext)
+        // Re-queue reservations left behind if Android killed the process
+        // between the SQLite slot claim and WorkManager starting its worker.
+        DownloadWorkScheduler.recoverAndSchedule(appContext)
     }
 
     private data class EnqueueReservation(
