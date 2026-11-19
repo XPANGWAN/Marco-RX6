@@ -49,6 +49,8 @@ internal object LibrarySectionCatalog {
     fun matchesPlatform(game: Game, platformId: String): Boolean {
         val canonical = GameLibraryManager.normalizePlatform(game.platform)
         if (canonical.equals(platformId, ignoreCase = true)) return true
+        if (platformId == "PS3" && canonical in setOf("PS3_ARABIC", "PS2_PORT_PS3")) return true
+        if (platformId == "PS4" && canonical == "PS2_PORT_PS4") return true
         val labels = game.bloggerLabels.map(::normalizeLabel).toSet()
         return labels.contains(normalizeLabel(platformId))
     }
