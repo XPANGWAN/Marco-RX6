@@ -136,12 +136,22 @@ internal object DownloadEngineV2 {
                     }
                 }
                 if (offset > 0L && !append) {
-                    // A server that ignores Range cannot safely resume this transfer.
-                    // Preserve the original file and checkpoint instead of silently
-                    // truncating it and downloading the entire payload again.
-                    throw IOException(
-                        "The server ignored the resume Range request. The existing file and its progress were preserved; a fresh source link or a server with byte-range support is required."
-                    )
+                    // A 200 response means the server ignored Range and is sending
+                    // the complete representation from byte zero. Restart safely
+                    // against that full response instead of retrying forever.
+                    if (code != HttpURLConnection.HTTP_OK) {
+                        throw IOException("The server did not provide a valid resume response (HTTP $code)")
+                    }
+                    if (directUri != null) {
+                        DownloadDestination.truncateDirectTarget(context, directUri, 0L)
+                    } else if (partial.exists()) {
+                        RandomAccessFile(partial, "rw").use { file ->
+                            file.setLength(0L)
+                            file.fd.sync()
+                        }
+                    }
+                    writeDurableOffset(durableProgress, 0L)
+                    offset = 0L
                 }
                 val total = when {
                     append && rangeTotal != null -> rangeTotal
