@@ -43,6 +43,35 @@ class DownloadSourceResolverTest {
     }
 
     @Test
+    fun recognizesMediaFireSharePagesAsBrowserLandingPagesNotDirectFiles() {
+        val shareUrls = listOf(
+            "https://www.mediafire.com/file/abc123/game.zip/file",
+            "https://mediafire.com/file/abc123/game.pkg/file",
+            "https://www.mediafire.com/download/abc123/game.iso"
+        )
+        shareUrls.forEach { url ->
+            assertEquals(true, DownloadSourceResolver.isKnownLandingPageUrl(url))
+            assertEquals(false, DownloadSourceResolver.isDirectDownloadEndpointUrl(url))
+        }
+    }
+
+    @Test
+    fun keepsMediaFireCdnFileEndpointsDirect() {
+        assertEquals(
+            true,
+            DownloadSourceResolver.isDirectDownloadEndpointUrl(
+                "https://download123.mediafire.com/token/game.pkg"
+            )
+        )
+        assertEquals(
+            false,
+            DownloadSourceResolver.isKnownLandingPageUrl(
+                "https://download123.mediafire.com/token/game.pkg"
+            )
+        )
+    }
+
+    @Test
     fun recognizesRootzShareLinksAsBrowserLandingPages() {
         assertEquals(
             true,
