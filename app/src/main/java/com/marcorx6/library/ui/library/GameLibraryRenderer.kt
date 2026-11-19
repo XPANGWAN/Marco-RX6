@@ -165,7 +165,7 @@ internal class GameLibraryRenderer(
             return
         }
 
-        val gridMode = selected in setOf("PS2", "PS3", "PS4", "PS3_ARABIC", "FAVORITES")
+        val gridMode = selected in setOf("PS2", "PS3", "PS4", "PS5", "PS3_ARABIC", "FAVORITES") || selected.startsWith("SECTION:")
         val sectioned = selected == "ALL" || selected == "BLOG"
         val priority = listOf("PS4", "PS3", "PS2")
         // Remove invisible bidi/zero-width marks before grouping so visually identical
