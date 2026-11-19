@@ -50,7 +50,8 @@ internal object BloggerFeedParser {
             fileFormat = extractInfoValue(content, "الصيغة"),
             language = extractInfoValue(content, "اللغة"),
             password = extractInfoValue(content, "كلمة السر"),
-            rights = extractInfoValue(content, "الحقوق")
+            rights = extractInfoValue(content, "الحقوق"),
+            bloggerLabels = extractCategoryLabels(entry)
         )
     }
 
@@ -96,6 +97,14 @@ internal object BloggerFeedParser {
         }
 
         return ""
+    }
+
+    fun extractCategoryLabels(entry: JSONObject): List<String> {
+        val categories = entry.optJSONArray("category") ?: return emptyList()
+        return (0 until categories.length()).mapNotNull { index ->
+            categories.optJSONObject(index)?.optString("term", "")?.trim()
+                ?.takeIf { it.isNotBlank() }
+        }.distinct()
     }
 
     fun platformFromCategories(entry: JSONObject): String? {
