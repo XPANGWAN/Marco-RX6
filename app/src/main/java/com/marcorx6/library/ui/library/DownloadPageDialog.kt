@@ -473,13 +473,13 @@ internal class DownloadPageDialog(
             val downloadPath = Regex("""(?:^|/)(?:download|attachment|export)(?:/|$)""", RegexOption.IGNORE_CASE)
                 .containsMatchIn(path)
             val host = uri.host.orEmpty().lowercase()
-            val providerLanding = (
+            // MediaFire share pages may contain a filename extension in their path.
+            // Keep the main/www hosts in the in-app browser; only CDN download hosts
+            // should be treated as direct file URLs.
+            if (host == "mediafire.com" || host == "www.mediafire.com") return false
+            val providerLanding =
                 (host == "drive.google.com" || host == "docs.google.com") &&
                     (path.contains("/file/d/") || (path.endsWith("/uc") && uri.getQueryParameter("id") != null))
-                ) || (
-                (host == "mediafire.com" || host.endsWith(".mediafire.com")) &&
-                    (path.contains("/file/") || path.contains("/download/"))
-                )
             return knownExtension || downloadFlag || downloadPath || providerLanding
         }
 
