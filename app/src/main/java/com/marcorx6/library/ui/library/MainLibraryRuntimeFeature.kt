@@ -134,7 +134,7 @@ internal class MainLibraryRuntimeFeature(
     fun initializePreferredPlatform() {
         viewState.selected = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
             .getString("preferred_platform", "ALL")
-            ?.takeIf { it in listOf("PS2", "PS3", "PS4") } ?: "ALL"
+            ?.takeIf { it in listOf("PS2", "PS3", "PS4", "PS5") } ?: "ALL"
     }
 
     /** Update cached constructor colors without rebuilding or navigating away from the active screen. */
