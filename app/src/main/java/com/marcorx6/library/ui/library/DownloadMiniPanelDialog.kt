@@ -259,7 +259,13 @@ internal class DownloadMiniPanelDialog(
                                 else if (seconds >= 60L) "${seconds / 60L}m ${seconds % 60L}s" else "${seconds}s"
                             " • " + translate("متبقي") + " " + eta
                         } else ""
+                        val retryError = item.error.trim()
                         row.details.text = when {
+                            retryError.isNotBlank() &&
+                                (item.status == DownloadManager.STATUS_PENDING ||
+                                    item.status == DownloadDatabase.STATUS_SCHEDULED ||
+                                    item.status == DownloadManager.STATUS_FAILED) ->
+                                translate("سبب إعادة المحاولة:") + " " + retryError
                             waitingForWifi -> translate("بانتظار اتصال Wi-Fi")
                             isPreparing -> translate("جارٍ حجز مساحة التخزين قبل بدء التنزيل")
                             else -> "$downloaded / $total$speedText$etaText"
