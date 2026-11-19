@@ -22,7 +22,8 @@ internal data class DownloadEntry(
     val sourcePostUrl: String,
     val priority: Int,
     val segmentBytes: List<Long>,
-    val preparationPercent: Int
+    val preparationPercent: Int,
+    val error: String
 )
 
 internal sealed class DownloadStartResult {
@@ -220,6 +221,7 @@ internal class DownloadRepository(context: Context) {
             sourcePostUrl = item.sourcePostUrl,
             priority = item.priority,
             preparationPercent = item.preparationPercent,
+            error = item.error,
             segmentBytes = (0 until 4).map { index ->
                 val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
                 val progress = File(directory, "${item.id}.seg$index.progress")
