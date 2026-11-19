@@ -44,12 +44,18 @@ internal object DownloadSourceResolver {
             "vik1ngfile.site", "vikingfile.site",
             "vikingfile.com", "www.vikingfile.com"
         )
+        // MediaFire share URLs are HTML landing pages, even when the path
+        // contains the game's filename and extension (for example /file/ID/game.zip/file).
+        // Only its separate download*.mediafire.com hosts are file endpoints.
         // Rootz share links use /d/{id}. Treat them as browser landing pages:
         // a preliminary HTTP GET can consume a short-lived redirect/session before
         // WebView executes the site's normal JavaScript download flow.
         val isRootzSharePage = host in setOf("rootz.so", "www.rootz.so") &&
             Regex("""^/d/[^/]+/?$""", RegexOption.IGNORE_CASE).matches(path)
-        return (isShareLandingPage && knownVikingHost) || isRootzSharePage
+        val isMediaFireLandingPage = host == "mediafire.com" ||
+            host == "www.mediafire.com"
+        return (isShareLandingPage && knownVikingHost) || isRootzSharePage ||
+            isMediaFireLandingPage
     }
 
     /**
@@ -60,6 +66,9 @@ internal object DownloadSourceResolver {
         val uri = runCatching { URI(rawUrl.trim()) }.getOrNull() ?: return false
         val host = uri.host?.lowercase(Locale.ROOT).orEmpty()
         val path = uri.path.orEmpty()
+        // MediaFire's main/www hosts serve share pages, not file bytes.
+        // CDN hosts such as download123.mediafire.com remain eligible below.
+        if (host == "mediafire.com" || host == "www.mediafire.com") return false
         if (fileExtension.containsMatchIn(path)) return true
 
         // NoPayStation serves package files from /get/.../pkg without a filename extension.
