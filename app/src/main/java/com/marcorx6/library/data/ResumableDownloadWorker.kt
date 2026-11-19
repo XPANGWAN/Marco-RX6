@@ -124,6 +124,11 @@ internal class ResumableDownloadWorker(
                 }
             }
         } catch (error: Exception) {
+            android.util.Log.e(
+                "MarcoDownloadWorker",
+                "Download $id stopped on attempt ${runAttemptCount + 1}: ${error.message ?: error.javaClass.simpleName}",
+                error
+            )
             val latest = database.get(id)
             if (latest == null || latest.status == DownloadDatabase.STATUS_CANCELLED) {
                 val directory = File(applicationContext.filesDir, "MARCO_RX6_downloads")
