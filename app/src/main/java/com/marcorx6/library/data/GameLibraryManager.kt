@@ -69,6 +69,7 @@ internal object GameLibraryManager {
             normalized == "ps2" || normalized.contains("playstation2") -> "PS2"
             normalized == "ps3" || normalized.contains("playstation3") -> "PS3"
             normalized == "ps4" || normalized.contains("playstation4") -> "PS4"
+            normalized == "ps5" || normalized.contains("playstation5") -> "PS5"
             normalized == "ps3arabic" -> "PS3_ARABIC"
             normalized == "ps2arabic" -> "PS2_ARABIC"
             normalized == "ps2ps4" -> "PS2_PORT_PS4"
@@ -99,8 +100,13 @@ internal object GameLibraryManager {
                 "FAVORITES" -> item.isFavorite
                 "BLOG" -> item.blogImported
                 else -> {
+                    val nestedSection = LibrarySectionCatalog.parseSectionKey(category)
+                    if (nestedSection != null) {
+                        LibrarySectionCatalog.matchesSection(item, nestedSection.first, nestedSection.second)
+                    } else {
                     val itemPlatform = normalizePlatform(item.platform) ?: item.platform.trim()
                     itemPlatform.equals(selectedPlatform, ignoreCase = true)
+                    }
                 }
             }
             val searchMatch = normalizedQuery.isBlank() ||
