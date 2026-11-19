@@ -167,7 +167,7 @@ internal class GameLibraryRenderer(
 
         val gridMode = selected in setOf("PS2", "PS3", "PS4", "PS5", "PS3_ARABIC", "FAVORITES") || selected.startsWith("SECTION:")
         val sectioned = selected == "ALL" || selected == "BLOG"
-        val priority = listOf("PS4", "PS3", "PS2")
+        val priority = listOf("PS1", "PS2", "PS3", "PS4", "PS5", "PS3_ARABIC", "BLOG")
         // Remove invisible bidi/zero-width marks before grouping so visually identical
         // platform names cannot produce duplicate sections in Arabic locale.
         fun canonicalPlatform(raw: String): String {
@@ -192,7 +192,7 @@ internal class GameLibraryRenderer(
 
         sections.forEach { (platform, sectionGames) ->
             val sectionTitle = when (platform) {
-                "PS3_ARABIC" -> tr("PS3 Arabic")
+                "PS3_ARABIC" -> "PS3 ARABIC"
                 else -> platform
             }
             val heading = LinearLayout(activity).apply {
