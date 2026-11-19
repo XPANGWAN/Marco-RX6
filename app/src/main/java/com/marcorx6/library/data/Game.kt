@@ -21,5 +21,6 @@ data class Game(
     val fileFormat: String = "",
     val language: String = "",
     val password: String = "",
-    val rights: String = ""
+    val rights: String = "",
+    val bloggerLabels: List<String> = emptyList()
 )
