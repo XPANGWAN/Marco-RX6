@@ -76,7 +76,8 @@ internal class BloggerGamePostFactory {
             fileFormat = fileFormat.trim(),
             language = language.trim(),
             password = password.trim(),
-            rights = rights.trim()
+            rights = rights.trim(),
+            bloggerLabels = labels.distinct()
         )
     }
 }
