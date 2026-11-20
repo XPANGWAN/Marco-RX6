@@ -235,11 +235,17 @@ internal class DownloadRepository(context: Context) {
     }
 
     fun pauseDownload(id: Long): Boolean {
-        val item = database.get(id) ?: return false
-        if (item.status == DownloadManager.STATUS_SUCCESSFUL) return false
-        // Persist PAUSED before cancelling the worker so its final completion
-        // transaction cannot overwrite the user's pause request.
-        database.status(id, DownloadManager.STATUS_PAUSED)
+        val activeStates = setOf(
+            DownloadManager.STATUS_PENDING,
+            DownloadManager.STATUS_RUNNING,
+            DownloadDatabase.STATUS_SCHEDULED,
+            DownloadDatabase.STATUS_PREPARING,
+            DownloadDatabase.STATUS_INITIALIZING,
+            DownloadDatabase.STATUS_RESOLVING
+        )
+        // The conditional update is atomic: if completion or cancellation won
+        // the race, this pause cannot overwrite that newer state.
+        if (!database.transition(id, activeStates, DownloadManager.STATUS_PAUSED)) return false
         DownloadWorkScheduler.cancel(appContext, id)
         DownloadWorkScheduler.schedule(appContext)
         return true
@@ -251,10 +257,17 @@ internal class DownloadRepository(context: Context) {
             item.status != DownloadManager.STATUS_FAILED
         ) return false
         val stillResolving = File(appContext.filesDir, "MARCO_RX6_downloads/$id.probing").isFile
-        database.status(
-            id,
-            if (stillResolving) DownloadDatabase.STATUS_RESOLVING else DownloadManager.STATUS_PENDING
-        )
+        val targetState = if (stillResolving) {
+            DownloadDatabase.STATUS_RESOLVING
+        } else {
+            DownloadManager.STATUS_PENDING
+        }
+        if (!database.transition(
+                id,
+                setOf(DownloadManager.STATUS_PAUSED, DownloadManager.STATUS_FAILED),
+                targetState
+            )
+        ) return false
         if (!stillResolving) DownloadWorkScheduler.scheduleResumed(appContext, setOf(id))
         return true
     }
@@ -267,20 +280,23 @@ internal class DownloadRepository(context: Context) {
 
     fun resumeAllDownloads(): Int {
         val ids = database.pausedOrFailedIds()
-        var schedulable = false
+        val resumedIds = mutableSetOf<Long>()
         ids.forEach { id ->
             val stillResolving = File(appContext.filesDir, "MARCO_RX6_downloads/$id.probing").isFile
-            database.status(
+            val targetState = if (stillResolving) {
+                DownloadDatabase.STATUS_RESOLVING
+            } else {
+                DownloadManager.STATUS_PENDING
+            }
+            val changed = database.transition(
                 id,
-                if (stillResolving) DownloadDatabase.STATUS_RESOLVING else DownloadManager.STATUS_PENDING
+                setOf(DownloadManager.STATUS_PAUSED, DownloadManager.STATUS_FAILED),
+                targetState
             )
-            if (!stillResolving) schedulable = true
+            if (changed && !stillResolving) resumedIds.add(id)
         }
-        if (schedulable) {
-            val resumedIds = ids.filterNot { File(appContext.filesDir, "MARCO_RX6_downloads/$it.probing").isFile }.toSet()
-            DownloadWorkScheduler.scheduleResumed(appContext, resumedIds)
-        }
-        return ids.size
+        if (resumedIds.isNotEmpty()) DownloadWorkScheduler.scheduleResumed(appContext, resumedIds)
+        return resumedIds.size
     }
 
     fun setDownloadPriority(id: Long, priority: Int): Boolean {
