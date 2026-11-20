@@ -171,6 +171,15 @@ internal class ResumableDownloadWorker(
                 // WorkRequest. Never overwrite its state with this stale worker's
                 // cancellation error; let WorkManager retire this attempt.
                 Result.retry()
+            } else if (error is InterruptedException) {
+                // The transfer loop also uses interruption for a Wi-Fi-only network
+                // transition. Treat it as a resumable stop, not a permanent failure.
+                // Do not overwrite PENDING/SCHEDULED when a replacement worker has
+                // already been queued by a fast pause/resume action.
+                if (latest.status == DownloadManager.STATUS_RUNNING) {
+                    database.status(id, DownloadManager.STATUS_PENDING, error.message ?: "Download paused")
+                }
+                Result.retry()
             } else if (error is IOException && runAttemptCount < MAX_AUTOMATIC_RETRIES) {
                 database.status(id, DownloadManager.STATUS_PENDING, error.message ?: "Network interrupted")
                 Result.retry()
