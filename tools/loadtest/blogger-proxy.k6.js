@@ -6,17 +6,14 @@ const failures = new Rate("proxy_failures");
 const responseTime = new Trend("proxy_response_time", true);
 
 const target = (__ENV.TARGET_URL || "https://marcorx6app.dpdns.org/api/games?alt=json&max-results=100").trim();
-const maxVus = Number(__ENV.MAX_VUS || "100");
+const maxVus = Number(__ENV.MAX_VUS || "10");
 const allowHighLoad = __ENV.ALLOW_HIGH_LOAD === "1";
 
 if (!/^https:\/\//i.test(target)) {
   throw new Error("TARGET_URL must be an HTTPS URL.");
 }
-if (!Number.isInteger(maxVus) || maxVus < 1 || maxVus > 500) {
-  throw new Error("MAX_VUS must be an integer from 1 to 500.");
-}
-if (maxVus > 100 && !allowHighLoad) {
-  throw new Error("MAX_VUS above 100 requires ALLOW_HIGH_LOAD=1.");
+if (!Number.isInteger(maxVus) || maxVus < 1 || maxVus > 100) {
+  throw new Error("MAX_VUS must be an integer from 1 to 100.");
 }
 
 const stages = maxVus <= 10
