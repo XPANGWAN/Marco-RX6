@@ -91,7 +91,7 @@ class MainActivity : ComponentActivity() {
             // Scaling a full library tree (many cards and cover images) adds GPU work
             // and can soften text during the transition without improving usability.
             view.alpha = 0f
-            view.translationY = dp(8).toFloat()
+            view.translationY = dp(12).toFloat()
         }
         // Apply one direction policy to every full-screen page. This prevents mixed
         // RTL/LTR roots from reversing tab order or pushing icons into adjacent labels.
@@ -155,7 +155,7 @@ class MainActivity : ComponentActivity() {
             view.animate()
                 .alpha(1f)
                 .translationY(0f)
-                .setDuration(190L)
+                .setDuration(230L)
                 .setInterpolator(android.view.animation.DecelerateInterpolator(1.2f))
                 .start()
         }
