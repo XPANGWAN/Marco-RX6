@@ -308,9 +308,15 @@ internal class DownloadRepository(context: Context) {
 
     fun retryAllFailed(): Int {
         val failed = database.all().filter { it.status == DownloadManager.STATUS_FAILED }
-        failed.forEach { database.status(it.id, DownloadManager.STATUS_PENDING) }
-        if (failed.isNotEmpty()) DownloadWorkScheduler.schedule(appContext)
-        return failed.size
+        val retried = failed.count { item ->
+            database.transition(
+                item.id,
+                setOf(DownloadManager.STATUS_FAILED),
+                DownloadManager.STATUS_PENDING
+            )
+        }
+        if (retried > 0) DownloadWorkScheduler.schedule(appContext)
+        return retried
     }
 
     fun clearCompletedDownloads(): Int = database.deleteCompleted()
