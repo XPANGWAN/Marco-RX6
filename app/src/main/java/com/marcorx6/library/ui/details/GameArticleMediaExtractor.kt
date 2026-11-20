@@ -64,7 +64,7 @@ internal object GameArticleMediaExtractor {
     private fun attributes(tag: String): Map<String, String> {
         val result = mutableMapOf<String, String>()
         attribute.findAll(tag).forEach { match ->
-            val value = (1..3).firstNotNullOfOrNull { match.groups[it]?.value } ?: ""
+            val value = (2..4).firstNotNullOfOrNull { match.groups[it]?.value } ?: ""
             result[match.groupValues[1].lowercase()] = decode(value)
         }
         return result
