@@ -111,6 +111,15 @@ internal class GameDetailsFeature(
         submitRating = submitRating
     )
 
+    private val articleMediaViewFactory = GameArticleMediaViewFactory(
+        activity = activity,
+        dp = dp,
+        isDarkMode = isDarkMode,
+        makeText = makeText,
+        primary = white,
+        loadCover = loadCover
+    )
+
     private val similarGamesViewFactory = GameSimilarGamesViewFactory(
         activity = activity,
         dp = dp,
@@ -133,6 +142,7 @@ internal class GameDetailsFeature(
         ratingViewFactory = ratingViewFactory,
         recordViewOnce = recordViewOnce,
         similarGamesViewFactory = similarGamesViewFactory,
+        articleMediaViewFactory = articleMediaViewFactory,
         downloadLinksViewFactory = downloadLinksViewFactory,
         isAdmin = isAdmin,
         showGameDialog = showGameDialog,
