@@ -145,9 +145,6 @@ internal class ResumableDownloadWorker(
                     onProgress = { downloaded, total ->
                         updateProgressNotification(item.title, id, downloaded, total)
                     },
-                    onPreparing = { percent ->
-                        updatePreparingNotification(item.title, id, percent)
-                    }
                 )
                 Result.success()
                 }
@@ -259,27 +256,6 @@ internal class ResumableDownloadWorker(
         }
         updateProgressNotification(item.title, id, total, total)
         return true
-    }
-
-    private fun updatePreparingNotification(title: String, downloadId: Long, percent: Int = 100) {
-        val language = applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-            .getString("language", "ar") ?: "ar"
-        val localize: (String) -> String = { LanguageTranslator.translate(it, language) }
-        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher)
-            .setContentTitle(title.ifBlank { "MARCO" })
-            .setContentText("${localize("جارٍ تجهيز الملف")} ${percent.coerceIn(0, 100)}%")
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setProgress(100, percent.coerceIn(0, 100), false)
-            .setContentIntent(openAppPendingIntent(applicationContext, downloadId))
-            .addAction(android.R.drawable.ic_media_pause, localize("إيقاف مؤقت"),
-                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_PAUSE))
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, localize("إلغاء"),
-                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_CANCEL))
-            .build()
-        val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(notificationId(downloadId), notification)
     }
 
     private fun updateProgressNotification(title: String, downloadId: Long, downloaded: Long, total: Long) {
