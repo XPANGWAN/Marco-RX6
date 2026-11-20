@@ -349,6 +349,32 @@ internal class DownloadDatabase private constructor(context: Context) :
         }, "id=?", arrayOf(id.toString()))
     }
 
+    /**
+     * Atomically changes a queue state only when it is still one of the
+     * expected states. This prevents an old worker from overwriting a newer
+     * pause, resume, cancellation, or completion decision.
+     */
+    @Synchronized
+    fun transition(
+        id: Long,
+        expectedStatuses: Set<Int>,
+        newStatus: Int,
+        error: String = ""
+    ): Boolean {
+        if (expectedStatuses.isEmpty()) return false
+        val placeholders = expectedStatuses.joinToString(",") { "?" }
+        val args = arrayOf(id.toString()) + expectedStatuses.map(Int::toString).toTypedArray()
+        return writableDatabase.update(
+            "downloads",
+            ContentValues().apply {
+                put("status", newStatus)
+                put("error", error)
+            },
+            "id=? AND status IN ($placeholders)",
+            args
+        ) == 1
+    }
+
     @Synchronized
     fun setPriority(id: Long, priority: Int) {
         writableDatabase.update("downloads", ContentValues().apply { put("priority", priority.coerceIn(0, 2)) }, "id=?", arrayOf(id.toString()))
