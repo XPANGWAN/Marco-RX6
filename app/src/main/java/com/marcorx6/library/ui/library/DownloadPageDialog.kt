@@ -478,7 +478,7 @@ internal class DownloadPageDialog(
         fun isDirectFileUrl(url: String): Boolean {
             val uri = try { Uri.parse(url) } catch (_: Exception) { return false }
             val path = uri.path.orEmpty().lowercase()
-            val knownExtension = Regex("""\.(zip|7z|rar|iso|pkg|bin|cue|chd|img|pbp|cso|nsp|xci|apk|pdf|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg)$""", RegexOption.IGNORE_CASE).containsMatchIn(path)
+            val knownExtension = Regex("""\.(apk|xapk|apks|aab|exe|msi|dmg|deb|rpm|zip|7z|rar|r00|tar|tgz|gz|bz2|xz|zst|iso|img|bin|cue|chd|pkg|pbp|cso|nsp|xci|3ds|cia|wad|wbfs|rvz|gcz|nes|sfc|smc|gba|gbc|gb|nds|n64|z64|v64|torrent|pdf|epub|mobi|doc|docx|xls|xlsx|ppt|pptx|txt|csv|json|xml|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg|opus)$""", RegexOption.IGNORE_CASE).containsMatchIn(path)
             val downloadFlag = listOf("download", "attachment", "file", "export").any { key ->
                 uri.getQueryParameter(key)?.let { value ->
                     value.equals("1", true) || value.equals("true", true) ||
@@ -544,10 +544,10 @@ internal class DownloadPageDialog(
                     if (window.__marcoDownloadDirty === false) return '[]';
                     window.__marcoDownloadDirty = false;
                     var out=[], seen=Object.create(null);
-                    var ext=/\.(zip|7z|rar|iso|pkg|bin|cue|chd|img|pbp|cso|nsp|xci|apk|pdf|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg)$/i;
+                    var ext=/\.(apk|xapk|apks|aab|exe|msi|dmg|deb|rpm|zip|7z|rar|r00|tar|tgz|gz|bz2|xz|zst|iso|img|bin|cue|chd|pkg|pbp|cso|nsp|xci|3ds|cia|wad|wbfs|rvz|gcz|nes|sfc|smc|gba|gbc|gb|nds|n64|z64|v64|torrent|pdf|epub|mobi|doc|docx|xls|xlsx|ppt|pptx|txt|csv|json|xml|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg|opus)$/i;
                     var words=/(download|تحميل|تنزيل|رابط مباشر|direct|download file)/i;
                     var endpoint=/(?:^|\/)(download|downloads|attachment|file|export|raw)(?:\/|$)/i;
-                    var selectors='a[href],a[data-href],a[data-url],[data-download-url],[data-file-url],form[action],video[src],video source[src],audio[src],audio source[src],button[data-href],button[data-url],button[data-download-url],[role="button"][data-href],[role="button"][data-url],input[formaction]';
+                    var selectors='a[href],a[data-href],a[data-url],a[data-link],a[data-file],[data-download-url],[data-file-url],[data-download],[data-link],[data-file],form[action],video[src],video source[src],audio[src],audio source[src],button[data-href],button[data-url],button[data-link],button[data-download-url],[role="button"][data-href],[role="button"][data-url],[onclick],input[formaction]';
                     function fileNameFor(el,fallback){
                         var node=el;
                         for(var depth=0;node&&depth<6;depth++,node=node.parentElement){
@@ -567,6 +567,12 @@ internal class DownloadPageDialog(
                                         (named.innerText||named.textContent||'').trim();
                                     if(value&&ext.test(value.trim())) return value.trim();
                                 }
+                                var lines=(node.innerText||node.textContent||'').split(/[\r\n]+/);
+                                for(var i=0;i<lines.length;i++){
+                                    var line=lines[i].trim();
+                                    if(line.length<2||line.length>180) continue;
+                                    if(ext.test(line)) return line;
+                                }
                             }
                         }
                         return fallback||'';
@@ -584,10 +590,14 @@ internal class DownloadPageDialog(
                         } catch(e) {}
                     }
                     document.querySelectorAll(selectors).forEach(function(e){
+                        var click=e.getAttribute('onclick')||'';
+                        var clickMatch=/(?:location(?:\.href)?\s*=|window\.open\s*\(|(?:url|href|downloadUrl)\s*[:=])\s*['"]([^'"]+)['"]/i.exec(click);
                         var h=e.getAttribute('href') || e.getAttribute('data-href') ||
-                            e.getAttribute('data-url') || e.getAttribute('data-download-url') ||
-                            e.getAttribute('data-file-url') || e.getAttribute('action') ||
-                            e.getAttribute('formaction') || e.getAttribute('src') || '';
+                            e.getAttribute('data-url') || e.getAttribute('data-link') ||
+                            e.getAttribute('data-file') || e.getAttribute('data-download-url') ||
+                            e.getAttribute('data-file-url') || e.getAttribute('data-download') ||
+                            e.getAttribute('action') || e.getAttribute('formaction') ||
+                            e.getAttribute('src') || (clickMatch&&clickMatch[1]) || '';
                         var t=(e.innerText||e.textContent||e.getAttribute('aria-label')||e.getAttribute('title')||'').trim();
                         // Folder providers can put the real filename beside a separate
                         // Download button; use the containing row's filename when present.
@@ -597,8 +607,12 @@ internal class DownloadPageDialog(
                         var media=tag==='VIDEO'||tag==='AUDIO'||tag==='SOURCE';
                         var p=h.toLowerCase().split('?')[0];
                         if(media || d || words.test(t) || ext.test(p) || endpoint.test(p) ||
-                            e.hasAttribute('data-download-url') || e.hasAttribute('data-file-url')) {
-                            add(h,t,d||media||e.hasAttribute('data-download-url')||e.hasAttribute('data-file-url'));
+                            e.hasAttribute('data-download-url') || e.hasAttribute('data-file-url') ||
+                            e.hasAttribute('data-download') || e.hasAttribute('data-link') ||
+                            e.hasAttribute('data-file') || !!clickMatch) {
+                            add(h,t,d||media||e.hasAttribute('data-download-url')||
+                                e.hasAttribute('data-file-url')||e.hasAttribute('data-download')||
+                                e.hasAttribute('data-link')||e.hasAttribute('data-file')||!!clickMatch);
                         }
                     });
                     return JSON.stringify(out);
