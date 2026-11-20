@@ -40,18 +40,15 @@ internal object DownloadEngineV2 {
             } else if (partial.exists()) {
                 readDurableOffset(durableProgress, item.downloadedBytes, partial.length())
             } else 0L
-            if (directUri != null && offset == 0L && directSize > 0L) {
-                DownloadDestination.truncateDirectTarget(context, directUri, 0L)
-                directSize = 0L
-            } else if (directUri != null && !DownloadDestination.isMediaStoreTarget(directUri) && directSize > offset) {
+            if (directUri != null && directSize > offset) {
                 try {
+                    // Applies to MediaStore as well as SAF: a pause can leave bytes
+                    // beyond the last fsynced checkpoint. Trim that uncommitted tail
+                    // before issuing Range, otherwise stale bytes may survive EOF.
                     DownloadDestination.truncateDirectTarget(context, directUri, offset)
                 } catch (error: Exception) {
-                    // SAF providers are not required to support truncation. Never
-                    // erase a resumable file or its checkpoint as a fallback: that
-                    // turns a provider limitation into a silent full restart.
                     throw IOException(
-                        "The selected storage provider cannot safely trim uncommitted bytes. The original file and resume checkpoint were preserved.",
+                        "The destination cannot safely trim bytes beyond the saved resume checkpoint. The original file and checkpoint were preserved.",
                         error
                     )
                 }
@@ -113,7 +110,13 @@ internal object DownloadEngineV2 {
                 val responseLength = connection.getHeaderFieldLong("Content-Length", -1L)
                 val contentRange = DownloadTransferProtocol.parseContentRange(connection.getHeaderField("Content-Range").orEmpty())
                 val rangeTotal = contentRange?.total
-    
+
+                if (offset == 0L && code == HttpURLConnection.HTTP_PARTIAL &&
+                    !DownloadTransferProtocol.isCompleteInitialResponse(code, contentRange, responseLength)
+                ) {
+                    throw IOException("The server returned only part of the file before the download had started")
+                }
+
                 if (append) {
                     val verifiedAppend = DownloadTransferProtocol.canAppend(
                         requestedOffset = offset,
@@ -154,7 +157,7 @@ internal object DownloadEngineV2 {
                     offset = 0L
                 }
                 val total = when {
-                    append && rangeTotal != null -> rangeTotal
+                    rangeTotal != null && code == HttpURLConnection.HTTP_PARTIAL -> rangeTotal
                     responseLength >= 0L -> responseLength
                     else -> -1L
                 }
