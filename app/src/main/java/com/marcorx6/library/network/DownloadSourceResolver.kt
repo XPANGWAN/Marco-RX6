@@ -54,14 +54,45 @@ internal object DownloadSourceResolver {
             Regex("""^/d/[^/]+/?$""", RegexOption.IGNORE_CASE).matches(path)
         val isMediaFireLandingPage = host == "mediafire.com" ||
             host == "www.mediafire.com"
-        // Link-Vault uses short /c/{code} URLs as redirect/confirmation pages.
-        // Treat the page as a browser destination and avoid consuming its
-        // session/redirect with the repository's preliminary HTTP probe.
-        val isLinkVaultLandingPage = (
-            host == "link-vault.org" || host.endsWith(".link-vault.org")
-        ) && Regex("""^/c/[^/]+/?$""", RegexOption.IGNORE_CASE).matches(path)
         return (isShareLandingPage && knownVikingHost) || isRootzSharePage ||
-            isMediaFireLandingPage || isLinkVaultLandingPage
+            isMediaFireLandingPage
+    }
+
+    /**
+     * Generic fallback for unknown hosts: opaque HTTPS URLs are presumed to be
+     * browser pages unless their path, query, or response hints identify a file.
+     * This avoids a speculative GET that can consume one-time redirect tokens.
+     */
+    fun shouldOpenInBrowserBeforeProbe(
+        rawUrl: String,
+        hintedMimeType: String = "",
+        hintedDisposition: String = ""
+    ): Boolean {
+        if (isKnownLandingPageUrl(rawUrl)) return true
+        if (isDirectDownloadEndpointUrl(rawUrl)) return false
+        if (hintedDisposition.contains("attachment", ignoreCase = true)) return false
+        val mime = hintedMimeType.substringBefore(';').trim().lowercase(Locale.ROOT)
+        if (mime.isNotBlank() && mime !in setOf(
+                "text/html", "application/xhtml+xml", "application/json",
+                "application/xml", "text/plain"
+            ) && !mime.startsWith("text/")
+        ) return false
+
+        val uri = runCatching { URI(rawUrl.trim()) }.getOrNull() ?: return true
+        val path = uri.path.orEmpty()
+        val query = uri.rawQuery.orEmpty()
+        val explicitDownloadRoute = Regex(
+            """(?:^|/)(?:download|downloads|attachment|export|download-file|downloadfile|dl|raw)(?:/|$)""",
+            RegexOption.IGNORE_CASE
+        ).containsMatchIn(path)
+        val explicitDownloadQuery = Regex(
+            """(?:^|&)(?:download|attachment|export|dl)=(?:1|true|yes|download)(?:&|$)""",
+            RegexOption.IGNORE_CASE
+        ).containsMatchIn(query)
+        if (explicitDownloadRoute || explicitDownloadQuery) return false
+        // No file extension or explicit transfer marker: let WebView follow the
+        // site's own JavaScript, cookies, confirmation steps and redirects.
+        return true
     }
 
     /**
