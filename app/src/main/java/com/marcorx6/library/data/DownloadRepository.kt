@@ -255,7 +255,7 @@ internal class DownloadRepository(context: Context) {
             id,
             if (stillResolving) DownloadDatabase.STATUS_RESOLVING else DownloadManager.STATUS_PENDING
         )
-        if (!stillResolving) DownloadWorkScheduler.schedule(appContext)
+        if (!stillResolving) DownloadWorkScheduler.scheduleResumed(appContext, setOf(id))
         return true
     }
 
@@ -276,7 +276,10 @@ internal class DownloadRepository(context: Context) {
             )
             if (!stillResolving) schedulable = true
         }
-        if (schedulable) DownloadWorkScheduler.schedule(appContext)
+        if (schedulable) {
+            val resumedIds = ids.filterNot { File(appContext.filesDir, "MARCO_RX6_downloads/$it.probing").isFile }.toSet()
+            DownloadWorkScheduler.scheduleResumed(appContext, resumedIds)
+        }
         return ids.size
     }
 
