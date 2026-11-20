@@ -12,7 +12,9 @@
     <img src="https://img.shields.io/badge/KOTLIN-2.x-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin">
   </p>
   <p>
-    <a href="https://github.com/XPANGWAN/Marco-RX6/releases/latest"><strong>⬇ DOWNLOAD</strong></a>
+    <a href="https://marcorx6app.dpdns.org/#download"><strong>⬇ OFFICIAL WEBSITE DOWNLOAD</strong></a>
+    &nbsp; • &nbsp;
+    <a href="https://github.com/XPANGWAN/Marco-RX6/releases/latest"><strong>GITHUB RELEASES</strong></a>
     &nbsp; • &nbsp;
     <a href="https://t.me/MARCO_RX1"><strong>TELEGRAM</strong></a>
     &nbsp; • &nbsp;
@@ -69,7 +71,8 @@ The screenshot gallery will be added here when the project images are ready.
 
 <div align="center">
   <h3>MARCO RX6 V8.32</h3>
-  <p>Choose the package that matches your Android device.</p>
+  <p><a href="https://marcorx6app.dpdns.org/#download"><strong>⬇ Download from the Official MARCO RX6 Website</strong></a></p>
+  <p>Or choose a direct GitHub APK package that matches your Android device.</p>
   <a href="https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.32/app-arm64-v8a-release.apk"><img src="https://img.shields.io/badge/ARM64-Download-1677ff?style=for-the-badge&logo=android&logoColor=white" alt="Download ARM64 APK"></a>
   <a href="https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.32/app-armeabi-v7a-release.apk"><img src="https://img.shields.io/badge/ARM32-Download-777777?style=for-the-badge&logo=android&logoColor=white" alt="Download ARM32 APK"></a>
   <a href="https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.32/app-universal-release.apk"><img src="https://img.shields.io/badge/UNIVERSAL-Download-333333?style=for-the-badge&logo=android&logoColor=white" alt="Download Universal APK"></a>
@@ -169,6 +172,7 @@ MARCO RX6 تطبيق Android يساعدك على استكشاف كتالوج ا�
 | **PS2** | PlayStation 2 |
 | **PS3** | PlayStation 3 |
 | **PS4** | PlayStation 4 |
+| **PS5** | PlayStation 5 |
 
 ## ◈ اللغات
 
@@ -186,7 +190,13 @@ MARCO RX6 تطبيق Android يساعدك على استكشاف كتالوج ا�
 
 ## ⬇ التحميل — V8.32
 
-اختر الحزمة المناسبة لمعمارية جهازك:
+<div align="right" dir="rtl">
+
+**[⬇ التحميل من الموقع الرسمي لـ MARCO RX6]( https://marcorx6app.dpdns.org/#download )**
+
+أو اختر حزمة APK مباشرة من GitHub حسب معمارية جهازك:
+
+</div>
 
 | الحزمة | مناسبة لـ | رابط التحميل |
 |---|---|---|
