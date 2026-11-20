@@ -577,6 +577,9 @@ internal class DownloadPageDialog(
             }
         }
 
+        // Tracks WebView renderer lifetime for the periodic scanner and lifecycle callbacks.
+        var rendererGone = false
+
         // Re-scan only while the browser is visible. The observer keeps the
         // repeated scan cheap by returning immediately when the DOM is unchanged.
         val dynamicScanRunnable = object : Runnable {
@@ -853,7 +856,6 @@ internal class DownloadPageDialog(
                 if (newlyApplied > 0) recordBlocked(newlyApplied)
             }
         }
-        var rendererGone = false
         var lastAdRedirectWarningAt = 0L
         fun warnBlockedAdRedirect() {
             val now = android.os.SystemClock.elapsedRealtime()
