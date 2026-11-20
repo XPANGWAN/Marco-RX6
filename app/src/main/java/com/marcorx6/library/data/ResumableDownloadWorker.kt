@@ -27,8 +27,40 @@ internal class ResumableDownloadWorker(
     override suspend fun doWork(): Result {
         val id = inputData.getLong(KEY_ID, -1L)
         if (id <= 0L) return Result.failure()
-        val lease = DownloadExecutionLock.acquire(applicationContext, id) ?: return Result.retry()
-        return lease.use { doWorkWithId(id) }
+
+        val database = DownloadDatabase.get(applicationContext)
+        val queuedItem = database.get(id) ?: run {
+            DownloadWorkScheduler.schedule(applicationContext)
+            return Result.failure()
+        }
+        if (queuedItem.status == DownloadManager.STATUS_PAUSED) {
+            DownloadWorkScheduler.schedule(applicationContext)
+            return Result.success()
+        }
+
+        // Enter foreground before waiting for the per-download writer lease.
+        // Previously a lease collision returned Result.retry() before any
+        // foreground notification existed, which looked like a silent stuck job.
+        setForeground(createForegroundInfo(queuedItem.title, id))
+
+        // A replacement worker can briefly overlap the previous worker after
+        // pause/resume or process recovery. Wait for its OS file lock instead of
+        // immediately cycling through WorkManager backoff with no visible signal.
+        var lease: DownloadExecutionLock.Lease? = null
+        repeat(60) {
+            if (isStopped) return Result.retry()
+            lease = DownloadExecutionLock.acquire(applicationContext, id)
+            if (lease != null) return@repeat
+            kotlinx.coroutines.delay(250L)
+        }
+        val acquired = lease ?: run {
+            android.util.Log.w(
+                "MarcoDownloadWorker",
+                "Download $id could not acquire its writer lease after 15 seconds; WorkManager will retry."
+            )
+            return Result.retry()
+        }
+        return acquired.use { doWorkWithId(id) }
     }
 
     private suspend fun doWorkWithId(id: Long): Result {
@@ -55,7 +87,6 @@ internal class ResumableDownloadWorker(
             if (!database.markRunning(id)) {
                 Result.success()
             } else {
-                setForeground(createForegroundInfo(item.title, id))
                 // Ensure legacy and newly queued jobs both have a published final
                 // MediaStore row before any network capability probe starts.
                 val selectedTree = DownloadStoragePreferences(applicationContext).treeUri()
