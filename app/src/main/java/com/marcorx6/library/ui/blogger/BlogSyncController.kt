@@ -10,7 +10,7 @@ internal class BlogSyncController(
     private val executor: Executor,
     private val isSyncing: () -> Boolean,
     private val setSyncing: (Boolean) -> Unit,
-    private val fetch: () -> Pair<String, List<Game>>,
+    private val fetch: (onBatch: (String, List<Game>) -> Unit) -> String,
     private val postToUi: (() -> Unit) -> Unit,
     private val merge: (List<Game>) -> Pair<Int, Int>,
     private val setBlogId: (String) -> Unit,
@@ -26,18 +26,33 @@ internal class BlogSyncController(
         setSyncing(true)
         if (showResult) Toast.makeText(context, translate("جارٍ الاتصال بمدونة MARCO RX6..."), Toast.LENGTH_SHORT).show()
         executor.execute {
+            var added = 0
+            var updated = 0
+            var receivedBatches = 0
             try {
-                val (blogId, importedGames) = fetch()
+                val blogId = fetch { batchBlogId, games ->
+                    if (games.isNotEmpty()) {
+                        receivedBatches++
+                        postToUi {
+                            if (batchBlogId.isNotBlank()) setBlogId(batchBlogId)
+                            val result = merge(games)
+                            added += result.first
+                            updated += result.second
+                            // Merge and persist every page immediately, but do not rebuild
+                            // the visible library for every page. Re-render once when the
+                            // complete feed has arrived to avoid repeated card flicker.
+                        }
+                    }
+                }
                 postToUi {
-                    setBlogId(blogId)
-                    val result = merge(importedGames)
+                    if (blogId.isNotBlank()) setBlogId(blogId)
                     setSyncing(false)
                     refreshAccess()
                     renderGames()
                     if (showResult) {
                         Toast.makeText(
                             context,
-                            "${translate("اكتملت المزامنة")}: ${translate("تمت إضافة")} ${result.first} ${translate("وتحديث")} ${result.second}",
+                            "${translate("اكتملت المزامنة")}: ${translate("تمت إضافة")} $added ${translate("وتحديث")} $updated",
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -45,12 +60,17 @@ internal class BlogSyncController(
             } catch (_: Exception) {
                 postToUi {
                     setSyncing(false)
+                    if (receivedBatches > 0) {
+                        refreshAccess()
+                        renderGames()
+                    }
                     if (showResult) {
-                        Toast.makeText(
-                            context,
-                            translate("تعذرت المزامنة. تحقق من اتصال الإنترنت وحاول مجدداً."),
-                            Toast.LENGTH_LONG
-                        ).show()
+                        val message = if (receivedBatches > 0) {
+                            translate("تم تحميل جزء من المكتبة. تحقق من الاتصال لإكمال التحديث.")
+                        } else {
+                            translate("تعذرت المزامنة. تحقق من اتصال الإنترنت وحاول مجدداً.")
+                        }
+                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                     }
                 }
             }

@@ -15,6 +15,13 @@ internal object DownloadTransferProtocol {
         return ContentRange(start, end, total)
     }
 
+    /** Accept an unsolicited 206 only when it contains the entire representation. */
+    fun isCompleteInitialResponse(responseStatus: Int, range: ContentRange?, contentLength: Long): Boolean {
+        if (responseStatus != 206 || range == null || range.start != 0L) return false
+        if (range.endInclusive != range.total - 1L) return false
+        return contentLength < 0L || contentLength == range.length
+    }
+
     fun canAppend(requestedOffset: Long, responseStatus: Int, range: ContentRange?, contentLength: Long,
                   expectedEtag: String, responseEtag: String, expectedLastModified: String, responseLastModified: String): Boolean {
         if (requestedOffset <= 0L || responseStatus != 206 || range == null || range.start != requestedOffset) return false

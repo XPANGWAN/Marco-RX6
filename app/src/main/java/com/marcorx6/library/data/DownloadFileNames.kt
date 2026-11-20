@@ -7,10 +7,18 @@ import java.util.Locale
 
 /** Resolves a stable, sanitized filename and preserves a usable file extension. */
 internal object DownloadFileNames {
+    // Keep filename recognition aligned with DownloadSourceResolver. A link may
+    // be correctly identified as a file while the filename layer still drops its
+    // real extension; that mismatch produces generic names or the wrong MIME suffix.
     private val knownExtensions = setOf(
-        "apk", "zip", "7z", "rar", "iso", "pkg", "bin", "cue", "chd", "img",
-        "pbp", "cso", "nsp", "xci", "pdf", "mp4", "m4v", "mkv", "webm",
-        "mov", "avi", "flv", "3gp", "mp3", "m4a", "aac", "wav", "flac", "ogg"
+        "apk", "xapk", "apks", "aab", "exe", "msi", "dmg", "deb", "rpm",
+        "zip", "7z", "rar", "r00", "tar", "tgz", "gz", "bz2", "xz", "zst",
+        "iso", "img", "bin", "cue", "chd", "pkg", "pbp", "cso", "nsp", "xci",
+        "3ds", "cia", "wad", "wbfs", "rvz", "gcz", "nes", "sfc", "smc",
+        "gba", "gbc", "gb", "nds", "n64", "z64", "v64", "torrent",
+        "pdf", "epub", "mobi", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+        "txt", "csv", "json", "xml", "mp4", "m4v", "mkv", "webm", "mov",
+        "avi", "flv", "3gp", "mp3", "m4a", "aac", "wav", "flac", "ogg", "opus"
     )
 
     fun fromResponse(disposition: String?, url: String): String? {
@@ -35,6 +43,39 @@ internal object DownloadFileNames {
         return urlExtensionName(url)
     }
 
+    /**
+     * Prefer the app's game title when the server reports a contradictory filename.
+     * A response such as "Empty.bin" must not replace a known game title "Marco.pkg",
+     * and a URL ending in .pkg must not inherit a conflicting .bin response suffix.
+     */
+    fun resolvePreferredName(
+        preferredTitle: String,
+        responseName: String?,
+        mimeType: String,
+        id: Long,
+        sourceUrl: String = ""
+    ): String {
+        val preferred = clean(preferredTitle).ifBlank { "download_$id" }
+        val response = responseName?.let(::clean).orEmpty()
+        val preferredExtension = knownExtension(preferred)
+        val responseExtension = knownExtension(response)
+        val urlExtension = extensionFromUrl(sourceUrl)
+        val chosen = when {
+            preferredExtension != null && responseExtension != null &&
+                preferredExtension != responseExtension -> preferred
+            urlExtension != null && responseExtension != null &&
+                urlExtension != responseExtension -> preferred
+            response.isNotBlank() -> response
+            else -> preferred
+        }
+        return safeName(chosen, mimeType, id, sourceUrl)
+    }
+
+    private fun knownExtension(name: String): String? {
+        val extension = name.substringAfterLast('.', "").lowercase(Locale.ROOT)
+        return extension.takeIf { it in knownExtensions }
+    }
+
     /** Generic octet-stream responses are not reliable MIME extension sources. */
     fun safeName(value: String, mimeType: String, id: Long, sourceUrl: String = ""): String {
         var name = clean(value).replace(Regex("""[\u0000-\u001F\u007F/\\:*?"<>|]"""), "_")
@@ -53,13 +94,23 @@ internal object DownloadFileNames {
     private fun extensionFromUrl(url: String): String? {
         if (url.isBlank()) return null
         val decoded = decodePathSegment(lastPathSegment(url))
-        val extension = decoded.substringAfterLast('.', "").lowercase(Locale.ROOT)
-        return extension.takeIf { it in knownExtensions }
+        val lastSegment = decoded.substringAfter('/')
+        val extension = lastSegment.substringAfterLast('.', "").lowercase(Locale.ROOT)
+        // Some gateways encode the file type as the final path segment,
+        // e.g. /get/.../pkg?version=1.01, rather than a filename suffix.
+        return when {
+            extension in knownExtensions -> extension
+            lastSegment.lowercase(Locale.ROOT) in knownExtensions -> lastSegment.lowercase(Locale.ROOT)
+            else -> null
+        }
     }
 
     private fun urlExtensionName(url: String): String? {
         val decoded = decodePathSegment(lastPathSegment(url))
-        return decoded.takeIf { extensionFromUrl(url) != null }?.let(::clean)
+        // An extension-only endpoint such as /.../pkg is not a filename.
+        // Let safeName append that extension to the game title instead.
+        val suffix = decoded.substringAfterLast('.', "").lowercase(Locale.ROOT)
+        return decoded.takeIf { suffix in knownExtensions }?.let(::clean)
     }
 
     /**
@@ -81,6 +132,7 @@ internal object DownloadFileNames {
         if (mime.isBlank() || mime == "application/octet-stream") return null
         val knownMime = when (mime) {
             "application/vnd.android.package-archive" -> "apk"
+            "application/vnd.playstation.pkg", "application/x-pkg" -> "pkg"
             "application/zip", "application/x-zip-compressed" -> "zip"
             else -> null
         }

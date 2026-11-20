@@ -13,7 +13,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 
 /** One-time welcome screen linking new users to the official MARCO communities. */
 internal class CommunityChannelsController(
@@ -76,8 +75,12 @@ internal class CommunityChannelsController(
             }
             root.addView(button, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(12) })
         }
-        channelButton("Telegram", "MARCO RX1", TELEGRAM_URL)
-        channelButton("YouTube", "MARCO RX7", YOUTUBE_URL)
+        channelButton("PlayStation 3", "@MARCO_RX1", PS3_TELEGRAM_URL)
+        channelButton("PlayStation 4", "@MARCO_RX3", PS4_TELEGRAM_URL)
+        channelButton("PlayStation 5", "@MARCO_RX9", PS5_TELEGRAM_URL)
+        channelButton("مجتمع MARCO", "@MARCO_RX2", COMMUNITY_TELEGRAM_URL)
+        channelButton("YouTube", "@marco_rx7", YOUTUBE_URL)
+
         val continueButton = Button(activity).apply {
             text = translate("متابعة إلى التطبيق")
             isAllCaps = false
@@ -114,7 +117,10 @@ internal class CommunityChannelsController(
     }
 
     companion object {
-        const val TELEGRAM_URL = "https://t.me/MARCO_RX1"
+        const val PS3_TELEGRAM_URL = "https://t.me/MARCO_RX1"
+        const val PS4_TELEGRAM_URL = "https://t.me/MARCO_RX3"
+        const val PS5_TELEGRAM_URL = "https://t.me/MARCO_RX9"
+        const val COMMUNITY_TELEGRAM_URL = "https://t.me/MARCO_RX2"
         const val YOUTUBE_URL = "https://youtube.com/@marco_rx7?si=udXm_y-QFIZIzZ6a"
     }
 }

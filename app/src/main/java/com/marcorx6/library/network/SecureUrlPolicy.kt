@@ -60,8 +60,20 @@ internal object SecureUrlPolicy {
                 (a == 198 && b in 18..19) ||
                 a >= 224
         }
+        // Reject non-canonical numeric IPv4 spellings such as 127.1 or
+        // octal dotted forms; URL stacks may resolve these to loopback/private IPs.
+        if (host.all { it.isDigit() || it == '.' }) return true
 
         if (host.contains(':')) {
+            // IPv4-mapped IPv6 literals (for example ::ffff:127.0.0.1)
+            // must receive the same private-address checks as ordinary IPv4.
+            val address = runCatching { java.net.InetAddress.getByName(host) }.getOrNull()
+            if (address != null && (
+                    address.isAnyLocalAddress || address.isLoopbackAddress ||
+                        address.isLinkLocalAddress || address.isSiteLocalAddress ||
+                        address.isMulticastAddress
+                    )
+            ) return true
             return host == "::" || host == "::1" ||
                 host.startsWith("fc") || host.startsWith("fd") ||
                 host.startsWith("fe8") || host.startsWith("fe9") ||

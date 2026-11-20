@@ -20,7 +20,34 @@ internal object DownloadWorkScheduler {
     fun schedule(context: Context) {
         val appContext = context.applicationContext
         synchronized(lock) {
-            scheduleLocked(appContext, ExistingWorkPolicy.KEEP)
+            scheduleLocked(appContext, emptySet())
+        }
+    }
+
+    /**
+     * A resumed item may still have a cancelled/running unique-work record while
+     * its previous worker is unwinding. Replace only the newly claimed resumed
+     * item; keep all unrelated queued work untouched.
+     */
+    fun scheduleResumed(context: Context, ids: Set<Long>) {
+        if (ids.isEmpty()) return
+        val appContext = context.applicationContext
+        synchronized(lock) {
+            scheduleLocked(appContext, ids)
+        }
+    }
+
+    /**
+     * Repairs queue rows left in STATUS_SCHEDULED if Android stopped the process
+     * after SQLite reserved a slot but before WorkManager began the worker.
+     * Re-enqueueing with KEEP preserves any still-running unique work; if the old
+     * work already finished or disappeared, a fresh worker is created.
+     */
+    fun recoverAndSchedule(context: Context) {
+        val appContext = context.applicationContext
+        synchronized(lock) {
+            DownloadDatabase.get(appContext).releaseScheduled()
+            scheduleLocked(appContext, emptySet())
         }
     }
 
@@ -37,11 +64,11 @@ internal object DownloadWorkScheduler {
             database.releaseScheduled().forEach { id ->
                 manager.cancelUniqueWork(workName(id))
             }
-            scheduleLocked(appContext, ExistingWorkPolicy.REPLACE)
+            scheduleLocked(appContext, emptySet())
         }
     }
 
-    private fun scheduleLocked(context: Context, policy: ExistingWorkPolicy) {
+    private fun scheduleLocked(context: Context, replaceIds: Set<Long>) {
         val database = DownloadDatabase.get(context)
         val limit = DownloadConcurrencyPreferences(context).maxConcurrent()
         val ids = database.claimPending(limit)
@@ -58,7 +85,11 @@ internal object DownloadWorkScheduler {
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30L, TimeUnit.SECONDS)
                 .build()
             try {
-                manager.enqueueUniqueWork(workName(id), policy, request)
+                manager.enqueueUniqueWork(
+                    workName(id),
+                    if (id in replaceIds) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,
+                    request
+                )
             } catch (error: Exception) {
                 database.status(
                     id,

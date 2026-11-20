@@ -113,7 +113,11 @@ internal class DownloadMiniPanelDialog(
             val actions: LinearLayout
         )
         val rows = linkedMapOf<Long, Row>()
+        // Keep the timestamp of the last observed byte change, not the last UI refresh.
+        // The panel refreshes every 250 ms while the engine commits progress about once
+        // per second; sampling every redraw would inflate speed by up to 4x.
         val speedSamples = mutableMapOf<Long, Pair<Long, Long>>()
+        val speedValues = mutableMapOf<Long, Long>()
         val emptyState = TextView(activity).apply {
             text = translate("لا توجد تنزيلات في القائمة")
             textSize = 12f
@@ -160,7 +164,15 @@ internal class DownloadMiniPanelDialog(
                 maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
             }
             val statusView = TextView(activity).apply { textSize = 10f; setTextColor(accentText); setPadding(0, dp(3), 0, 0) }
-            val detailsView = TextView(activity).apply { textSize = 10f; setTextColor(muted); setPadding(0, dp(3), 0, 0) }
+            val detailsView = TextView(activity).apply {
+                textSize = 10f
+                setTextColor(muted)
+                setPadding(0, dp(3), 0, 0)
+                // Keep the metric sequence stable in RTL locales: downloaded / total,
+                // remaining size, speed, then ETA. Arabic words still render with bidi shaping.
+                textDirection = View.TEXT_DIRECTION_LTR
+                gravity = Gravity.START
+            }
             val bar = ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal).apply {
                 max = 100
                 progressTintList = android.content.res.ColorStateList.valueOf(accent)
@@ -241,28 +253,69 @@ internal class DownloadMiniPanelDialog(
                         val percent = if (isPreparing) {
                             item.preparationPercent.coerceIn(0, 100)
                         } else if (item.totalBytes > 0L) {
-                            (item.downloadedBytes * 100L / item.totalBytes).coerceIn(0L, 100L).toInt()
+                            ((item.downloadedBytes.coerceAtLeast(0L).toDouble() /
+                                item.totalBytes.toDouble()) * 100.0).toInt().coerceIn(0, 100)
                         } else 0
                         val now = SystemClock.elapsedRealtime()
                         val previous = speedSamples[item.id]
-                        val speed = if (item.status == DownloadManager.STATUS_RUNNING && previous != null && now > previous.second && item.downloadedBytes >= previous.first) {
-                            ((item.downloadedBytes - previous.first) * 1000L) / (now - previous.second).coerceAtLeast(1L)
-                        } else 0L
-                        if (item.status == DownloadManager.STATUS_RUNNING) speedSamples[item.id] = item.downloadedBytes to now else speedSamples.remove(item.id)
+                        val speed = if (item.status == DownloadManager.STATUS_RUNNING) {
+                            when {
+                                previous == null || item.downloadedBytes < previous.first -> {
+                                    speedSamples[item.id] = item.downloadedBytes to now
+                                    speedValues[item.id] = 0L
+                                    0L
+                                }
+                                item.downloadedBytes > previous.first && now > previous.second -> {
+                                    val measured = ((item.downloadedBytes - previous.first) * 1000L) /
+                                        (now - previous.second).coerceAtLeast(1L)
+                                    speedSamples[item.id] = item.downloadedBytes to now
+                                    speedValues[item.id] = measured
+                                    measured
+                                }
+                                now - previous.second > 3_000L -> {
+                                    speedValues[item.id] = 0L
+                                    0L
+                                }
+                                else -> speedValues[item.id] ?: 0L
+                            }
+                        } else {
+                            speedSamples.remove(item.id)
+                            speedValues.remove(item.id)
+                            0L
+                        }
                         row.status.text = if (isPreparing || item.totalBytes > 0L) "$statusLabel • $percent%" else statusLabel
                         val downloaded = android.text.format.Formatter.formatFileSize(activity, item.downloadedBytes.coerceAtLeast(0L))
                         val total = if (item.totalBytes > 0L) android.text.format.Formatter.formatFileSize(activity, item.totalBytes) else translate("حجم غير معروف")
+                        val remainingSizeText = if (
+                            item.status == DownloadManager.STATUS_RUNNING &&
+                            item.totalBytes > item.downloadedBytes
+                        ) {
+                            " • " + translate("الحجم المتبقي") + ": " +
+                                android.text.format.Formatter.formatFileSize(
+                                    activity,
+                                    (item.totalBytes - item.downloadedBytes).coerceAtLeast(0L)
+                                )
+                        } else ""
                         val speedText = if (item.status == DownloadManager.STATUS_RUNNING) " • " + android.text.format.Formatter.formatFileSize(activity, speed) + "/s" else ""
                         val etaText = if (item.status == DownloadManager.STATUS_RUNNING && speed > 0L && item.totalBytes > item.downloadedBytes) {
-                            val seconds = ((item.totalBytes - item.downloadedBytes) / speed).coerceAtLeast(0L)
+                            val remainingBytes = (item.totalBytes - item.downloadedBytes).coerceAtLeast(0L)
+                            val seconds = kotlin.math.ceil(
+                                remainingBytes.toDouble() / speed.toDouble()
+                            ).toLong().coerceAtLeast(0L)
                             val eta = if (seconds >= 3600L) "${seconds / 3600L}h ${(seconds % 3600L) / 60L}m"
                                 else if (seconds >= 60L) "${seconds / 60L}m ${seconds % 60L}s" else "${seconds}s"
                             " • " + translate("متبقي") + " " + eta
                         } else ""
+                        val retryError = item.error.trim()
                         row.details.text = when {
+                            retryError.isNotBlank() &&
+                                (item.status == DownloadManager.STATUS_PENDING ||
+                                    item.status == DownloadDatabase.STATUS_SCHEDULED ||
+                                    item.status == DownloadManager.STATUS_FAILED) ->
+                                translate("سبب إعادة المحاولة:") + " " + retryError
                             waitingForWifi -> translate("بانتظار اتصال Wi-Fi")
                             isPreparing -> translate("جارٍ حجز مساحة التخزين قبل بدء التنزيل")
-                            else -> "$downloaded / $total$speedText$etaText"
+                            else -> "$downloaded / $total$remainingSizeText$speedText$etaText"
                         }
                         row.progress.isIndeterminate =
                             item.status == DownloadManager.STATUS_RUNNING && item.totalBytes <= 0L

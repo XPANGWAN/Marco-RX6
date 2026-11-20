@@ -343,20 +343,31 @@ internal object DownloadDestination {
             arrayOf(
                 MediaStore.MediaColumns.DISPLAY_NAME,
                 MediaStore.MediaColumns.RELATIVE_PATH,
-                MediaStore.MediaColumns.IS_PENDING,
-                MediaStore.MediaColumns.TITLE
+                MediaStore.MediaColumns.IS_PENDING
             ),
             null,
             null,
             null
         )?.use { cursor ->
-            cursor.moveToFirst() &&
-                cursor.getString(0) == displayName &&
-                cursor.getString(1)?.trimEnd('/') == relativePath.trimEnd('/') &&
-                (cursor.isNull(2) || cursor.getInt(2) == 0) &&
-                cursor.getString(3) == ownerTag(id)
+            if (!cursor.moveToFirst()) {
+                false
+            } else {
+                // Some Android/OEM MediaStore providers do not round-trip the
+                // optional TITLE column reliably. The persisted content URI is
+                // the primary identity; verify the visible row, and validate
+                // name/path/pending state whenever the provider reports them.
+                val actualName = cursor.getString(0)
+                val actualPath = cursor.getString(1)
+                val pending = if (cursor.isNull(2)) null else cursor.getInt(2)
+                (actualName.isNullOrBlank() || actualName == displayName) &&
+                    (actualPath.isNullOrBlank() || actualPath.trimEnd('/') == relativePath.trimEnd('/')) &&
+                    (pending == null || pending == 0)
+            }
         } ?: false
-        if (!visible) {
+        val writable = visible && runCatching {
+            resolver.openFileDescriptor(uri, "rw")?.use { true } ?: false
+        }.getOrDefault(false)
+        if (!writable) {
             throw IOException("MediaStore did not confirm the visible file in Download/$DEFAULT_FOLDER")
         }
     }

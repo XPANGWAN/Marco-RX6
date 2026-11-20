@@ -12,7 +12,7 @@ import java.util.Locale
  */
 internal object DownloadSourceResolver {
     private val fileExtension = Regex(
-        """\.(apk|zip|7z|rar|iso|pkg|bin|cue|chd|img|pbp|cso|nsp|xci|pdf|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg)(?:$|[?#])""",
+        """\.(apk|xapk|apks|aab|exe|msi|dmg|deb|rpm|zip|7z|rar|r00|tar|tgz|gz|bz2|xz|zst|iso|img|bin|cue|chd|pkg|pbp|cso|nsp|xci|3ds|cia|wad|wbfs|rvz|gcz|nes|sfc|smc|gba|gbc|gb|nds|n64|z64|v64|torrent|pdf|epub|mobi|doc|docx|xls|xlsx|ppt|pptx|txt|csv|json|xml|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg|opus)(?:$|[?#])""",
         RegexOption.IGNORE_CASE
     )
 
@@ -20,10 +20,14 @@ internal object DownloadSourceResolver {
         val uri = runCatching { URI(rawUrl.trim()) }.getOrNull() ?: return rawUrl.trim()
         val host = uri.host?.lowercase(Locale.ROOT).orEmpty()
         if (host != "drive.google.com" && host != "docs.google.com") return rawUrl.trim()
+        // Never normalize a URL that embeds credentials, and only accept a
+        // syntactically valid Drive file ID from either supported URL shape.
+        if (uri.userInfo != null) return rawUrl.trim()
 
         val pathId = Regex("""/file/d/([A-Za-z0-9_-]{10,})""").find(uri.path.orEmpty())?.groupValues?.get(1)
         val queryId = queryParameter(uri.rawQuery.orEmpty(), "id")
-        val id = pathId ?: queryId ?: return rawUrl.trim()
+        val id = (pathId ?: queryId)?.takeIf { it.matches(Regex("""[A-Za-z0-9_-]{10,}""")) }
+            ?: return rawUrl.trim()
         return "https://drive.google.com/uc?export=download&id=$id"
     }
 
@@ -44,12 +48,58 @@ internal object DownloadSourceResolver {
             "vik1ngfile.site", "vikingfile.site",
             "vikingfile.com", "www.vikingfile.com"
         )
+        // MediaFire share URLs are HTML landing pages, even when the path
+        // contains the game's filename and extension (for example /file/ID/game.zip/file).
+        // Only its separate download*.mediafire.com hosts are file endpoints.
         // Rootz share links use /d/{id}. Treat them as browser landing pages:
         // a preliminary HTTP GET can consume a short-lived redirect/session before
         // WebView executes the site's normal JavaScript download flow.
         val isRootzSharePage = host in setOf("rootz.so", "www.rootz.so") &&
             Regex("""^/d/[^/]+/?$""", RegexOption.IGNORE_CASE).matches(path)
-        return (isShareLandingPage && knownVikingHost) || isRootzSharePage
+        val isLinkVaultLandingPage =
+            (host == "link-vault.org" || host.endsWith(".link-vault.org")) &&
+                Regex("""^/c/[^/]+/?$""", RegexOption.IGNORE_CASE).matches(path)
+        val isMediaFireLandingPage = host == "mediafire.com" ||
+            host == "www.mediafire.com"
+        return (isShareLandingPage && knownVikingHost) || isRootzSharePage ||
+            isMediaFireLandingPage || isLinkVaultLandingPage
+    }
+
+    /**
+     * Generic fallback for unknown hosts: opaque HTTPS URLs are presumed to be
+     * browser pages unless their path, query, or response hints identify a file.
+     * This avoids a speculative GET that can consume one-time redirect tokens.
+     */
+    fun shouldOpenInBrowserBeforeProbe(
+        rawUrl: String,
+        hintedMimeType: String = "",
+        hintedDisposition: String = ""
+    ): Boolean {
+        if (isKnownLandingPageUrl(rawUrl)) return true
+        if (isDirectDownloadEndpointUrl(rawUrl)) return false
+        if (hintedDisposition.contains("attachment", ignoreCase = true)) return false
+        val mime = hintedMimeType.substringBefore(';').trim().lowercase(Locale.ROOT)
+        if (mime.isNotBlank() && mime !in setOf(
+                "text/html", "application/xhtml+xml", "application/json",
+                "application/xml", "text/plain"
+            ) && !mime.startsWith("text/")
+        ) return false
+
+        val uri = runCatching { URI(rawUrl.trim()) }.getOrNull() ?: return true
+        val path = uri.path.orEmpty()
+        val query = uri.rawQuery.orEmpty()
+        val explicitDownloadRoute = Regex(
+            """(?:^|/)(?:download|downloads|attachment|export|download-file|downloadfile|dl|raw)(?:/|$)""",
+            RegexOption.IGNORE_CASE
+        ).containsMatchIn(path)
+        val explicitDownloadQuery = Regex(
+            """(?:^|&)(?:download|attachment|export|dl)=(?:1|true|yes|download)(?:&|$)""",
+            RegexOption.IGNORE_CASE
+        ).containsMatchIn(query)
+        if (explicitDownloadRoute || explicitDownloadQuery) return false
+        // No file extension or explicit transfer marker: let WebView follow the
+        // site's own JavaScript, cookies, confirmation steps and redirects.
+        return true
     }
 
     /**
@@ -60,6 +110,9 @@ internal object DownloadSourceResolver {
         val uri = runCatching { URI(rawUrl.trim()) }.getOrNull() ?: return false
         val host = uri.host?.lowercase(Locale.ROOT).orEmpty()
         val path = uri.path.orEmpty()
+        // MediaFire's main/www hosts serve share pages, not file bytes.
+        // CDN hosts such as download123.mediafire.com remain eligible below.
+        if (host == "mediafire.com" || host == "www.mediafire.com") return false
         if (fileExtension.containsMatchIn(path)) return true
 
         // NoPayStation serves package files from /get/.../pkg without a filename extension.

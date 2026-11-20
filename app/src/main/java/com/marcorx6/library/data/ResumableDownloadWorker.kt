@@ -27,8 +27,55 @@ internal class ResumableDownloadWorker(
     override suspend fun doWork(): Result {
         val id = inputData.getLong(KEY_ID, -1L)
         if (id <= 0L) return Result.failure()
-        val lease = DownloadExecutionLock.acquire(applicationContext, id) ?: return Result.retry()
-        return lease.use { doWorkWithId(id) }
+
+        val database = DownloadDatabase.get(applicationContext)
+        val queuedItem = database.get(id) ?: run {
+            DownloadWorkScheduler.schedule(applicationContext)
+            return Result.failure()
+        }
+        if (queuedItem.status == DownloadManager.STATUS_PAUSED) {
+            DownloadWorkScheduler.schedule(applicationContext)
+            return Result.success()
+        }
+
+        // Enter foreground before waiting for the per-download writer lease.
+        // Previously a lease collision returned Result.retry() before any
+        // foreground notification existed, which looked like a silent stuck job.
+        try {
+            setForeground(createForegroundInfo(queuedItem.title, id))
+        } catch (error: Exception) {
+            android.util.Log.e(
+                "MarcoDownloadWorker",
+                "Could not enter foreground for download $id: ${error.message ?: error.javaClass.simpleName}",
+                error
+            )
+            return Result.retry()
+        }
+
+        // A replacement worker can briefly overlap the previous worker after
+        // pause/resume or process recovery. Wait for its OS file lock instead of
+        // immediately cycling through WorkManager backoff with no visible signal.
+        var lease: DownloadExecutionLock.Lease? = null
+        var lockAttempts = 0
+        while (lease == null && lockAttempts < 60 && !isStopped) {
+            lease = DownloadExecutionLock.acquire(applicationContext, id)
+            if (lease == null) {
+                lockAttempts++
+                kotlinx.coroutines.delay(250L)
+            }
+        }
+        if (isStopped) {
+            lease?.close()
+            return Result.retry()
+        }
+        val acquired = lease ?: run {
+            android.util.Log.w(
+                "MarcoDownloadWorker",
+                "Download $id could not acquire its writer lease after 15 seconds; WorkManager will retry."
+            )
+            return Result.retry()
+        }
+        return acquired.use { doWorkWithId(id) }
     }
 
     private suspend fun doWorkWithId(id: Long): Result {
@@ -48,14 +95,21 @@ internal class ResumableDownloadWorker(
                 wifiOnly = DownloadConcurrencyPreferences(applicationContext).wifiOnly(),
                 activeNetworkIsWifi = hasWifiConnection()
             )) {
-            database.status(id, DownloadManager.STATUS_PENDING)
+            database.transition(
+                id,
+                setOf(
+                    DownloadManager.STATUS_PENDING,
+                    DownloadManager.STATUS_RUNNING,
+                    DownloadDatabase.STATUS_SCHEDULED
+                ),
+                DownloadManager.STATUS_PENDING
+            )
             return Result.success()
         }
         return try {
             if (!database.markRunning(id)) {
                 Result.success()
             } else {
-                setForeground(createForegroundInfo(item.title, id))
                 // Ensure legacy and newly queued jobs both have a published final
                 // MediaStore row before any network capability probe starts.
                 val selectedTree = DownloadStoragePreferences(applicationContext).treeUri()
@@ -77,12 +131,12 @@ internal class ResumableDownloadWorker(
                 } else {
                 // Do not reset a resumed transfer to PREPARING 0%.
                 // Engines enter PREPARING only while they actually reserve storage.
-                val segmentedCompleted = SegmentedDownloadEngine.download(
+                DownloadEngineV2.download(
                     context = applicationContext,
                     item = item,
                     database = database,
                     destinationUri = destinationUri,
-                    isStopped = {
+                    shouldStop = {
                         isStopped ||
                             (DownloadConcurrencyPreferences(applicationContext).wifiOnly() && !hasWifiConnection()) ||
                             database.get(id)?.status == DownloadManager.STATUS_PAUSED ||
@@ -91,39 +145,16 @@ internal class ResumableDownloadWorker(
                     onProgress = { downloaded, total ->
                         updateProgressNotification(item.title, id, downloaded, total)
                     },
-                    onPreparing = { percent ->
-                        val current = database.get(id)
-                        database.preparing(
-                            id, percent, current?.totalBytes ?: -1L,
-                            current?.etag.orEmpty(), current?.lastModified.orEmpty()
-                        )
-                        updatePreparingNotification(item.title, id, percent)
-                    }
                 )
-                if (segmentedCompleted) Result.success() else {
-                    SequentialDownloadEngine.download(
-                        context = applicationContext,
-                        item = item,
-                        database = database,
-                        destinationUri = destinationUri,
-                        shouldStop = {
-                            isStopped ||
-                                (DownloadConcurrencyPreferences(applicationContext).wifiOnly() && !hasWifiConnection()) ||
-                                database.get(id)?.status == DownloadManager.STATUS_PAUSED ||
-                                database.get(id)?.status == DownloadDatabase.STATUS_CANCELLED
-                        },
-                        onProgress = { downloaded, total ->
-                            updateProgressNotification(item.title, id, downloaded, total)
-                        },
-                        onPreparing = { percent ->
-                            updatePreparingNotification(item.title, id, percent)
-                        }
-                    )
-                    Result.success()
-                }
+                Result.success()
                 }
             }
         } catch (error: Exception) {
+            android.util.Log.e(
+                "MarcoDownloadWorker",
+                "Download $id stopped on attempt ${runAttemptCount + 1}: ${error.message ?: error.javaClass.simpleName}",
+                error
+            )
             val latest = database.get(id)
             if (latest == null || latest.status == DownloadDatabase.STATUS_CANCELLED) {
                 val directory = File(applicationContext.filesDir, "MARCO_RX6_downloads")
@@ -139,14 +170,47 @@ internal class ResumableDownloadWorker(
                 Result.success()
             } else if (latest.status == DownloadManager.STATUS_PAUSED) {
                 Result.success()
-            } else if ((isStopped || error is IOException) && runAttemptCount < MAX_AUTOMATIC_RETRIES) {
-                database.status(id, DownloadManager.STATUS_PENDING, error.message ?: "Network interrupted")
+            } else if (isStopped) {
+                // pause -> resume can happen before the cancelled worker unwinds.
+                // In that race the row is already PENDING/SCHEDULED for the new
+                // WorkRequest. Never overwrite its state with this stale worker's
+                // cancellation error; let WorkManager retire this attempt.
+                Result.retry()
+            } else if (error is InterruptedException) {
+                // The transfer loop also uses interruption for a Wi-Fi-only network
+                // transition. Treat it as a resumable stop, not a permanent failure.
+                // Do not overwrite PENDING/SCHEDULED when a replacement worker has
+                // already been queued by a fast pause/resume action.
+                database.transition(
+                    id,
+                    setOf(DownloadManager.STATUS_RUNNING, DownloadDatabase.STATUS_PREPARING),
+                    DownloadManager.STATUS_PENDING,
+                    error.message ?: "Download paused"
+                )
+                Result.retry()
+            } else if (error is IOException && runAttemptCount < MAX_AUTOMATIC_RETRIES) {
+                database.transition(
+                    id,
+                    setOf(DownloadManager.STATUS_RUNNING, DownloadDatabase.STATUS_PREPARING),
+                    DownloadManager.STATUS_PENDING,
+                    error.message ?: "Network interrupted"
+                )
                 Result.retry()
             } else if (error is IOException) {
-                database.status(id, DownloadManager.STATUS_FAILED, error.message ?: "Download needs attention")
+                database.transition(
+                    id,
+                    setOf(DownloadManager.STATUS_RUNNING, DownloadDatabase.STATUS_PREPARING),
+                    DownloadManager.STATUS_FAILED,
+                    error.message ?: "Download needs attention"
+                )
                 Result.failure()
             } else {
-                database.status(id, DownloadManager.STATUS_FAILED, error.message ?: "Download failed")
+                database.transition(
+                    id,
+                    setOf(DownloadManager.STATUS_RUNNING, DownloadDatabase.STATUS_PREPARING),
+                    DownloadManager.STATUS_FAILED,
+                    error.message ?: "Download failed"
+                )
                 Result.failure()
             }
         } finally {
@@ -192,27 +256,6 @@ internal class ResumableDownloadWorker(
         }
         updateProgressNotification(item.title, id, total, total)
         return true
-    }
-
-    private fun updatePreparingNotification(title: String, downloadId: Long, percent: Int = 100) {
-        val language = applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-            .getString("language", "ar") ?: "ar"
-        val localize: (String) -> String = { LanguageTranslator.translate(it, language) }
-        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher)
-            .setContentTitle(title.ifBlank { "MARCO" })
-            .setContentText("${localize("جارٍ تجهيز الملف")} ${percent.coerceIn(0, 100)}%")
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setProgress(100, percent.coerceIn(0, 100), false)
-            .setContentIntent(openAppPendingIntent(applicationContext, downloadId))
-            .addAction(android.R.drawable.ic_media_pause, localize("إيقاف مؤقت"),
-                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_PAUSE))
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, localize("إلغاء"),
-                actionPendingIntent(applicationContext, downloadId, DownloadNotificationActionReceiver.ACTION_CANCEL))
-            .build()
-        val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(notificationId(downloadId), notification)
     }
 
     private fun updateProgressNotification(title: String, downloadId: Long, downloaded: Long, total: Long) {

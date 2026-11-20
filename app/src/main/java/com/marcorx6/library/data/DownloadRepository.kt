@@ -22,7 +22,8 @@ internal data class DownloadEntry(
     val sourcePostUrl: String,
     val priority: Int,
     val segmentBytes: List<Long>,
-    val preparationPercent: Int
+    val preparationPercent: Int,
+    val error: String
 )
 
 internal sealed class DownloadStartResult {
@@ -51,7 +52,9 @@ internal class DownloadRepository(context: Context) {
         database.all().filter { it.id !in activeProbes }.forEach { item ->
             File(appContext.filesDir, "MARCO_RX6_downloads/${item.id}.probing").delete()
         }
-        DownloadWorkScheduler.schedule(appContext)
+        // Re-queue reservations left behind if Android killed the process
+        // between the SQLite slot claim and WorkManager starting its worker.
+        DownloadWorkScheduler.recoverAndSchedule(appContext)
     }
 
     private data class EnqueueReservation(
@@ -111,7 +114,9 @@ internal class DownloadRepository(context: Context) {
                             writeText("resolving")
                         }
                         activeProbes.add(id)
-                        ensureVisibleDefaultTarget(id, title.ifBlank { "MARCO" }, hintedMimeType)
+                        // Do not create a public MediaStore file until inspection confirms
+                        // that this URL is a direct file. Landing pages must open in the
+                        // in-app WebView without touching the download destination.
                         EnqueueReservation(id = id, previous = previous)
                     }
                 }
@@ -144,14 +149,18 @@ internal class DownloadRepository(context: Context) {
                         // final redirect target (which can collapse to the provider homepage).
                         DownloadStartResult.OpenInBrowser(secureLink)
                     } else {
+                        // Allocate the visible destination only after a direct file endpoint
+                        // has been confirmed. Provider landing pages are handled by WebView.
+                        ensureVisibleDefaultTarget(id, title.ifBlank { "MARCO" }, probe.mimeType)
                         if (!SecureUrlPolicy.isAllowedDownloadUrl(probe.finalUrl)) {
                             throw SecurityException("رابط التحويل النهائي غير آمن أو يستخدم خادمًا غير موثوق")
                         }
-                        val finalTitle = DownloadFileNames.safeName(
-                            probe.fileName ?: title.ifBlank { "MARCO" },
-                            probe.mimeType,
-                            id,
-                            probe.finalUrl
+                        val finalTitle = DownloadFileNames.resolvePreferredName(
+                            preferredTitle = title.ifBlank { "MARCO" },
+                            responseName = probe.fileName,
+                            mimeType = probe.mimeType,
+                            id = id,
+                            sourceUrl = probe.finalUrl
                         )
                         val cookie = CookieManager.getInstance().getCookie(probe.finalUrl).orEmpty()
                         File(appContext.filesDir, "MARCO_RX6_downloads/$id.probing").delete()
@@ -213,6 +222,7 @@ internal class DownloadRepository(context: Context) {
             sourcePostUrl = item.sourcePostUrl,
             priority = item.priority,
             preparationPercent = item.preparationPercent,
+            error = item.error,
             segmentBytes = (0 until 4).map { index ->
                 val directory = File(appContext.filesDir, "MARCO_RX6_downloads")
                 val progress = File(directory, "${item.id}.seg$index.progress")
@@ -226,11 +236,17 @@ internal class DownloadRepository(context: Context) {
     }
 
     fun pauseDownload(id: Long): Boolean {
-        val item = database.get(id) ?: return false
-        if (item.status == DownloadManager.STATUS_SUCCESSFUL) return false
-        // Persist PAUSED before cancelling the worker so its final completion
-        // transaction cannot overwrite the user's pause request.
-        database.status(id, DownloadManager.STATUS_PAUSED)
+        val activeStates = setOf(
+            DownloadManager.STATUS_PENDING,
+            DownloadManager.STATUS_RUNNING,
+            DownloadDatabase.STATUS_SCHEDULED,
+            DownloadDatabase.STATUS_PREPARING,
+            DownloadDatabase.STATUS_INITIALIZING,
+            DownloadDatabase.STATUS_RESOLVING
+        )
+        // The conditional update is atomic: if completion or cancellation won
+        // the race, this pause cannot overwrite that newer state.
+        if (!database.transition(id, activeStates, DownloadManager.STATUS_PAUSED)) return false
         DownloadWorkScheduler.cancel(appContext, id)
         DownloadWorkScheduler.schedule(appContext)
         return true
@@ -242,11 +258,18 @@ internal class DownloadRepository(context: Context) {
             item.status != DownloadManager.STATUS_FAILED
         ) return false
         val stillResolving = File(appContext.filesDir, "MARCO_RX6_downloads/$id.probing").isFile
-        database.status(
-            id,
-            if (stillResolving) DownloadDatabase.STATUS_RESOLVING else DownloadManager.STATUS_PENDING
-        )
-        if (!stillResolving) DownloadWorkScheduler.schedule(appContext)
+        val targetState = if (stillResolving) {
+            DownloadDatabase.STATUS_RESOLVING
+        } else {
+            DownloadManager.STATUS_PENDING
+        }
+        if (!database.transition(
+                id,
+                setOf(DownloadManager.STATUS_PAUSED, DownloadManager.STATUS_FAILED),
+                targetState
+            )
+        ) return false
+        if (!stillResolving) DownloadWorkScheduler.scheduleResumed(appContext, setOf(id))
         return true
     }
 
@@ -258,17 +281,27 @@ internal class DownloadRepository(context: Context) {
 
     fun resumeAllDownloads(): Int {
         val ids = database.pausedOrFailedIds()
-        var schedulable = false
+        val resumedIds = mutableSetOf<Long>()
+        var resumedCount = 0
         ids.forEach { id ->
             val stillResolving = File(appContext.filesDir, "MARCO_RX6_downloads/$id.probing").isFile
-            database.status(
+            val targetState = if (stillResolving) {
+                DownloadDatabase.STATUS_RESOLVING
+            } else {
+                DownloadManager.STATUS_PENDING
+            }
+            val changed = database.transition(
                 id,
-                if (stillResolving) DownloadDatabase.STATUS_RESOLVING else DownloadManager.STATUS_PENDING
+                setOf(DownloadManager.STATUS_PAUSED, DownloadManager.STATUS_FAILED),
+                targetState
             )
-            if (!stillResolving) schedulable = true
+            if (changed) {
+                resumedCount++
+                if (!stillResolving) resumedIds.add(id)
+            }
         }
-        if (schedulable) DownloadWorkScheduler.schedule(appContext)
-        return ids.size
+        if (resumedIds.isNotEmpty()) DownloadWorkScheduler.scheduleResumed(appContext, resumedIds)
+        return resumedCount
     }
 
     fun setDownloadPriority(id: Long, priority: Int): Boolean {
@@ -280,9 +313,15 @@ internal class DownloadRepository(context: Context) {
 
     fun retryAllFailed(): Int {
         val failed = database.all().filter { it.status == DownloadManager.STATUS_FAILED }
-        failed.forEach { database.status(it.id, DownloadManager.STATUS_PENDING) }
-        if (failed.isNotEmpty()) DownloadWorkScheduler.schedule(appContext)
-        return failed.size
+        val retried = failed.count { item ->
+            database.transition(
+                item.id,
+                setOf(DownloadManager.STATUS_FAILED),
+                DownloadManager.STATUS_PENDING
+            )
+        }
+        if (retried > 0) DownloadWorkScheduler.schedule(appContext)
+        return retried
     }
 
     fun clearCompletedDownloads(): Int = database.deleteCompleted()
@@ -389,7 +428,10 @@ internal class DownloadRepository(context: Context) {
         if (com.marcorx6.library.network.DownloadSourceResolver.isDirectDownloadEndpointUrl(link)) {
             return DownloadProbe(link, "application/octet-stream", true, null)
         }
-        if (com.marcorx6.library.network.DownloadSourceResolver.isKnownLandingPageUrl(link)) {
+        if (com.marcorx6.library.network.DownloadSourceResolver.shouldOpenInBrowserBeforeProbe(
+                link, hintedMimeType, hintedDisposition
+            )
+        ) {
             return DownloadProbe(link, "text/html", false, null)
         }
         val connection = com.marcorx6.library.network.RedirectingHttpConnection.open(

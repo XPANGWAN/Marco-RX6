@@ -437,10 +437,25 @@ internal class DownloadPageDialog(
             contentDisposition: String = ""
         ) {
             val safeUrl = SecureUrlPolicy.toHttpsUrl(url) ?: return
+            val guessedName = android.webkit.URLUtil.guessFileName(safeUrl, contentDisposition, mimeType)
+            val genericName = guessedName.substringBeforeLast('.', guessedName)
+                .lowercase() in setOf("file", "download", "unknown", "unnamed")
+            val labelName = label.trim().takeIf { candidate ->
+                candidate.isNotBlank() &&
+                    !candidate.equals("download", true) &&
+                    !candidate.equals("open", true) &&
+                    !candidate.equals("file", true) &&
+                    !candidate.equals("ملف مباشر محتمل", true)
+            }
+            val suggestedName = when {
+                genericName && labelName != null -> labelName
+                genericName -> gameTitle
+                guessedName.isBlank() -> labelName ?: gameTitle
+                else -> guessedName
+            }
             DownloadConfirmationPanel(activity, translate, dark).show(
                 url = safeUrl,
-                suggestedName = android.webkit.URLUtil.guessFileName(safeUrl, contentDisposition, mimeType)
-                    .ifBlank { label.ifBlank { gameTitle } },
+                suggestedName = suggestedName,
                 mimeType = mimeType,
                 onConfirm = { fileName ->
                     val safeName = fileName.trim()
@@ -463,7 +478,7 @@ internal class DownloadPageDialog(
         fun isDirectFileUrl(url: String): Boolean {
             val uri = try { Uri.parse(url) } catch (_: Exception) { return false }
             val path = uri.path.orEmpty().lowercase()
-            val knownExtension = Regex("""\.(zip|7z|rar|iso|pkg|bin|cue|chd|img|pbp|cso|nsp|xci|apk|pdf|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg)$""", RegexOption.IGNORE_CASE).containsMatchIn(path)
+            val knownExtension = Regex("""\.(apk|xapk|apks|aab|exe|msi|dmg|deb|rpm|zip|7z|rar|r00|tar|tgz|gz|bz2|xz|zst|iso|img|bin|cue|chd|pkg|pbp|cso|nsp|xci|3ds|cia|wad|wbfs|rvz|gcz|nes|sfc|smc|gba|gbc|gb|nds|n64|z64|v64|torrent|pdf|epub|mobi|doc|docx|xls|xlsx|ppt|pptx|txt|csv|json|xml|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg|opus)$""", RegexOption.IGNORE_CASE).containsMatchIn(path)
             val downloadFlag = listOf("download", "attachment", "file", "export").any { key ->
                 uri.getQueryParameter(key)?.let { value ->
                     value.equals("1", true) || value.equals("true", true) ||
@@ -473,13 +488,13 @@ internal class DownloadPageDialog(
             val downloadPath = Regex("""(?:^|/)(?:download|attachment|export)(?:/|$)""", RegexOption.IGNORE_CASE)
                 .containsMatchIn(path)
             val host = uri.host.orEmpty().lowercase()
-            val providerLanding = (
+            // MediaFire share pages may contain a filename extension in their path.
+            // Keep the main/www hosts in the in-app browser; only CDN download hosts
+            // should be treated as direct file URLs.
+            if (host == "mediafire.com" || host == "www.mediafire.com") return false
+            val providerLanding =
                 (host == "drive.google.com" || host == "docs.google.com") &&
                     (path.contains("/file/d/") || (path.endsWith("/uc") && uri.getQueryParameter("id") != null))
-                ) || (
-                (host == "mediafire.com" || host.endsWith(".mediafire.com")) &&
-                    (path.contains("/file/") || path.contains("/download/"))
-                )
             return knownExtension || downloadFlag || downloadPath || providerLanding
         }
 
@@ -511,7 +526,98 @@ internal class DownloadPageDialog(
         }
 
         fun scanForFileLinks() {
-            val script = """(function(){var out=[],seen={};var ext=/\.(zip|7z|rar|iso|pkg|bin|cue|chd|img|pbp|cso|nsp|xci|apk|pdf|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg)$/i;var words=/(download|تحميل|تنزيل|رابط مباشر|direct|download file)/i;function add(raw,label,force){try{var u=new URL(raw,location.href);if(u.protocol!=='https:'||seen[u.href]||out.length>=12)return;var p=u.pathname.toLowerCase(),q=u.search.toLowerCase(),endpoint=/(?:^|\/)(download|attachment|file|export)(?:\/|$)/i.test(p)||/[?&](download|attachment|file|export)=(1|true|yes|download)(?:&|$)/i.test(q);if(force||ext.test(p)||endpoint){seen[u.href]=1;out.push({url:u.href,label:(label||'ملف مباشر محتمل').slice(0,90)});}}catch(e){}}document.querySelectorAll('a[href],a[data-href],a[data-url],[data-download-url],[data-file-url],form[action],video[src],video source[src],audio[src],audio source[src]').forEach(function(e){var h=e.href||e.getAttribute('data-href')||e.getAttribute('data-url')||e.getAttribute('data-download-url')||e.getAttribute('data-file-url')||e.action||e.src||e.getAttribute('src')||'',t=(e.innerText||e.textContent||e.getAttribute('aria-label')||'').trim(),d=e.hasAttribute('download'),p=h.toLowerCase().split('?')[0],media=e.tagName==='VIDEO'||e.tagName==='AUDIO'||e.tagName==='SOURCE';if(media||d||words.test(t)||ext.test(p)||/(?:download|attachment|file|export)/i.test(h))add(h,t,d||media);});return JSON.stringify(out);})()"""
+            // A MutationObserver marks the page dirty whenever a script inserts a
+            // download button, changes a link target, or reveals a delayed URL.
+            // The native side polls this flag; no page script is allowed to click links.
+            val script = """(function(){
+                try {
+                    if (!window.__marcoDownloadObserver && document.documentElement) {
+                        window.__marcoDownloadDirty = true;
+                        window.__marcoDownloadObserver = new MutationObserver(function(){
+                            window.__marcoDownloadDirty = true;
+                        });
+                        window.__marcoDownloadObserver.observe(document.documentElement, {
+                            subtree:true, childList:true, attributes:true,
+                            attributeFilter:['href','action','src','data-href','data-url','data-download-url','data-file-url','download']
+                        });
+                    }
+                    if (window.__marcoDownloadDirty === false) return '[]';
+                    window.__marcoDownloadDirty = false;
+                    var out=[], seen=Object.create(null);
+                    var ext=/\.(apk|xapk|apks|aab|exe|msi|dmg|deb|rpm|zip|7z|rar|r00|tar|tgz|gz|bz2|xz|zst|iso|img|bin|cue|chd|pkg|pbp|cso|nsp|xci|3ds|cia|wad|wbfs|rvz|gcz|nes|sfc|smc|gba|gbc|gb|nds|n64|z64|v64|torrent|pdf|epub|mobi|doc|docx|xls|xlsx|ppt|pptx|txt|csv|json|xml|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg|opus)$/i;
+                    var words=/(download|تحميل|تنزيل|رابط مباشر|direct|download file)/i;
+                    var endpoint=/(?:^|\/)(download|downloads|attachment|file|export|raw)(?:\/|$)/i;
+                    var selectors='a[href],a[data-href],a[data-url],a[data-link],a[data-file],[data-download-url],[data-file-url],[data-download],[data-link],[data-file],form[action],video[src],video source[src],audio[src],audio source[src],button[data-href],button[data-url],button[data-link],button[data-download-url],[role="button"][data-href],[role="button"][data-url],[onclick],input[formaction]';
+                    function fileNameFor(el,fallback){
+                        var node=el;
+                        for(var depth=0;node&&depth<6;depth++,node=node.parentElement){
+                            var direct=node.getAttribute&&(
+                                node.getAttribute('data-filename')||
+                                node.getAttribute('data-file-name')||
+                                node.getAttribute('data-name')
+                            );
+                            if(direct&&ext.test(direct.trim())) return direct.trim();
+                            if(node.querySelector){
+                                var named=node.querySelector(
+                                    '[data-filename],[data-file-name],.filename,.file-name,.fileName,[class*="filename"],[class*="file-name"]'
+                                );
+                                if(named){
+                                    var value=named.getAttribute('data-filename')||
+                                        named.getAttribute('data-file-name')||
+                                        (named.innerText||named.textContent||'').trim();
+                                    if(value&&ext.test(value.trim())) return value.trim();
+                                }
+                                var lines=(node.innerText||node.textContent||'').split(/[\r\n]+/);
+                                for(var i=0;i<lines.length;i++){
+                                    var line=lines[i].trim();
+                                    if(line.length<2||line.length>180) continue;
+                                    if(ext.test(line)) return line;
+                                }
+                            }
+                        }
+                        return fallback||'';
+                    }
+                    function add(raw,label,force){
+                        try {
+                            var u=new URL(raw,location.href);
+                            if(u.protocol!=='https:' || seen[u.href] || out.length>=20) return;
+                            var p=u.pathname.toLowerCase(), q=u.search.toLowerCase();
+                            var explicit=endpoint.test(p) || /[?&](download|attachment|file|export|dl)=(1|true|yes|download)(?:&|$)/i.test(q);
+                            if(force || ext.test(p) || explicit){
+                                seen[u.href]=1;
+                                out.push({url:u.href,label:(label||'ملف مباشر محتمل').trim().slice(0,90)});
+                            }
+                        } catch(e) {}
+                    }
+                    document.querySelectorAll(selectors).forEach(function(e){
+                        var click=e.getAttribute('onclick')||'';
+                        var clickMatch=/(?:location(?:\.href)?\s*=|window\.open\s*\(|(?:url|href|downloadUrl)\s*[:=])\s*['"]([^'"]+)['"]/i.exec(click);
+                        var h=e.getAttribute('href') || e.getAttribute('data-href') ||
+                            e.getAttribute('data-url') || e.getAttribute('data-link') ||
+                            e.getAttribute('data-file') || e.getAttribute('data-download-url') ||
+                            e.getAttribute('data-file-url') || e.getAttribute('data-download') ||
+                            e.getAttribute('action') || e.getAttribute('formaction') ||
+                            e.getAttribute('src') || (clickMatch&&clickMatch[1]) || '';
+                        var t=(e.innerText||e.textContent||e.getAttribute('aria-label')||e.getAttribute('title')||'').trim();
+                        // Folder providers can put the real filename beside a separate
+                        // Download button; use the containing row's filename when present.
+                        t=fileNameFor(e,t);
+                        var d=e.hasAttribute('download');
+                        var tag=(e.tagName||'').toUpperCase();
+                        var media=tag==='VIDEO'||tag==='AUDIO'||tag==='SOURCE';
+                        var p=h.toLowerCase().split('?')[0];
+                        if(media || d || words.test(t) || ext.test(p) || endpoint.test(p) ||
+                            e.hasAttribute('data-download-url') || e.hasAttribute('data-file-url') ||
+                            e.hasAttribute('data-download') || e.hasAttribute('data-link') ||
+                            e.hasAttribute('data-file') || !!clickMatch) {
+                            add(h,t,d||media||e.hasAttribute('data-download-url')||
+                                e.hasAttribute('data-file-url')||e.hasAttribute('data-download')||
+                                e.hasAttribute('data-link')||e.hasAttribute('data-file')||!!clickMatch);
+                        }
+                    });
+                    return JSON.stringify(out);
+                } catch(e) { return '[]'; }
+            })()"""
             webView.evaluateJavascript(script) { raw ->
                 try {
                     val decoded = JSONTokener(raw ?: "[]").nextValue()
@@ -526,6 +632,18 @@ internal class DownloadPageDialog(
             }
         }
 
+        // Tracks WebView renderer lifetime for the periodic scanner and lifecycle callbacks.
+        var rendererGone = false
+
+        // Re-scan only while the browser is visible. The observer keeps the
+        // repeated scan cheap by returning immediately when the DOM is unchanged.
+        val dynamicScanRunnable = object : Runnable {
+            override fun run() {
+                if (!dialog.isShowing || rendererGone) return
+                scanForFileLinks()
+                webView.postDelayed(this, 1_500L)
+            }
+        }
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -793,7 +911,6 @@ internal class DownloadPageDialog(
                 if (newlyApplied > 0) recordBlocked(newlyApplied)
             }
         }
-        var rendererGone = false
         var lastAdRedirectWarningAt = 0L
         fun warnBlockedAdRedirect() {
             val now = android.os.SystemClock.elapsedRealtime()
@@ -865,6 +982,8 @@ internal class DownloadPageDialog(
                 status.text = translate("إذا ظهرت خطوة تحقق أو مؤقت، أكملها داخل هذه الصفحة. الروابط المحتملة تظهر أسفلها.")
                 applyCosmeticFiltering()
                 scanForFileLinks()
+                webView.removeCallbacks(dynamicScanRunnable)
+                webView.postDelayed(dynamicScanRunnable, 1_500L)
             }
 
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
@@ -945,6 +1064,7 @@ internal class DownloadPageDialog(
         var lifecycleObserver: DefaultLifecycleObserver? = null
         val lifecycleOwner = activity as? LifecycleOwner
         dialog.setOnDismissListener {
+            webView.removeCallbacks(dynamicScanRunnable)
             root.animate().cancel()
             com.marcorx6.library.AppDiagnostics.log("INFO", "Browser", "Closed download browser")
             if (!rendererGone) {

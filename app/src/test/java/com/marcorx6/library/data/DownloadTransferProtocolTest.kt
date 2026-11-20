@@ -19,6 +19,24 @@ class DownloadTransferProtocolTest {
         assertNull(DownloadTransferProtocol.parseContentRange("bytes 20-10/100"))
         assertNull(DownloadTransferProtocol.parseContentRange("items 0-9/10"))
     }
+    @Test fun acceptsOnlyACompleteUnsolicitedPartialResponse() {
+        assertTrue(
+            DownloadTransferProtocol.isCompleteInitialResponse(
+                206, DownloadTransferProtocol.parseContentRange("bytes 0-99/100"), 100
+            )
+        )
+        assertFalse(
+            DownloadTransferProtocol.isCompleteInitialResponse(
+                206, DownloadTransferProtocol.parseContentRange("bytes 0-49/100"), 50
+            )
+        )
+        assertFalse(
+            DownloadTransferProtocol.isCompleteInitialResponse(
+                206, DownloadTransferProtocol.parseContentRange("bytes 10-99/100"), 90
+            )
+        )
+    }
+
     @Test fun onlyAppendsVerifiedRangeWithMatchingEtag() {
         val range = DownloadTransferProtocol.parseContentRange("bytes 500-999/1000")
         assertTrue(DownloadTransferProtocol.canAppend(500, 206, range, 500, "\"v1\"", "\"v1\"", "", ""))

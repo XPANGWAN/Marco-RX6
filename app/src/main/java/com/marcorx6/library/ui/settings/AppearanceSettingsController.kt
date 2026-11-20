@@ -324,11 +324,11 @@ internal class AppearanceSettingsController(
         root.addView(settingRow(translate("اللغة"), translate("العربية والإنجليزية والفرنسية والإسبانية"), showLanguagePicker),
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
         root.addView(settingRow(
-            translate("قناة Telegram الرسمية"),
-            translate("تابع أخبار وإعلانات MARCO على Telegram")
+            translate("مجتمع MARCO الرسمي على Telegram"),
+            translate("تابع أخبار وإعلانات MARCO وانضم إلى المجتمع")
         ) {
             runCatching {
-                activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(CommunityChannelsController.TELEGRAM_URL)))
+                activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(CommunityChannelsController.COMMUNITY_TELEGRAM_URL)))
             }.onFailure {
                 Toast.makeText(activity, translate("تعذر فتح الرابط"), Toast.LENGTH_SHORT).show()
             }

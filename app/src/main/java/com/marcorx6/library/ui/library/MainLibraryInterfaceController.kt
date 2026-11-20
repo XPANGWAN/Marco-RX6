@@ -3,6 +3,7 @@ package com.marcorx6.library.ui.library
 import com.marcorx6.library.R
 import com.marcorx6.library.data.Game
 import com.marcorx6.library.data.GameLibraryManager
+import com.marcorx6.library.data.LibrarySectionCatalog
 
 import com.marcorx6.library.ui.*
 
@@ -302,6 +303,7 @@ internal class MainLibraryInterfaceController(
     private fun showFullScreenSections() {
         val ink = bg
         val silver = if (isDarkMode()) Color.rgb(225, 228, 234) else Color.rgb(43, 47, 55)
+        val snapshot = games()
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             layoutDirection = if (currentLanguage() == "ar") View.LAYOUT_DIRECTION_RTL else View.LAYOUT_DIRECTION_LTR
@@ -324,30 +326,29 @@ internal class MainLibraryInterfaceController(
             setOnClickListener { create() }
         }
         header.addView(back)
-        header.addView(makeText(tr("الأقسام"), 23f, silver, true), LinearLayout.LayoutParams(0, -2, 1f).apply {
+        header.addView(makeText(tr("المنصات"), 23f, silver, true), LinearLayout.LayoutParams(0, -2, 1f).apply {
             marginStart = dp(14)
         })
-        root.addView(header, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(22) })
-        root.addView(makeText(tr("اختر القسم الذي تريد تصفحه"), 13f, gray, false),
+        root.addView(header, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(18) })
+        root.addView(makeText(tr("اختر المنصة لعرض أقسامها الفرعية"), 13f, gray, false),
             LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(14) })
 
-        val librarySnapshot = games()
-        val platformCounts = librarySnapshot.groupingBy {
-            GameLibraryManager.normalizePlatform(it.platform) ?: it.platform.trim()
-        }.eachCount()
-        val favoritesCount = librarySnapshot.count { it.isFavorite }
-        val available = listOf(
-            "PS4" to "PS4",
-            "PS3" to "PS3",
-            "PS2" to "PS2",
-            "PS3_ARABIC" to tr("PS3 Arabic"),
-            "FAVORITES" to tr("المفضلة")
-        ).mapNotNull { (key, label) ->
-            val count = if (key == "FAVORITES") favoritesCount else platformCounts[key] ?: 0
-            if (count > 0) Triple(key, label, count) else null
-        }
         val cards = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        available.forEach { (key, label, count) ->
+        val primaryPlatforms = listOf("PS5", "PS4", "PS3")
+        val platformRows = primaryPlatforms.map { platform ->
+            val count = snapshot.count { LibrarySectionCatalog.matchesPlatform(it, platform) }
+            Triple(platform, platform, count)
+        } + listOf("PS2").mapNotNull { platform ->
+            val count = snapshot.count {
+                (GameLibraryManager.normalizePlatform(it.platform) ?: it.platform.trim()).equals(platform, true)
+            }
+            if (count > 0) Triple(platform, platform, count) else null
+        } + listOf("FAVORITES").mapNotNull { key ->
+            val count = snapshot.count { it.isFavorite }
+            if (count > 0) Triple(key, tr("المفضلة"), count) else null
+        }
+
+        platformRows.forEach { (key, label, count) ->
             val item = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -357,7 +358,10 @@ internal class MainLibraryInterfaceController(
                 }
                 isClickable = true
                 isFocusable = true
-                setOnClickListener { showFullScreenCategory(key, label) }
+                setOnClickListener {
+                    if (LibrarySectionCatalog.platforms.any { it.id == key }) showPlatformSections(key)
+                    else showFullScreenCategory(key, label)
+                }
             }
             val info = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
             info.addView(makeText(label, 17f, silver, true))
@@ -370,16 +374,8 @@ internal class MainLibraryInterfaceController(
                 imageTintList = android.content.res.ColorStateList.valueOf(silver)
                 scaleType = ImageView.ScaleType.CENTER_INSIDE
                 contentDescription = tr("فتح القسم")
-            }, LinearLayout.LayoutParams(dp(28), dp(28)).apply {
-                marginStart = dp(8)
-            })
+            }, LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginStart = dp(8) })
             cards.addView(item, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(11) })
-        }
-        if (available.isEmpty()) {
-            cards.addView(makeText(tr("لا توجد أقسام تحتوي على ألعاب حالياً"), 14f, gray, false).apply {
-                gravity = Gravity.CENTER
-                setPadding(dp(12), dp(45), dp(12), dp(45))
-            })
         }
         root.addView(cards, LinearLayout.LayoutParams(-1, -2))
         val scroll = ScrollView(context).apply {
@@ -388,7 +384,88 @@ internal class MainLibraryInterfaceController(
             addView(root, ViewGroup.LayoutParams(-1, -2))
         }
         ViewCompat.setOnApplyWindowInsetsListener(scroll) { _, insets ->
-            val safeTop = insets.getInsets(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout()).top
+            val safeBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars() or WindowInsetsCompat.Type.mandatorySystemGestures()).bottom
+            root.setPadding(dp(16), dp(12), dp(16), dp(20) + safeBottom)
+            insets
+        }
+        applyTypography(scroll)
+        setContentView(scroll)
+        ViewCompat.requestApplyInsets(scroll)
+        applyUnifiedSkin(scroll)
+        applyMotionPreferences(scroll)
+    }
+
+    private fun showPlatformSections(platformId: String) {
+        val platform = LibrarySectionCatalog.platforms.firstOrNull { it.id == platformId } ?: return
+        val ink = bg
+        val silver = if (isDarkMode()) Color.rgb(225, 228, 234) else Color.rgb(43, 47, 55)
+        val snapshot = games()
+        val root = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutDirection = if (currentLanguage() == "ar") View.LAYOUT_DIRECTION_RTL else View.LAYOUT_DIRECTION_LTR
+            setPadding(dp(16), dp(12), dp(16), dp(20))
+            setBackgroundColor(ink)
+        }
+        val header = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val back = TextView(context).apply {
+            text = tr("رجوع إلى المنصات")
+            textSize = 12f
+            setTextColor(silver)
+            gravity = Gravity.CENTER
+            setPadding(dp(14), dp(11), dp(14), dp(11))
+            background = rounded(panel, 14)
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { showFullScreenSections() }
+        }
+        header.addView(back)
+        header.addView(makeText(platform.id, 22f, silver, true), LinearLayout.LayoutParams(0, -2, 1f).apply {
+            marginStart = dp(12)
+        })
+        root.addView(header, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(18) })
+        root.addView(makeText(tr("اختر القسم الفرعي"), 13f, gray, false),
+            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(14) })
+
+        val cards = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        platform.sections.forEach { subsection ->
+            val count = snapshot.count { LibrarySectionCatalog.matchesSection(it, platform.id, subsection.id) }
+            val item = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(17), dp(16), dp(17), dp(16))
+                background = rounded(panel, 18).apply {
+                    setStroke(dp(1), if (isDarkMode()) Color.argb(135, 130, 138, 151) else Color.argb(145, 160, 168, 181))
+                }
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    showFullScreenCategory(
+                        LibrarySectionCatalog.sectionKey(platform.id, subsection.id),
+                        platform.id + " • " + subsection.title
+                    )
+                }
+            }
+            item.addView(makeText(subsection.title, 16f, silver, true),
+                LinearLayout.LayoutParams(0, -2, 1f))
+            item.addView(makeText(count.toString(), 12f, gray, true))
+            item.addView(ImageView(context).apply {
+                setImageResource(R.drawable.ic_action_chevron)
+                imageTintList = android.content.res.ColorStateList.valueOf(silver)
+                scaleType = ImageView.ScaleType.CENTER_INSIDE
+                contentDescription = tr("فتح القسم")
+            }, LinearLayout.LayoutParams(dp(25), dp(25)).apply { marginStart = dp(8) })
+            cards.addView(item, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+        }
+        root.addView(cards, LinearLayout.LayoutParams(-1, -2))
+        val scroll = ScrollView(context).apply {
+            isFillViewport = true
+            isVerticalScrollBarEnabled = false
+            addView(root, ViewGroup.LayoutParams(-1, -2))
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(scroll) { _, insets ->
             val safeBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars() or WindowInsetsCompat.Type.mandatorySystemGestures()).bottom
             root.setPadding(dp(16), dp(12), dp(16), dp(20) + safeBottom)
             insets
@@ -498,14 +575,16 @@ internal class MainLibraryInterfaceController(
         // on game content; do not duplicate the old MARCO/library title or actions.
 
         // Featured cover-flow sits above platform filters and uses only real library entries.
-        val featuredPlatforms = setOf("PS4", "PS3", "PS2")
+        val featuredPlatforms = setOf("PS5", "PS4", "PS3", "PS2")
         val featuredGroups = games()
             .mapNotNull { game ->
                 val platform = GameLibraryManager.normalizePlatform(game.platform)
                 if (platform in featuredPlatforms) platform to game else null
             }
             .groupBy({ it.first }, { it.second })
-        val popularByPlatform = listOf("PS4", "PS3", "PS2").flatMap { platform ->
+        // Keep the featured row deterministic and include up to three real PS5 titles
+        // whenever they exist in the locally available library.
+        val popularByPlatform = listOf("PS5", "PS4", "PS3", "PS2").flatMap { platform ->
             featuredGroups[platform].orEmpty()
                 .sortedWith(compareByDescending<Game> { it.isFavorite }.thenBy { it.name.lowercase() })
                 .take(3)
@@ -736,10 +815,11 @@ internal class MainLibraryInterfaceController(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        listOf("ALL", "PS4", "PS3", "PS2", "PS3_ARABIC", "FAVORITES").forEach { category ->
+        listOf("ALL", "PS5", "PS4", "PS3", "PS2", "PS3_ARABIC", "FAVORITES").forEach { category ->
             val chip = TextView(context).apply {
                 text = when (category) {
                     "ALL" -> tr("الكل")
+                    "PS5" -> "PS5"
                     "PS4" -> "PS4"
                     "PS3" -> "PS3"
                     "PS2" -> "PS2"
@@ -799,6 +879,21 @@ internal class MainLibraryInterfaceController(
             LinearLayout.LayoutParams(0, -2, 1f))
         countText = makeText("0 " + tr("لعبة"), 10f, muted, true)
         section.addView(countText)
+        val browseSections = TextView(context).apply {
+            text = tr("الأقسام")
+            textSize = 11f
+            setTextColor(silver)
+            gravity = Gravity.CENTER
+            setPadding(dp(11), dp(8), dp(11), dp(8))
+            background = rounded(panel, 12)
+            isClickable = true
+            isFocusable = true
+            contentDescription = tr("تصفح أقسام المنصات")
+            setOnClickListener { showFullScreenSections() }
+        }
+        section.addView(browseSections, LinearLayout.LayoutParams(-2, -2).apply {
+            marginStart = dp(8)
+        })
         val sort = ImageView(context).apply {
             setImageResource(R.drawable.ic_action_sort)
             imageTintList = android.content.res.ColorStateList.valueOf(silver)

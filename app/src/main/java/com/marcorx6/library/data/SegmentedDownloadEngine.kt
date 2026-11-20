@@ -307,20 +307,18 @@ internal object SegmentedDownloadEngine {
         item: StoredDownload,
         database: DownloadDatabase
     ) {
-        val hasSegmentSidecars = (0 until SEGMENT_COUNT).any { index ->
-            File(directory, "${item.id}.seg$index.progress").isFile
+        // The segment files and the preallocated destination are created before
+        // the first range response is received. Their mere existence is NOT a
+        // resumable checkpoint: treating zero-byte sidecars or a preallocated file
+        // as downloaded data traps unsupported servers in an endless retry loop.
+        // Only committed segment offsets (or a persisted aggregate checkpoint)
+        // make the segmented layout unsafe to hand over to the sequential writer.
+        val hasCommittedSegmentBytes = (0 until SEGMENT_COUNT).any { index ->
+            val progress = File(directory, "${item.id}.seg$index.progress")
+            val maximum = progress.readTextOrNull()?.toLongOrNull() ?: 0L
+            maximum > 0L
         }
-        val hasPreallocatedPrivateTarget = target.isFile &&
-            item.totalBytes > 0L &&
-            target.length() == item.totalBytes &&
-            item.downloadedBytes < item.totalBytes
-        // A visible MediaStore target is now created by DownloadRepository before
-        // this HTTP capability probe. Its sidecar alone does not mean that old
-        // segmented data exists: deleting it here would make the file disappear
-        // whenever the server declines byte ranges and we switch to sequential mode.
-        val hasReusableDownloadData = hasSegmentSidecars ||
-            hasPreallocatedPrivateTarget ||
-            item.downloadedBytes > 0L
+        val hasReusableDownloadData = hasCommittedSegmentBytes || item.downloadedBytes > 0L
         if (!hasReusableDownloadData) return
 
         // The segmented layout stores bytes at independent absolute offsets.
@@ -487,6 +485,8 @@ internal object SegmentedDownloadEngine {
             if (cookies.isNotBlank()) request.setRequestProperty("Cookie", cookies)
             if (isInitial && item.referrer.isNotBlank()) request.setRequestProperty("Referer", item.referrer)
         }
+
+    private fun File.readTextOrNull(): String? = if (isFile) runCatching { readText().trim() }.getOrNull() else null
 
     private fun readSegmentProgress(file: File, maximum: Long): Long =
         if (!file.isFile) 0L else runCatching {

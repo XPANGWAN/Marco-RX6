@@ -50,7 +50,8 @@ internal object BloggerFeedParser {
             fileFormat = extractInfoValue(content, "الصيغة"),
             language = extractInfoValue(content, "اللغة"),
             password = extractInfoValue(content, "كلمة السر"),
-            rights = extractInfoValue(content, "الحقوق")
+            rights = extractInfoValue(content, "الحقوق"),
+            bloggerLabels = extractCategoryLabels(entry)
         )
     }
 
@@ -79,23 +80,35 @@ internal object BloggerFeedParser {
     }
 
     fun findPostUrl(entry: JSONObject): String {
-
         val links = entry.optJSONArray("link") ?: return ""
 
         for (i in 0 until links.length()) {
-
             val item = links.optJSONObject(i) ?: continue
+            if (item.optString("rel") != "alternate") continue
 
-            if (item.optString("rel") == "alternate") {
-                val href = item.optString("href", "")
+            val href = item.optString("href", "").trim()
+            val uri = runCatching { java.net.URI(href) }.getOrNull() ?: continue
+            // Blogger may return either the original blogspot address or the
+            // owner's custom domain. Accept both without tying the app to a
+            // particular hostname, but never accept credentials or non-HTTPS URLs.
+            if (!uri.scheme.equals("https", ignoreCase = true) ||
+                uri.host.isNullOrBlank() || uri.userInfo != null
+            ) continue
 
-                if (href.startsWith("https://")) {
-                    return href.substringBefore("?")
-                }
-            }
+            val authority = uri.rawAuthority ?: continue
+            val path = uri.rawPath.orEmpty()
+            return "https://$authority$path"
         }
 
         return ""
+    }
+
+    fun extractCategoryLabels(entry: JSONObject): List<String> {
+        val categories = entry.optJSONArray("category") ?: return emptyList()
+        return (0 until categories.length()).mapNotNull { index ->
+            categories.optJSONObject(index)?.optString("term", "")?.trim()
+                ?.takeIf { it.isNotBlank() }
+        }.distinct()
     }
 
     fun platformFromCategories(entry: JSONObject): String? {

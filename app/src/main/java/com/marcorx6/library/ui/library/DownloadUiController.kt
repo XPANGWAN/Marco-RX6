@@ -544,20 +544,31 @@ internal class DownloadUiController(
             val percent = if (isPreparing) {
                 item.preparationPercent.coerceIn(0, 100)
             } else if (item.totalBytes > 0L) {
-                (item.downloadedBytes * 100L / item.totalBytes).coerceIn(0L, 100L).toInt()
+                ((item.downloadedBytes.coerceAtLeast(0L).toDouble() /
+                    item.totalBytes.toDouble()) * 100.0).toInt().coerceIn(0, 100)
             } else 0
             val now = SystemClock.elapsedRealtime()
             val previous = lastSpeedSample[item.id]
-            val measuredSpeed = if (item.status == DownloadManager.STATUS_RUNNING && previous != null &&
-                now > previous.second && item.downloadedBytes >= previous.first) {
-                ((item.downloadedBytes - previous.first) * 1000L) / (now - previous.second).coerceAtLeast(1L)
-            } else 0L
-            if (item.status == DownloadManager.STATUS_RUNNING) {
-                lastSpeedSample[item.id] = item.downloadedBytes to now
-                if (measuredSpeed > 0L) lastValidSpeed[item.id] = measuredSpeed to now
+            val measuredSpeed = if (item.status == DownloadManager.STATUS_RUNNING) {
+                when {
+                    previous == null || item.downloadedBytes < previous.first -> {
+                        lastSpeedSample[item.id] = item.downloadedBytes to now
+                        lastValidSpeed.remove(item.id)
+                        0L
+                    }
+                    item.downloadedBytes > previous.first && now > previous.second -> {
+                        val measured = ((item.downloadedBytes - previous.first) * 1000L) /
+                            (now - previous.second).coerceAtLeast(1L)
+                        lastSpeedSample[item.id] = item.downloadedBytes to now
+                        if (measured > 0L) lastValidSpeed[item.id] = measured to now
+                        measured
+                    }
+                    else -> 0L
+                }
             } else {
                 lastSpeedSample.remove(item.id)
                 lastValidSpeed.remove(item.id)
+                0L
             }
             val cachedSpeed = lastValidSpeed[item.id]
             val speed = if (measuredSpeed > 0L) measuredSpeed else

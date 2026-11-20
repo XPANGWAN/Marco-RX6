@@ -45,6 +45,37 @@ class BloggerFeedParserTest {
     }
 
     @Test
+    fun preservesBloggerCustomDomainPostUrls() {
+        val entry = JSONObject().put(
+            "link",
+            org.json.JSONArray().put(
+                JSONObject()
+                    .put("rel", "alternate")
+                    .put("href", "https://games.example.com/2026/11/game-post.html?m=1#details")
+            )
+        )
+
+        assertEquals(
+            "https://games.example.com/2026/11/game-post.html",
+            BloggerFeedParser.findPostUrl(entry)
+        )
+    }
+
+    @Test
+    fun rejectsAlternatePostUrlsWithEmbeddedCredentials() {
+        val entry = JSONObject().put(
+            "link",
+            org.json.JSONArray().put(
+                JSONObject()
+                    .put("rel", "alternate")
+                    .put("href", "https://user:password@example.com/post")
+            )
+        )
+
+        assertEquals("", BloggerFeedParser.findPostUrl(entry))
+    }
+
+    @Test
     fun rejectsNonHttpsAlternatePostUrls() {
         val entry = JSONObject().put(
             "link",

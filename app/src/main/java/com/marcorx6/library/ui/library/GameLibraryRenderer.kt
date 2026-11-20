@@ -116,7 +116,18 @@ internal class GameLibraryRenderer(
         lastRenderedContainer = gameList
         lastRenderedGames = games.toList()
         lastRenderSignature = signature
-        gameList.removeAllViews()
+        val renderTarget = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutDirection = gameList.layoutDirection
+        }
+        fun publishRenderedContent() {
+            gameList.removeAllViews()
+            while (renderTarget.childCount > 0) {
+                val child = renderTarget.getChildAt(0)
+                renderTarget.removeViewAt(0)
+                gameList.addView(child)
+            }
+        }
         for (i in 0 until filters.childCount) {
             val chip = filters.getChildAt(i) as TextView
             val active = chip.tag?.toString() == selected
@@ -158,16 +169,17 @@ internal class GameLibraryRenderer(
         )
         countText.text = sorted.size.toString() + " " + tr("لعبة")
         if (sorted.isEmpty()) {
-            gameList.addView(makeText(tr("لا توجد ألعاب حالياً"), 15f, gray, true).apply {
+            renderTarget.addView(makeText(tr("لا توجد ألعاب حالياً"), 15f, gray, true).apply {
                 gravity = Gravity.CENTER
                 setPadding(dp(10), dp(55), dp(10), dp(55))
             })
+            publishRenderedContent()
             return
         }
 
-        val gridMode = selected in setOf("PS2", "PS3", "PS4", "PS3_ARABIC", "FAVORITES")
+        val gridMode = selected in setOf("PS2", "PS3", "PS4", "PS5", "PS3_ARABIC", "FAVORITES") || selected.startsWith("SECTION:")
         val sectioned = selected == "ALL" || selected == "BLOG"
-        val priority = listOf("PS4", "PS3", "PS2")
+        val priority = listOf("PS1", "PS2", "PS3", "PS4", "PS5", "PS3_ARABIC", "BLOG")
         // Remove invisible bidi/zero-width marks before grouping so visually identical
         // platform names cannot produce duplicate sections in Arabic locale.
         fun canonicalPlatform(raw: String): String {
@@ -192,7 +204,7 @@ internal class GameLibraryRenderer(
 
         sections.forEach { (platform, sectionGames) ->
             val sectionTitle = when (platform) {
-                "PS3_ARABIC" -> tr("PS3 Arabic")
+                "PS3_ARABIC" -> "PS3 ARABIC"
                 else -> platform
             }
             val heading = LinearLayout(activity).apply {
@@ -258,7 +270,7 @@ internal class GameLibraryRenderer(
                 })
             }
             heading.addView(sectionCount)
-            if (!gridMode) gameList.addView(heading, LinearLayout.LayoutParams(-1, -2))
+            if (!gridMode) renderTarget.addView(heading, LinearLayout.LayoutParams(-1, -2))
 
             val grid = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
@@ -549,7 +561,7 @@ internal class GameLibraryRenderer(
                         bottomMargin = dp(10)
                     }
                 )
-                gameList.addView(grid, LinearLayout.LayoutParams(-1, -2))
+                renderTarget.addView(grid, LinearLayout.LayoutParams(-1, -2))
             } else {
                 // In the ALL library view, each game card participates in a subtle
                 // 3D cover-flow as its position changes inside the horizontal rail.
@@ -608,9 +620,10 @@ internal class GameLibraryRenderer(
                     carousel.post { scheduleDepthUpdate() }
                 }
                 horizontal.addView(carousel, FrameLayout.LayoutParams(-2, -2))
-                gameList.addView(horizontal, LinearLayout.LayoutParams(-1, -2))
+                renderTarget.addView(horizontal, LinearLayout.LayoutParams(-1, -2))
             }
         }
+        publishRenderedContent()
     }
 
     private fun compactCount(value: Long): String = when {

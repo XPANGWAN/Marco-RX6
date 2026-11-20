@@ -47,7 +47,14 @@ class SecureUrlPolicyTest {
             "https://10.0.0.8/file.zip",
             "https://192.168.1.20/file.zip",
             "https://172.20.0.5/file.zip",
-            "https://169.254.10.2/file.zip"
+            "https://169.254.10.2/file.zip",
+            "https://127.1/file.zip",
+            "https://0177.0.0.1/file.zip",
+            "https://3232235780/file.zip",
+            "https://[::1]/file.zip",
+            "https://[::ffff:127.0.0.1]/file.zip",
+            "https://[::ffff:192.168.1.20]/file.zip",
+            "https://[fe80::1]/file.zip"
         ).forEach { assertEquals(false, SecureUrlPolicy.isAllowedDownloadUrl(it)) }
         assertEquals(true, SecureUrlPolicy.isAllowedDownloadUrl("https://cdn.example.org/file.zip"))
     }

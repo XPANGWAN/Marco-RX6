@@ -24,9 +24,8 @@ internal class BlogSyncFeature(
         executor = executor,
         isSyncing = isSyncing,
         setSyncing = setSyncing,
-        fetch = {
-            val result = BloggerFeedClient(feedUrl).fetch()
-            result.blogId to result.games
+        fetch = { onBatch ->
+            BloggerFeedClient(feedUrl).fetchProgressively(onBatch).blogId
         },
         postToUi = postToUi,
         merge = merge,

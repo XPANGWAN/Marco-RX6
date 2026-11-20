@@ -17,6 +17,23 @@ class DownloadSourceResolverTest {
     }
 
     @Test
+    fun rejectsCredentialBearingGoogleDriveUrlsDuringNormalization() {
+        val url = "https://user:password@drive.google.com/file/d/1AbcDEF_234567890/view"
+        assertEquals(url, DownloadSourceResolver.normalizeKnownProviderUrl(url))
+    }
+
+    @Test
+    fun rejectsMalformedGoogleDriveIdsInsteadOfInjectingQueryParameters() {
+        val urls = listOf(
+            "https://drive.google.com/uc?id=short",
+            "https://drive.google.com/uc?id=1AbcDEF_234567890%26confirm%3Dt"
+        )
+        urls.forEach { url ->
+            assertEquals(url, DownloadSourceResolver.normalizeKnownProviderUrl(url))
+        }
+    }
+
+    @Test
     fun preservesNonGoogleDriveSources() {
         val url = "https://www.mediafire.com/file/abc/game.zip/file"
         assertEquals(url, DownloadSourceResolver.normalizeKnownProviderUrl(url))
@@ -43,6 +60,36 @@ class DownloadSourceResolverTest {
     }
 
     @Test
+    fun recognizesMediaFireSharePagesAsBrowserLandingPagesNotDirectFiles() {
+        val shareUrls = listOf(
+            "https://www.mediafire.com/file/abc123/game.zip/file",
+            "https://mediafire.com/file/abc123/game.pkg/file",
+            "https://www.mediafire.com/file/abc123",
+            "https://www.mediafire.com/download/abc123/game.iso"
+        )
+        shareUrls.forEach { url ->
+            assertEquals(true, DownloadSourceResolver.isKnownLandingPageUrl(url))
+            assertEquals(false, DownloadSourceResolver.isDirectDownloadEndpointUrl(url))
+        }
+    }
+
+    @Test
+    fun keepsMediaFireCdnFileEndpointsDirect() {
+        assertEquals(
+            true,
+            DownloadSourceResolver.isDirectDownloadEndpointUrl(
+                "https://download123.mediafire.com/token/game.pkg"
+            )
+        )
+        assertEquals(
+            false,
+            DownloadSourceResolver.isKnownLandingPageUrl(
+                "https://download123.mediafire.com/token/game.pkg"
+            )
+        )
+    }
+
+    @Test
     fun recognizesRootzShareLinksAsBrowserLandingPages() {
         assertEquals(
             true,
@@ -63,6 +110,68 @@ class DownloadSourceResolverTest {
     }
 
     @Test
+    fun recognizesLinkVaultCodePagesAsBrowserLandingPages() {
+        val urls = listOf(
+            "https://vault3.link-vault.org/c/a2JO2hqs",
+            "https://link-vault.org/c/anotherCode/",
+            "https://vault9.link-vault.org/c/ABC123"
+        )
+        urls.forEach { url ->
+            assertEquals(true, DownloadSourceResolver.isKnownLandingPageUrl(url))
+            assertEquals(false, DownloadSourceResolver.isDirectDownloadEndpointUrl(url))
+        }
+        assertEquals(
+            false,
+            DownloadSourceResolver.isKnownLandingPageUrl(
+                "https://vault3.link-vault.org/c/a2JO2hqs/game.pkg"
+            )
+        )
+    }
+
+    @Test
+    fun treatsUnknownOpaqueHttpsUrlsAsBrowserPagesWithoutHostAllowlist() {
+        val links = listOf(
+            "https://vault3.link-vault.org/c/a2JO2hqs",
+            "https://fileshare.example.net/s/AbC123",
+            "https://redirect.example.org/r/token-987",
+            "https://download-gateway.example.com/go?id=abc"
+        )
+        links.forEach { url ->
+            assertEquals(true, DownloadSourceResolver.shouldOpenInBrowserBeforeProbe(url))
+        }
+    }
+
+    @Test
+    fun keepsExplicitFileEndpointsOnTheDirectDownloadPath() {
+        assertEquals(
+            false,
+            DownloadSourceResolver.shouldOpenInBrowserBeforeProbe(
+                "https://cdn.example.net/files/game.pkg?token=abc"
+            )
+        )
+        assertEquals(
+            false,
+            DownloadSourceResolver.shouldOpenInBrowserBeforeProbe(
+                "https://example.net/download?id=123"
+            )
+        )
+        assertEquals(
+            false,
+            DownloadSourceResolver.shouldOpenInBrowserBeforeProbe(
+                "https://example.net/share/123",
+                hintedMimeType = "application/octet-stream"
+            )
+        )
+        assertEquals(
+            false,
+            DownloadSourceResolver.shouldOpenInBrowserBeforeProbe(
+                "https://example.net/get",
+                hintedDisposition = "attachment; filename=game.zip"
+            )
+        )
+    }
+
+    @Test
     fun preservesDirectNoPayStationPackageEndpoints() {
         val url = "https://nopaystation.com/get/PS3/NPEB00882/GTAIVDIGITAL0001/1.06/pkg?version=1.01"
         assertEquals(url, DownloadSourceResolver.normalizeKnownProviderUrl(url))
@@ -74,6 +183,19 @@ class DownloadSourceResolverTest {
         assertEquals(false, DownloadSourceResolver.isKnownLandingPageUrl("https://files.example.org/f/AFklphNAHo"))
         assertEquals(false, DownloadSourceResolver.isKnownLandingPageUrl("https://files.example.org/download/game.pkg"))
         assertEquals(true, DownloadSourceResolver.isDirectDownloadEndpointUrl("https://cdn.example.org/files/game.pkg?token=abc"))
+    }
+
+    @Test
+    fun recognizesMoreGenericGameAndArchiveFileEndpoints() {
+        listOf(
+            "https://cdn.example.org/game.3ds",
+            "https://cdn.example.org/patch.tar.gz",
+            "https://cdn.example.org/rom.nes",
+            "https://cdn.example.org/installer.exe",
+            "https://cdn.example.org/game.torrent"
+        ).forEach { url ->
+            assertEquals(true, DownloadSourceResolver.isDirectDownloadEndpointUrl(url))
+        }
     }
 
     @Test
