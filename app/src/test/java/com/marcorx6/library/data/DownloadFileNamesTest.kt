@@ -67,6 +67,24 @@ class DownloadFileNamesTest {
     }
 
     @Test
+    fun preservesConsoleArchiveAndTorrentExtensionsFromDownloadUrls() {
+        assertEquals(
+            "Game.3ds",
+            DownloadFileNames.safeName(
+                "Game", "application/octet-stream", 81,
+                "https://cdn.example.org/files/Game.3ds?token=abc"
+            )
+        )
+        assertEquals(
+            "Game.torrent",
+            DownloadFileNames.safeName(
+                "Game", "application/octet-stream", 82,
+                "https://cdn.example.org/download/Game.torrent"
+            )
+        )
+    }
+
+    @Test
     fun addsApkExtensionFromMimeWhenTitleHasNoExtension() {
         assertEquals(
             "Marco.apk",
