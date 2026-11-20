@@ -20,10 +20,14 @@ internal object DownloadSourceResolver {
         val uri = runCatching { URI(rawUrl.trim()) }.getOrNull() ?: return rawUrl.trim()
         val host = uri.host?.lowercase(Locale.ROOT).orEmpty()
         if (host != "drive.google.com" && host != "docs.google.com") return rawUrl.trim()
+        // Never normalize a URL that embeds credentials, and only accept a
+        // syntactically valid Drive file ID from either supported URL shape.
+        if (uri.userInfo != null) return rawUrl.trim()
 
         val pathId = Regex("""/file/d/([A-Za-z0-9_-]{10,})""").find(uri.path.orEmpty())?.groupValues?.get(1)
         val queryId = queryParameter(uri.rawQuery.orEmpty(), "id")
-        val id = pathId ?: queryId ?: return rawUrl.trim()
+        val id = (pathId ?: queryId)?.takeIf { it.matches(Regex("""[A-Za-z0-9_-]{10,}""")) }
+            ?: return rawUrl.trim()
         return "https://drive.google.com/uc?export=download&id=$id"
     }
 
