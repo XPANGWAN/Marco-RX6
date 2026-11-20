@@ -17,6 +17,23 @@ class DownloadSourceResolverTest {
     }
 
     @Test
+    fun rejectsCredentialBearingGoogleDriveUrlsDuringNormalization() {
+        val url = "https://user:password@drive.google.com/file/d/1AbcDEF_234567890/view"
+        assertEquals(url, DownloadSourceResolver.normalizeKnownProviderUrl(url))
+    }
+
+    @Test
+    fun rejectsMalformedGoogleDriveIdsInsteadOfInjectingQueryParameters() {
+        val urls = listOf(
+            "https://drive.google.com/uc?id=short",
+            "https://drive.google.com/uc?id=1AbcDEF_234567890%26confirm%3Dt"
+        )
+        urls.forEach { url ->
+            assertEquals(url, DownloadSourceResolver.normalizeKnownProviderUrl(url))
+        }
+    }
+
+    @Test
     fun preservesNonGoogleDriveSources() {
         val url = "https://www.mediafire.com/file/abc/game.zip/file"
         assertEquals(url, DownloadSourceResolver.normalizeKnownProviderUrl(url))
