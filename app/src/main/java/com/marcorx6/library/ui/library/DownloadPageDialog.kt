@@ -511,7 +511,58 @@ internal class DownloadPageDialog(
         }
 
         fun scanForFileLinks() {
-            val script = """(function(){var out=[],seen={};var ext=/\.(zip|7z|rar|iso|pkg|bin|cue|chd|img|pbp|cso|nsp|xci|apk|pdf|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg)$/i;var words=/(download|تحميل|تنزيل|رابط مباشر|direct|download file)/i;function add(raw,label,force){try{var u=new URL(raw,location.href);if(u.protocol!=='https:'||seen[u.href]||out.length>=12)return;var p=u.pathname.toLowerCase(),q=u.search.toLowerCase(),endpoint=/(?:^|\/)(download|attachment|file|export)(?:\/|$)/i.test(p)||/[?&](download|attachment|file|export)=(1|true|yes|download)(?:&|$)/i.test(q);if(force||ext.test(p)||endpoint){seen[u.href]=1;out.push({url:u.href,label:(label||'ملف مباشر محتمل').slice(0,90)});}}catch(e){}}document.querySelectorAll('a[href],a[data-href],a[data-url],[data-download-url],[data-file-url],form[action],video[src],video source[src],audio[src],audio source[src]').forEach(function(e){var h=e.href||e.getAttribute('data-href')||e.getAttribute('data-url')||e.getAttribute('data-download-url')||e.getAttribute('data-file-url')||e.action||e.src||e.getAttribute('src')||'',t=(e.innerText||e.textContent||e.getAttribute('aria-label')||'').trim(),d=e.hasAttribute('download'),p=h.toLowerCase().split('?')[0],media=e.tagName==='VIDEO'||e.tagName==='AUDIO'||e.tagName==='SOURCE';if(media||d||words.test(t)||ext.test(p)||/(?:download|attachment|file|export)/i.test(h))add(h,t,d||media);});return JSON.stringify(out);})()"""
+            // A MutationObserver marks the page dirty whenever a script inserts a
+            // download button, changes a link target, or reveals a delayed URL.
+            // The native side polls this flag; no page script is allowed to click links.
+            val script = """(function(){
+                try {
+                    if (!window.__marcoDownloadObserver && document.documentElement) {
+                        window.__marcoDownloadDirty = true;
+                        window.__marcoDownloadObserver = new MutationObserver(function(){
+                            window.__marcoDownloadDirty = true;
+                        });
+                        window.__marcoDownloadObserver.observe(document.documentElement, {
+                            subtree:true, childList:true, attributes:true,
+                            attributeFilter:['href','action','src','data-href','data-url','data-download-url','data-file-url','download']
+                        });
+                    }
+                    if (window.__marcoDownloadDirty === false) return '[]';
+                    window.__marcoDownloadDirty = false;
+                    var out=[], seen=Object.create(null);
+                    var ext=/\.(zip|7z|rar|iso|pkg|bin|cue|chd|img|pbp|cso|nsp|xci|apk|pdf|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg)$/i;
+                    var words=/(download|تحميل|تنزيل|رابط مباشر|direct|download file)/i;
+                    var endpoint=/(?:^|\/)(download|downloads|attachment|file|export|raw)(?:\/|$)/i;
+                    var selectors='a[href],a[data-href],a[data-url],[data-download-url],[data-file-url],form[action],video[src],video source[src],audio[src],audio source[src],button[data-href],button[data-url],button[data-download-url],[role="button"][data-href],[role="button"][data-url],input[formaction]';
+                    function add(raw,label,force){
+                        try {
+                            var u=new URL(raw,location.href);
+                            if(u.protocol!=='https:' || seen[u.href] || out.length>=20) return;
+                            var p=u.pathname.toLowerCase(), q=u.search.toLowerCase();
+                            var explicit=endpoint.test(p) || /[?&](download|attachment|file|export|dl)=(1|true|yes|download)(?:&|$)/i.test(q);
+                            if(force || ext.test(p) || explicit){
+                                seen[u.href]=1;
+                                out.push({url:u.href,label:(label||'ملف مباشر محتمل').trim().slice(0,90)});
+                            }
+                        } catch(e) {}
+                    }
+                    document.querySelectorAll(selectors).forEach(function(e){
+                        var h=e.getAttribute('href') || e.getAttribute('data-href') ||
+                            e.getAttribute('data-url') || e.getAttribute('data-download-url') ||
+                            e.getAttribute('data-file-url') || e.getAttribute('action') ||
+                            e.getAttribute('formaction') || e.getAttribute('src') || '';
+                        var t=(e.innerText||e.textContent||e.getAttribute('aria-label')||e.getAttribute('title')||'').trim();
+                        var d=e.hasAttribute('download');
+                        var tag=(e.tagName||'').toUpperCase();
+                        var media=tag==='VIDEO'||tag==='AUDIO'||tag==='SOURCE';
+                        var p=h.toLowerCase().split('?')[0];
+                        if(media || d || words.test(t) || ext.test(p) || endpoint.test(p) ||
+                            e.hasAttribute('data-download-url') || e.hasAttribute('data-file-url')) {
+                            add(h,t,d||media||e.hasAttribute('data-download-url')||e.hasAttribute('data-file-url'));
+                        }
+                    });
+                    return JSON.stringify(out);
+                } catch(e) { return '[]'; }
+            })()"""
             webView.evaluateJavascript(script) { raw ->
                 try {
                     val decoded = JSONTokener(raw ?: "[]").nextValue()
@@ -526,6 +577,15 @@ internal class DownloadPageDialog(
             }
         }
 
+        // Re-scan only while the browser is visible. The observer keeps the
+        // repeated scan cheap by returning immediately when the DOM is unchanged.
+        val dynamicScanRunnable = object : Runnable {
+            override fun run() {
+                if (!dialog.isShowing || rendererGone) return
+                scanForFileLinks()
+                webView.postDelayed(this, 1_500L)
+            }
+        }
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -865,6 +925,8 @@ internal class DownloadPageDialog(
                 status.text = translate("إذا ظهرت خطوة تحقق أو مؤقت، أكملها داخل هذه الصفحة. الروابط المحتملة تظهر أسفلها.")
                 applyCosmeticFiltering()
                 scanForFileLinks()
+                webView.removeCallbacks(dynamicScanRunnable)
+                webView.postDelayed(dynamicScanRunnable, 1_500L)
             }
 
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
@@ -945,6 +1007,7 @@ internal class DownloadPageDialog(
         var lifecycleObserver: DefaultLifecycleObserver? = null
         val lifecycleOwner = activity as? LifecycleOwner
         dialog.setOnDismissListener {
+            webView.removeCallbacks(dynamicScanRunnable)
             root.animate().cancel()
             com.marcorx6.library.AppDiagnostics.log("INFO", "Browser", "Closed download browser")
             if (!rendererGone) {
