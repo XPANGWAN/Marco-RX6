@@ -7,10 +7,18 @@ import java.util.Locale
 
 /** Resolves a stable, sanitized filename and preserves a usable file extension. */
 internal object DownloadFileNames {
+    // Keep filename recognition aligned with DownloadSourceResolver. A link may
+    // be correctly identified as a file while the filename layer still drops its
+    // real extension; that mismatch produces generic names or the wrong MIME suffix.
     private val knownExtensions = setOf(
-        "apk", "zip", "7z", "rar", "iso", "pkg", "bin", "cue", "chd", "img",
-        "pbp", "cso", "nsp", "xci", "pdf", "mp4", "m4v", "mkv", "webm",
-        "mov", "avi", "flv", "3gp", "mp3", "m4a", "aac", "wav", "flac", "ogg"
+        "apk", "xapk", "apks", "aab", "exe", "msi", "dmg", "deb", "rpm",
+        "zip", "7z", "rar", "r00", "tar", "tgz", "gz", "bz2", "xz", "zst",
+        "iso", "img", "bin", "cue", "chd", "pkg", "pbp", "cso", "nsp", "xci",
+        "3ds", "cia", "wad", "wbfs", "rvz", "gcz", "nes", "sfc", "smc",
+        "gba", "gbc", "gb", "nds", "n64", "z64", "v64", "torrent",
+        "pdf", "epub", "mobi", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+        "txt", "csv", "json", "xml", "mp4", "m4v", "mkv", "webm", "mov",
+        "avi", "flv", "3gp", "mp3", "m4a", "aac", "wav", "flac", "ogg", "opus"
     )
 
     fun fromResponse(disposition: String?, url: String): String? {
