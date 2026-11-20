@@ -123,6 +123,10 @@ internal class GameArticleMediaViewFactory(
             contentDescription = "$gameName - $number"
         }
         loadCover(image, "", url)
+        // CoverDisplayController defaults to CENTER_CROP for library thumbnails.
+        // A full-screen article image must instead fit completely inside the viewer.
+        image.scaleType = ImageView.ScaleType.FIT_CENTER
+        image.adjustViewBounds = true
         container.addView(image, FrameLayout.LayoutParams(-1, -1))
         container.setOnClickListener { dialog.dismiss() }
         dialog.setContentView(container)
