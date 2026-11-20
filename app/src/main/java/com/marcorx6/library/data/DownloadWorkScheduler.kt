@@ -85,7 +85,11 @@ internal object DownloadWorkScheduler {
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30L, TimeUnit.SECONDS)
                 .build()
             try {
-                manager.enqueueUniqueWork(\n                    workName(id),\n                    if (id in replaceIds) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,\n                    request\n                )
+                manager.enqueueUniqueWork(
+                    workName(id),
+                    if (id in replaceIds) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,
+                    request
+                )
             } catch (error: Exception) {
                 database.status(
                     id,
