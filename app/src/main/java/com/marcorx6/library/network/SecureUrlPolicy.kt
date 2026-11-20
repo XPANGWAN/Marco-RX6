@@ -60,6 +60,9 @@ internal object SecureUrlPolicy {
                 (a == 198 && b in 18..19) ||
                 a >= 224
         }
+        // Reject non-canonical numeric IPv4 spellings such as 127.1 or
+        // octal dotted forms; URL stacks may resolve these to loopback/private IPs.
+        if (host.all { it.isDigit() || it == '.' }) return true
 
         if (host.contains(':')) {
             // IPv4-mapped IPv6 literals (for example ::ffff:127.0.0.1)
