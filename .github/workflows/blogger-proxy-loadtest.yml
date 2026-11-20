@@ -1,0 +1,41 @@
+name: Blogger Proxy Load Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_vus:
+        description: "Maximum simulated concurrent users (start at 10)"
+        required: true
+        type: choice
+        options:
+          - "10"
+          - "25"
+          - "50"
+          - "100"
+        default: "10"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: blogger-proxy-loadtest
+  cancel-in-progress: false
+
+jobs:
+  load-test:
+    name: Controlled Blogger Proxy load test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: "0.55.0"
+
+      - name: Run read-only proxy load test
+        env:
+          MAX_VUS: ${{ inputs.max_vus }}
+        run: k6 run -e MAX_VUS="$MAX_VUS" tools/loadtest/blogger-proxy.k6.js
