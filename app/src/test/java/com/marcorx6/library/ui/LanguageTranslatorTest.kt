@@ -459,4 +459,53 @@ class LanguageTranslatorTest {
         assertEquals("Étape 3", LanguageTranslator.translate("خطوة 3", "fr"))
         assertEquals("Paso 3", LanguageTranslator.translate("خطوة 3", "es"))
     }
+
+    @Test
+    fun translatesPreviouslyUncoveredDownloadAndCommunityMessages() {
+        val cases = listOf(
+            "تم حظر تحويل إعلاني غير مرغوب؛ بقيت في الصفحة الأصلية" to listOf(
+                "An unwanted advertising redirect was blocked; you stayed on the original page",
+                "Une redirection publicitaire indésirable a été bloquée ; vous êtes resté sur la page d’origine",
+                "Se bloqueó una redirección publicitaria no deseada; permaneciste en la página original"
+            ),
+            "تم حظر نافذة منبثقة غير مطلوبة؛ بقيت في الصفحة الأصلية" to listOf(
+                "An unwanted pop-up was blocked; you stayed on the original page",
+                "Une fenêtre contextuelle indésirable a été bloquée ; vous êtes resté sur la page d’origine",
+                "Se bloqueó una ventana emergente no deseada; permaneciste en la página original"
+            ),
+            "الحجم المتبقي" to listOf("Remaining size", "Taille restante", "Tamaño restante"),
+            "سبب إعادة المحاولة:" to listOf("Retry reason:", "Motif de la nouvelle tentative :", "Motivo del reintento:"),
+            "جارٍ حجز مساحة التخزين قبل بدء التنزيل" to listOf(
+                "Reserving storage space before starting the download",
+                "Réservation de l’espace de stockage avant le début du téléchargement",
+                "Reservando espacio de almacenamiento antes de iniciar la descarga"
+            ),
+            "فتح المجلد" to listOf("Open folder", "Ouvrir le dossier", "Abrir carpeta"),
+            "مجتمع MARCO الرسمي على Telegram" to listOf(
+                "Official MARCO community on Telegram",
+                "Communauté officielle MARCO sur Telegram",
+                "Comunidad oficial de MARCO en Telegram"
+            ),
+            "تابع أخبار وإعلانات MARCO وانضم إلى المجتمع" to listOf(
+                "Follow MARCO news and announcements and join the community",
+                "Suivez les actualités et annonces de MARCO et rejoignez la communauté",
+                "Sigue las noticias y anuncios de MARCO y únete a la comunidad"
+            ),
+            "تم تحميل جزء من المكتبة. تحقق من الاتصال لإكمال التحديث." to listOf(
+                "Part of the library loaded. Check your connection to finish updating.",
+                "Une partie de la bibliothèque a été chargée. Vérifiez votre connexion pour terminer la mise à jour.",
+                "Se cargó parte de la biblioteca. Comprueba tu conexión para terminar la actualización."
+            )
+        )
+        cases.forEach { (source, expected) ->
+            assertEquals(expected[0], LanguageTranslator.translate(source, "en"))
+            assertEquals(expected[1], LanguageTranslator.translate(source, "fr"))
+            assertEquals(expected[2], LanguageTranslator.translate(source, "es"))
+        }
+        assertEquals("Showing 8 of ", LanguageTranslator.translate("عرض 8 من ", "en"))
+        assertEquals(
+            "Visit the official MARCO RX6 website to see and download the latest release",
+            LanguageTranslator.translate("افتح الموقع الرسمي لـ MARCO RX6 لمشاهدة أحدث إصدار وتحميله", "en")
+        )
+    }
 }
