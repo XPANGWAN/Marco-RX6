@@ -1024,6 +1024,19 @@ internal object LanguageTranslator {
             "اختر القسم الفرعي" to listOf("Choose a subcategory", "Choisissez une sous-catégorie", "Elige una subcategoría"),
             "PS3 Arabic" to listOf("PS3 Arabic", "PS3 arabe", "PS3 árabe"),
             "تصفح أقسام المنصات" to listOf("Browse platform sections", "Parcourir les sections des plateformes", "Explorar las secciones de plataformas"),
+            "عرض 8 من " to listOf("Showing 8 of ", "Affichage de 8 sur ", "Mostrando 8 de "),
+            "تعذر تحميل بيانات الحسابات (" to listOf("Could not load account data (", "Impossible de charger les données des comptes (", "No se pudieron cargar los datos de las cuentas ("),
+            "تم حظر تحويل إعلاني غير مرغوب؛ بقيت في الصفحة الأصلية" to listOf("An unwanted advertising redirect was blocked; you stayed on the original page", "Une redirection publicitaire indésirable a été bloquée ; vous êtes resté sur la page d’origine", "Se bloqueó una redirección publicitaria no deseada; permaneciste en la página original"),
+            "تم حظر نافذة منبثقة غير مطلوبة؛ بقيت في الصفحة الأصلية" to listOf("An unwanted pop-up was blocked; you stayed on the original page", "Une fenêtre contextuelle indésirable a été bloquée ; vous êtes resté sur la page d’origine", "Se bloqueó una ventana emergente no deseada; permaneciste en la página original"),
+            "تم تحميل جزء من المكتبة. تحقق من الاتصال لإكمال التحديث." to listOf("Part of the library loaded. Check your connection to finish updating.", "Une partie de la bibliothèque a été chargée. Vérifiez votre connexion pour terminer la mise à jour.", "Se cargó parte de la biblioteca. Comprueba tu conexión para terminar la actualización."),
+            "الحجم المتبقي" to listOf("Remaining size", "Taille restante", "Tamaño restante"),
+            "سبب إعادة المحاولة:" to listOf("Retry reason:", "Motif de la nouvelle tentative :", "Motivo del reintento:"),
+            "جارٍ حجز مساحة التخزين قبل بدء التنزيل" to listOf("Reserving storage space before starting the download", "Réservation de l’espace de stockage avant le début du téléchargement", "Reservando espacio de almacenamiento antes de iniciar la descarga"),
+            "مجتمع MARCO الرسمي على Telegram" to listOf("Official MARCO community on Telegram", "Communauté officielle MARCO sur Telegram", "Comunidad oficial de MARCO en Telegram"),
+            "تابع أخبار وإعلانات MARCO وانضم إلى المجتمع" to listOf("Follow MARCO news and announcements and join the community", "Suivez les actualités et annonces de MARCO et rejoignez la communauté", "Sigue las noticias y anuncios de MARCO y únete a la comunidad"),
+            "افتح الموقع الرسمي لـ MARCO RX6 لمشاهدة أحدث إصدار وتحميله" to listOf("Visit the official MARCO RX6 website to see and download the latest release", "Visitez le site officiel de MARCO RX6 pour voir et télécharger la dernière version", "Visita el sitio oficial de MARCO RX6 para ver y descargar la última versión"),
+            "فتح المجلد" to listOf("Open folder", "Ouvrir le dossier", "Abrir carpeta"),
+            "تعذر فتح مجلد التنزيلات؛ افتح Download/MARCO RX6 من مدير الملفات" to listOf("Could not open the downloads folder; open Download/MARCO RX6 in your file manager", "Impossible d’ouvrir le dossier des téléchargements ; ouvrez Download/MARCO RX6 dans votre gestionnaire de fichiers", "No se pudo abrir la carpeta de descargas; abre Download/MARCO RX6 en tu gestor de archivos"),
         )
 
     // Compile parameterized-message patterns once. Translation is called while building
