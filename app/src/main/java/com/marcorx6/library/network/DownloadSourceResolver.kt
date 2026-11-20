@@ -54,8 +54,14 @@ internal object DownloadSourceResolver {
             Regex("""^/d/[^/]+/?$""", RegexOption.IGNORE_CASE).matches(path)
         val isMediaFireLandingPage = host == "mediafire.com" ||
             host == "www.mediafire.com"
+        // Link-Vault uses short /c/{code} URLs as redirect/confirmation pages.
+        // Treat the page as a browser destination and avoid consuming its
+        // session/redirect with the repository's preliminary HTTP probe.
+        val isLinkVaultLandingPage = (
+            host == "link-vault.org" || host.endsWith(".link-vault.org")
+        ) && Regex("""^/c/[^/]+/?$""", RegexOption.IGNORE_CASE).matches(path)
         return (isShareLandingPage && knownVikingHost) || isRootzSharePage ||
-            isMediaFireLandingPage
+            isMediaFireLandingPage || isLinkVaultLandingPage
     }
 
     /**
