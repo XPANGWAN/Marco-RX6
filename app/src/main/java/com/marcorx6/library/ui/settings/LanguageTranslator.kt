@@ -1020,6 +1020,23 @@ internal object LanguageTranslator {
             "التنزيل عبر Wi-Fi فقط" to listOf("Download over Wi-Fi only", "Télécharger uniquement via Wi-Fi", "Descargar solo por Wi-Fi"),
         )
 
+    // Compile parameterized-message patterns once. Translation is called while building
+    // every visible screen, so allocating Regex objects for each TextView is avoidable UI work.
+    private val serverHttpErrorPattern = Regex("^الخادم رفض رابط التنزيل \\(HTTP ([^)]+)\\)$")
+    private val driveUploadErrorPattern = Regex("^فشل رفع الصورة إلى Google Drive \\(([^)]+)\\): (.*)$", RegexOption.DOT_MATCHES_ALL)
+    private val imagePublicErrorPattern = Regex("^تم رفع الصورة لكن تعذر جعلها متاحة للموقع \\(([^)]+)\\): (.*)$", RegexOption.DOT_MATCHES_ALL)
+    private val imageVerifyErrorPattern = Regex("^تعذر التحقق من رابط الصورة \\(HTTP ([^،]+)، النوع: (.*)\\)$")
+    private val ratingsCountPattern = Regex("^تقييماتي • (\\d+)$")
+    private val favoritesPreviewPattern = Regex("^عرض 8 من (\\d+) لعبة مفضلة$")
+    private val favoritesCountPattern = Regex("^(\\d+) لعبة محفوظة في المفضلة$")
+    private val accountLoadErrorPattern = Regex("^تعذر تحميل بيانات الحسابات \\((.*)\\)$")
+    private val listLoadErrorPattern = Regex("^تعذر تحميل القائمة \\((.*)\\)$")
+    private val tabPattern = Regex("^تبويب (\\d+)$")
+    private val numberedTabPattern = Regex("^التبويب (\\d+)$")
+    private val blockedAdsPattern = Regex("^عدد الإعلانات المحجوبة: (\\d+)$")
+    private val stepPattern = Regex("^خطوة (\\d+)$")
+    private val blockedTrackersPattern = Regex("^الإعلانات والمتتبعات المحجوبة: (\\d+)$")
+
     /** Returns keys whose catalog entries do not cover all three non-Arabic languages. */
     internal fun incompleteTranslationKeys(): List<String> =
         translations.filterValues { values -> values.size != 3 || values.any { it.isBlank() } }.keys.toList()
@@ -1029,19 +1046,19 @@ internal object LanguageTranslator {
         val index = when (lang) { "en" -> 0; "fr" -> 1; "es" -> 2; else -> return ar }
         fun localized(key: String): String? = translations[key]?.getOrNull(index)
 
-        Regex("^الخادم رفض رابط التنزيل \\(HTTP ([^)]+)\\)$").matchEntire(ar)?.let { match ->
+        serverHttpErrorPattern.matchEntire(ar)?.let { match ->
             return "${localized("الخادم رفض رابط التنزيل") ?: "الخادم رفض رابط التنزيل"} (HTTP ${match.groupValues[1]})"
         }
-        Regex("^فشل رفع الصورة إلى Google Drive \\(([^)]+)\\): (.*)$", RegexOption.DOT_MATCHES_ALL).matchEntire(ar)?.let { match ->
+        driveUploadErrorPattern.matchEntire(ar)?.let { match ->
             return "${localized("فشل رفع الصورة إلى Google Drive") ?: "فشل رفع الصورة إلى Google Drive"} (${match.groupValues[1]}): ${match.groupValues[2]}"
         }
-        Regex("^تم رفع الصورة لكن تعذر جعلها متاحة للموقع \\(([^)]+)\\): (.*)$", RegexOption.DOT_MATCHES_ALL).matchEntire(ar)?.let { match ->
+        imagePublicErrorPattern.matchEntire(ar)?.let { match ->
             return "${localized("تم رفع الصورة لكن تعذر جعلها متاحة للموقع") ?: "تم رفع الصورة لكن تعذر جعلها متاحة للموقع"} (${match.groupValues[1]}): ${match.groupValues[2]}"
         }
-        Regex("^تعذر التحقق من رابط الصورة \\(HTTP ([^،]+)، النوع: (.*)\\)$").matchEntire(ar)?.let { match ->
+        imageVerifyErrorPattern.matchEntire(ar)?.let { match ->
             return "${localized("تعذر التحقق من رابط الصورة") ?: "تعذر التحقق من رابط الصورة"} (HTTP ${match.groupValues[1]}, type: ${match.groupValues[2]})"
         }
-        Regex("^تقييماتي • (\\d+)$").matchEntire(ar)?.let { match ->
+        ratingsCountPattern.matchEntire(ar)?.let { match ->
             val count = match.groupValues[1]
             return when (lang) {
                 "en" -> "My ratings • $count"
@@ -1050,7 +1067,7 @@ internal object LanguageTranslator {
                 else -> ar
             }
         }
-        Regex("^عرض 8 من (\\d+) لعبة مفضلة$").matchEntire(ar)?.let { match ->
+        favoritesPreviewPattern.matchEntire(ar)?.let { match ->
             val count = match.groupValues[1]
             return when (lang) {
                 "en" -> "Showing 8 of $count favorite games"
@@ -1059,7 +1076,7 @@ internal object LanguageTranslator {
                 else -> ar
             }
         }
-        Regex("^(\\d+) لعبة محفوظة في المفضلة$").matchEntire(ar)?.let { match ->
+        favoritesCountPattern.matchEntire(ar)?.let { match ->
             val count = match.groupValues[1]
             return when (lang) {
                 "en" -> "$count games saved as favorites"
@@ -1068,7 +1085,7 @@ internal object LanguageTranslator {
                 else -> ar
             }
         }
-        Regex("^تعذر تحميل بيانات الحسابات \\((.*)\\)$").matchEntire(ar)?.let { match ->
+        accountLoadErrorPattern.matchEntire(ar)?.let { match ->
             val code = match.groupValues[1]
             val prefix = when (lang) {
                 "en" -> "Could not load account data"
@@ -1078,7 +1095,7 @@ internal object LanguageTranslator {
             }
             return "$prefix ($code)"
         }
-        Regex("^تعذر تحميل القائمة \\((.*)\\)$").matchEntire(ar)?.let { match ->
+        listLoadErrorPattern.matchEntire(ar)?.let { match ->
             val code = match.groupValues[1]
             val prefix = when (lang) {
                 "en" -> "Could not load the list"
@@ -1088,7 +1105,7 @@ internal object LanguageTranslator {
             }
             return "$prefix ($code)"
         }
-        Regex("^تبويب (\\d+)$").matchEntire(ar)?.let { match ->
+        tabPattern.matchEntire(ar)?.let { match ->
             val number = match.groupValues[1]
             return when (lang) {
                 "en" -> "Tab $number"
@@ -1097,7 +1114,7 @@ internal object LanguageTranslator {
                 else -> ar
             }
         }
-        Regex("^التبويب (\\d+)$").matchEntire(ar)?.let { match ->
+        numberedTabPattern.matchEntire(ar)?.let { match ->
             val number = match.groupValues[1]
             return when (lang) {
                 "en" -> "Tab $number"
@@ -1106,7 +1123,7 @@ internal object LanguageTranslator {
                 else -> ar
             }
         }
-        Regex("^عدد الإعلانات المحجوبة: (\\d+)$").matchEntire(ar)?.let { match ->
+        blockedAdsPattern.matchEntire(ar)?.let { match ->
             val count = match.groupValues[1]
             return when (lang) {
                 "en" -> "Ads blocked: $count"
@@ -1115,11 +1132,11 @@ internal object LanguageTranslator {
                 else -> ar
             }
         }
-        Regex("^خطوة (\\d+)$").matchEntire(ar)?.let { match ->
+        stepPattern.matchEntire(ar)?.let { match ->
             val prefix = localized("خطوة")
             if (prefix != null) return "$prefix ${match.groupValues[1]}"
         }
-        Regex("^الإعلانات والمتتبعات المحجوبة: (\\d+)$").matchEntire(ar)?.let { match ->
+        blockedTrackersPattern.matchEntire(ar)?.let { match ->
             val prefix = localized("الإعلانات والمتتبعات المحجوبة:")
             if (prefix != null) return "$prefix ${match.groupValues[1]}"
         }
