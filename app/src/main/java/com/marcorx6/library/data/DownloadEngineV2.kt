@@ -170,25 +170,12 @@ internal object DownloadEngineV2 {
                 // A redirect or a later Content-Disposition header must never rename a
                 // destination that already has durable bytes or a resume checkpoint.
                 val safeName = DownloadFileNames.safeName(item.title, mime, item.id, item.url)
-                if (directUri != null && total > 0L &&
-                    (DownloadDestination.isMediaStoreTarget(directUri) ||
-                        directSize != total || item.preparationPercent < 100 ||
-                        (responseStartOffset == 0L && item.downloadedBytes > 0L))
-                ) {
-                    database.preparing(item.id, 0, total, etag, modified)
-                    DownloadDestination.prepareDirectTarget(
-                        context, directUri, total, { percent ->
-                            database.preparing(item.id, percent, total, etag, modified)
-                            onPreparing(percent)
-                        }, responseStartOffset, shouldStop = {
-                            shouldStop() ||
-                                database.get(item.id)?.status == DownloadManager.STATUS_PAUSED ||
-                                database.get(item.id)?.status == DownloadDatabase.STATUS_CANCELLED
-                        }
-                    )
-                }
-                // No matter which storage provider or size metadata the server supplies,
-                // preparation ends here: immediately before the first response byte is read.
+                // Do not preallocate the advertised file size. MediaStore and SAF
+                // providers differ in their support for ftruncate/posix_fallocate;
+                // failing that optional optimization caused repeated PREPARING -> retry
+                // cycles before a single network byte was written. Both writers grow
+                // the destination as bytes arrive, so storage compatibility is decided
+                // by opening the writer, not by reserving the entire file in advance.
                 database.finishPreparing(item.id)
                 database.progress(item.id, offset, total, etag, modified)
                 // Persist even a zero-byte checkpoint so retries and pauses keep using
