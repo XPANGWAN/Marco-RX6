@@ -12,7 +12,7 @@ import java.util.Locale
  */
 internal object DownloadSourceResolver {
     private val fileExtension = Regex(
-        """\.(apk|zip|7z|rar|iso|pkg|bin|cue|chd|img|pbp|cso|nsp|xci|pdf|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg)(?:$|[?#])""",
+        """\.(apk|xapk|apks|aab|exe|msi|dmg|deb|rpm|zip|7z|rar|r00|tar|tgz|gz|bz2|xz|zst|iso|img|bin|cue|chd|pkg|pbp|cso|nsp|xci|3ds|cia|wad|wbfs|rvz|gcz|nes|sfc|smc|gba|gbc|gb|nds|n64|z64|v64|torrent|pdf|epub|mobi|doc|docx|xls|xlsx|ppt|pptx|txt|csv|json|xml|mp4|m4v|mkv|webm|mov|avi|flv|3gp|mp3|m4a|aac|wav|flac|ogg|opus)(?:$|[?#])""",
         RegexOption.IGNORE_CASE
     )
 
