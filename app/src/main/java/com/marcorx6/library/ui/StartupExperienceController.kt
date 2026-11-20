@@ -63,6 +63,8 @@ internal class StartupExperienceController(
             contentDescription = "MARCO RX6"
             setBackgroundColor(Color.BLACK)
             alpha = 0f
+            scaleX = 1.035f
+            scaleY = 1.035f
         }
         content.addView(logo, FrameLayout.LayoutParams(-1, -1, Gravity.CENTER))
         // Keep the splash artwork unobstructed: loading feedback stays in a
@@ -142,11 +144,29 @@ internal class StartupExperienceController(
         val motionEnabled = activity.getSharedPreferences("app_settings", Activity.MODE_PRIVATE)
             .getBoolean("animations", true)
         if (motionEnabled) {
-            logo.animate().alpha(1f).setDuration(700L)
-                .setInterpolator(OvershootInterpolator(1.08f)).start()
+            // Restrained camera push-in: animate only the artwork, not the full screen tree.
+            logo.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(1100L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.35f))
+                .start()
         } else {
             logo.alpha = 1f
+            logo.scaleX = 1f
+            logo.scaleY = 1f
         }
+        // Resolve localized stage labels once, rather than on every animation frame.
+        val startupStages = listOf(
+            translate("تهيئة واجهة التطبيق"),
+            translate("تجهيز مكتبتك"),
+            translate("تحميل عناصر البداية"),
+            translate("ضبط المظهر والتفضيلات"),
+            translate("إتمام التجهيزات"),
+            translate("لحظات وننطلق")
+        )
+        var lastStage = 0
         // Keep numeric loading progress active: it reports startup work rather than
         // decorative motion and remains useful when animations are disabled.
         animator = ValueAnimator.ofInt(1, 100).apply {
@@ -156,18 +176,20 @@ internal class StartupExperienceController(
                     val value = valueAnimator.animatedValue as Int
                     progress.progress = value
                     percent.text = "$value%"
-                    val message = when {
-                        value < 18 -> translate("تهيئة واجهة التطبيق")
-                        value < 36 -> translate("تجهيز مكتبتك")
-                        value < 54 -> translate("تحميل عناصر البداية")
-                        value < 72 -> translate("ضبط المظهر والتفضيلات")
-                        value < 90 -> translate("إتمام التجهيزات")
-                        else -> translate("لحظات وننطلق")
+                    val stage = when {
+                        value < 18 -> 0
+                        value < 36 -> 1
+                        value < 54 -> 2
+                        value < 72 -> 3
+                        value < 90 -> 4
+                        else -> 5
                     }
-                    if (status.text.toString() != message) {
-                        status.animate().alpha(0f).setDuration(110L).withEndAction {
-                            status.text = message
-                            status.animate().alpha(0.96f).setDuration(180L).start()
+                    if (stage != lastStage) {
+                        lastStage = stage
+                        status.animate().cancel()
+                        status.animate().alpha(0f).setDuration(100L).withEndAction {
+                            status.text = startupStages[stage]
+                            status.animate().alpha(0.96f).setDuration(160L).start()
                         }.start()
                     }
                 }
