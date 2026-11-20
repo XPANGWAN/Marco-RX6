@@ -6,7 +6,7 @@ internal object GameArticleMediaExtractor {
     data class ArticleMedia(val images: List<String>, val youtubeVideoId: String?)
 
     private val imageTag = Regex("(?is)<img\\b[^>]*>")
-    private val attribute = Regex("""(?is)([a-z_:][-a-z0-9_:.]*)\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))""")
+    private val attribute = Regex("""(?is)([a-z_:][-a-z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))""")
     private val youtubeId = Regex("^[A-Za-z0-9_-]{11}$")
 
     fun extract(html: String, coverUrl: String = ""): ArticleMedia {
@@ -35,9 +35,9 @@ internal object GameArticleMediaExtractor {
     fun extractYoutubeVideoId(html: String): String? {
         if (html.isBlank()) return null
         val values = mutableListOf<String>()
-        Regex("""(?is)(?:src|href)\\s*=\\s*["']([^"']+)["']""").findAll(html)
+        Regex("""(?is)(?:src|href)\s*=\s*["']([^"']+)["']""").findAll(html)
             .forEach { values += decode(it.groupValues[1]) }
-        Regex("""https?://[^\\s"'<>]+""", RegexOption.IGNORE_CASE).findAll(html)
+        Regex("""https?://[^\s"'<>]+""", RegexOption.IGNORE_CASE).findAll(html)
             .forEach { values += decode(it.value).trimEnd(')', ']', ',', ';') }
         for (candidate in values) {
             val uri = runCatching { URI(candidate) }.getOrNull() ?: continue
