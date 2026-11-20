@@ -17,6 +17,7 @@ internal class ActivityResultRuntimeFeature(
     onFirebaseGoogleSignInResult: (Intent?) -> Unit,
     onAvatarSelected: (Uri) -> Unit,
     onCoverSelected: (Uri) -> Unit,
+    onGalleryImagesSelected: (List<Uri>) -> Unit,
     onDownloadFolderSelected: (Uri) -> Unit
 ) {
     companion object {
@@ -54,6 +55,11 @@ internal class ActivityResultRuntimeFeature(
             controller.handle(AVATAR_REQUEST_CODE, result.resultCode, result.data)
         }
 
+    private val galleryImagesLauncher =
+        activity.registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+            onGalleryImagesSelected(uris)
+        }
+
     private val downloadFolderPickerLauncher =
         activity.registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
             uri?.let(onDownloadFolderSelected)
@@ -63,6 +69,7 @@ internal class ActivityResultRuntimeFeature(
     fun launchFirebaseGoogleSignIn(intent: Intent) = firebaseGoogleSignInLauncher.launch(intent)
     fun launchCoverPicker(intent: Intent) = coverPickerLauncher.launch(intent)
     fun launchProfileAvatar(intent: Intent) = profileAvatarLauncher.launch(intent)
+    fun launchGalleryPicker() = galleryImagesLauncher.launch(arrayOf("image/*"))
     fun launchDownloadFolderPicker() {
         // Ask Android's document picker to start inside Download/MARCO RX6
         // instead of showing the storage root. The user can still choose another folder.

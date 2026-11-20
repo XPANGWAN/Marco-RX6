@@ -32,6 +32,26 @@ internal object GameArticleMediaExtractor {
         return ArticleMedia(images.values.toList(), extractYoutubeVideoId(html))
     }
 
+    fun parseYoutubeVideoId(raw: String): String? {
+        val uri = runCatching { URI(decode(raw.trim())) }.getOrNull() ?: return null
+        val host = uri.host?.lowercase() ?: return null
+        val id = when {
+            host == "youtu.be" -> uri.path.orEmpty().trim('/').substringBefore('/')
+            host == "youtube.com" || host == "www.youtube.com" || host == "m.youtube.com" ->
+                when {
+                    uri.path == "/watch" -> uri.rawQuery.orEmpty().split('&')
+                        .firstOrNull { it.substringBefore('=') == "v" }?.substringAfter('=', "")
+                    uri.path?.startsWith("/embed/") == true -> uri.path.substringAfter("/embed/").substringBefore('/')
+                    uri.path?.startsWith("/shorts/") == true -> uri.path.substringAfter("/shorts/").substringBefore('/')
+                    else -> null
+                }
+            host == "youtube-nocookie.com" || host == "www.youtube-nocookie.com" ->
+                if (uri.path?.startsWith("/embed/") == true) uri.path.substringAfter("/embed/").substringBefore('/') else null
+            else -> null
+        }
+        return id?.takeIf { youtubeId.matches(it) }
+    }
+
     fun extractYoutubeVideoId(html: String): String? {
         if (html.isBlank()) return null
         val values = mutableListOf<String>()
@@ -39,26 +59,7 @@ internal object GameArticleMediaExtractor {
             .forEach { values += decode(it.groupValues[1]) }
         Regex("""https?://[^\s"'<>]+""", RegexOption.IGNORE_CASE).findAll(html)
             .forEach { values += decode(it.value).trimEnd(')', ']', ',', ';') }
-        for (candidate in values) {
-            val uri = runCatching { URI(candidate) }.getOrNull() ?: continue
-            val host = uri.host?.lowercase() ?: continue
-            val id = when {
-                host == "youtu.be" -> uri.path.orEmpty().trim('/').substringBefore('/')
-                host == "youtube.com" || host == "www.youtube.com" || host == "m.youtube.com" ->
-                    when {
-                        uri.path == "/watch" -> uri.rawQuery.orEmpty().split('&')
-                            .firstOrNull { it.substringBefore('=') == "v" }?.substringAfter('=', "")
-                        uri.path?.startsWith("/embed/") == true -> uri.path.substringAfter("/embed/").substringBefore('/')
-                        uri.path?.startsWith("/shorts/") == true -> uri.path.substringAfter("/shorts/").substringBefore('/')
-                        else -> null
-                    }
-                host == "youtube-nocookie.com" || host == "www.youtube-nocookie.com" ->
-                    if (uri.path?.startsWith("/embed/") == true) uri.path.substringAfter("/embed/").substringBefore('/') else null
-                else -> null
-            }
-            if (id != null && youtubeId.matches(id)) return id
-        }
-        return null
+        return values.firstNotNullOfOrNull(::parseYoutubeVideoId)
     }
 
     private fun attributes(tag: String): Map<String, String> {

@@ -29,6 +29,13 @@ class GameArticleMediaExtractorTest {
         assertNull(GameArticleMediaExtractor.extractYoutubeVideoId("""<a href="javascript:alert(1)">x</a>"""))
     }
 
+    @Test fun parsesDirectYoutubeUrlsAndRejectsLookalikeHosts() {
+        assertEquals("AbCdEfGhI12", GameArticleMediaExtractor.parseYoutubeVideoId("https://youtu.be/AbCdEfGhI12"))
+        assertEquals("AbCdEfGhI12", GameArticleMediaExtractor.parseYoutubeVideoId("https://www.youtube.com/watch?v=AbCdEfGhI12"))
+        assertNull(GameArticleMediaExtractor.parseYoutubeVideoId("https://youtube.com.evil.example/watch?v=AbCdEfGhI12"))
+        assertNull(GameArticleMediaExtractor.parseYoutubeVideoId("https://youtube-nocookie.com.evil.example/embed/AbCdEfGhI12"))
+    }
+
     @Test fun returnsNoMediaWhenArticleHasNoMedia() {
         val result = GameArticleMediaExtractor.extract("<p>No images or video here</p>")
         assertTrue(result.images.isEmpty())

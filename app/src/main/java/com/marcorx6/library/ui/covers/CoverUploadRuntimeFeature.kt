@@ -48,6 +48,11 @@ internal class CoverUploadRuntimeFeature(
 
     val selectionController get() = feature.selectionController
 
+    fun uploadGalleryImages(
+        uris: List<android.net.Uri>,
+        onComplete: (List<String>, String?) -> Unit
+    ) = selectionController.uploadGalleryImages(uris, onComplete)
+
     fun chooseCover() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)

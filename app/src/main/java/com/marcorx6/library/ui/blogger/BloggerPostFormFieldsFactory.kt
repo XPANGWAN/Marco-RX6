@@ -18,6 +18,7 @@ internal data class BloggerPostFormFields(
     val language: EditText,
     val password: EditText,
     val rights: EditText,
+    val youtubeVideo: EditText,
     val coverPreview: ImageView
 )
 
@@ -53,6 +54,9 @@ internal class BloggerPostFormFieldsFactory(
         val language = input("اللغة (مثال: الإنجليزية)")
         val password = input("كلمة السر (اختياري)")
         val rights = input("الحقوق (اختياري)")
+        val youtubeVideo = input("رابط فيديو YouTube (اختياري)").apply {
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
+        }
         val coverPreview = ImageView(activity).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
             contentDescription = translate("معاينة صورة غلاف المقال")
@@ -71,7 +75,7 @@ internal class BloggerPostFormFieldsFactory(
         }
         return BloggerPostFormFields(
             title, body, coverUrl, relatedLink, genre, releaseYear,
-            packageSize, version, fileFormat, language, password, rights, coverPreview
+            packageSize, version, fileFormat, language, password, rights, youtubeVideo, coverPreview
         )
     }
 }

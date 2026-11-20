@@ -9,8 +9,10 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Toast
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import com.marcorx6.library.data.Game
+import com.marcorx6.library.ui.details.GameArticleMediaExtractor
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -41,6 +43,8 @@ internal class BloggerPostComposerController(
     private val coverUploadInProgress: () -> Boolean,
     private val loadCover: (ImageView, String, String) -> Unit,
     private val chooseCover: () -> Unit,
+    private val chooseGalleryImages: ((List<Uri>) -> Unit) -> Unit,
+    private val uploadGalleryImages: (List<Uri>, (List<String>, String?) -> Unit) -> Unit,
     private val previewFactory: BloggerArticlePreviewFactory,
     private val styleAlertDialog: (AlertDialog) -> Unit,
     private val postFactory: BloggerGamePostFactory,
@@ -157,6 +161,9 @@ internal class BloggerPostComposerController(
         val language = form.language
         val password = form.password
         val rights = form.rights
+        val youtubeVideo = form.youtubeVideo
+        val existingMedia = GameArticleMediaExtractor.extract(existing?.bloggerHtml.orEmpty(), existing?.coverUrl.orEmpty())
+        val galleryUrls = existingMedia.images.toMutableList()
         val coverPreview = form.coverPreview.apply {
             background = android.graphics.drawable.GradientDrawable(
                 android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
@@ -183,6 +190,7 @@ internal class BloggerPostComposerController(
             language.setText(existing.language.ifBlank { translate("الإنجليزية") })
             password.setText(existing.password)
             rights.setText(existing.rights)
+            existingMedia.youtubeVideoId?.let { youtubeVideo.setText("https://www.youtube.com/watch?v=$it") }
         } else {
             format.setText("PKG")
             language.setText(translate("الإنجليزية"))
@@ -240,7 +248,73 @@ internal class BloggerPostComposerController(
         addField(box, password)
         addField(box, rights)
 
-        box.addView(section("04 • " + translate("روابط التحميل المباشرة")))
+        box.addView(section("04 • " + translate("معرض صور اللعبة (اختياري)")))
+        val galleryRows = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
+        fun renderGalleryRows() {
+            galleryRows.removeAllViews()
+            if (galleryUrls.isEmpty()) {
+                galleryRows.addView(makeText(translate("لم تتم إضافة صور إضافية بعد. يمكنك نشر اللعبة بالغلاف فقط."), 12f, gray(), false))
+                return
+            }
+            galleryUrls.forEachIndexed { index, url ->
+                val row = LinearLayout(activity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(dp(8), dp(6), dp(8), dp(6))
+                    background = rounded(panel(), 12)
+                }
+                row.addView(makeText((index + 1).toString() + ".", 12f, studioTextColor, true), LinearLayout.LayoutParams(dp(22), -2))
+                row.addView(makeText(url, 10f, gray(), false).apply { maxLines = 2 }, LinearLayout.LayoutParams(0, -2, 1f))
+                row.addView(makeAction("↑").apply {
+                    minWidth = dp(36); minHeight = dp(40); isEnabled = index > 0
+                    contentDescription = translate("نقل الصورة للأعلى")
+                    setOnClickListener { val item = galleryUrls.removeAt(index); galleryUrls.add(index - 1, item); renderGalleryRows() }
+                })
+                row.addView(makeAction("↓").apply {
+                    minWidth = dp(36); minHeight = dp(40); isEnabled = index < galleryUrls.lastIndex
+                    contentDescription = translate("نقل الصورة للأسفل")
+                    setOnClickListener { val item = galleryUrls.removeAt(index); galleryUrls.add(index + 1, item); renderGalleryRows() }
+                })
+                row.addView(makeAction("×").apply {
+                    minWidth = dp(36); minHeight = dp(40)
+                    contentDescription = translate("إزالة صورة المعرض")
+                    setOnClickListener { galleryUrls.removeAt(index); renderGalleryRows() }
+                })
+                galleryRows.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
+            }
+        }
+        renderGalleryRows()
+        box.addView(galleryRows, LinearLayout.LayoutParams(-1, -2))
+        val addGalleryButton = makeAction("إضافة صور من الهاتف", primary = true)
+        addGalleryButton.setOnClickListener {
+            if (galleryUrls.size >= 12) {
+                Toast.makeText(activity, translate("يمكن إضافة 12 صورة كحد أقصى إلى المعرض"), Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            chooseGalleryImages { selected ->
+                val accepted = selected.take(12 - galleryUrls.size)
+                if (accepted.isEmpty()) return@chooseGalleryImages
+                addGalleryButton.isEnabled = false
+                Toast.makeText(activity, translate("جارٍ رفع صور المعرض إلى Google Drive..."), Toast.LENGTH_SHORT).show()
+                uploadGalleryImages(accepted) { uploaded, failure ->
+                    addGalleryButton.isEnabled = true
+                    uploaded.forEach { if (it !in galleryUrls) galleryUrls += it }
+                    renderGalleryRows()
+                    val message = when {
+                        failure != null && uploaded.isNotEmpty() -> "تم رفع بعض الصور، وتعذر رفع الباقي: " + failure
+                        failure != null -> "تعذر رفع صور المعرض: " + failure
+                        uploaded.isNotEmpty() -> "تم رفع " + uploaded.size + " صورة وإضافتها إلى المعرض"
+                        else -> "لم يتم رفع صور"
+                    }
+                    Toast.makeText(activity, translate(message), Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+        addField(box, addGalleryButton)
+        box.addView(section("05 • " + translate("فيديو YouTube (اختياري)")))
+        addField(box, youtubeVideo)
+
+        box.addView(section("06 • " + translate("روابط التحميل المباشرة")))
         val linksContainer = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
         val linkRows = mutableListOf<LinkFields>()
 
@@ -379,7 +453,21 @@ internal class BloggerPostComposerController(
             return result.toString()
         }
 
+        fun collectYoutubeId(): String? {
+            val raw = youtubeVideo.text.toString().trim()
+            if (raw.isBlank()) { youtubeVideo.error = null; return null }
+            val id = GameArticleMediaExtractor.parseYoutubeVideoId(raw)
+            if (id == null) {
+                youtubeVideo.error = translate("أدخل رابط YouTube صالحاً من youtube.com أو youtu.be")
+                return null
+            }
+            youtubeVideo.error = null
+            return id
+        }
+
         previewButton.setOnClickListener {
+                    val youtubeId = collectYoutubeId()
+                    if (youtubeVideo.text.toString().isNotBlank() && youtubeId == null) return@setOnClickListener
                     val linksJson = collectLinks() ?: return@setOnClickListener
                     val firstUrl = try { JSONArray(linksJson).optJSONObject(0)?.optString("url").orEmpty() } catch (_: Exception) { "" }
                     if (firstUrl.isBlank()) {
@@ -400,7 +488,9 @@ internal class BloggerPostComposerController(
                         language = language.text.toString(),
                         password = password.text.toString(),
                         rights = rights.text.toString(),
-                        downloadLinksJson = linksJson
+                        downloadLinksJson = linksJson,
+                        galleryImageUrls = galleryUrls.toList(),
+                        youtubeVideoId = youtubeId
                     ).apply {
                         contentDescription = translate("معاينة كاملة لمقال Blogger قبل النشر")
                         layoutParams = LinearLayout.LayoutParams(-1, dp(520))
@@ -415,6 +505,8 @@ internal class BloggerPostComposerController(
                     previewDialog.getButton(AlertDialog.BUTTON_POSITIVE).minHeight = dp(48)
                 }
         publishButton.setOnClickListener {
+                    val youtubeId = collectYoutubeId()
+                    if (youtubeVideo.text.toString().isNotBlank() && youtubeId == null) return@setOnClickListener
                     val postTitle = title.text.toString().trim()
                     val coverLink = coverUrl.text.toString().trim()
                     val linksJson = collectLinks() ?: return@setOnClickListener
@@ -462,7 +554,9 @@ internal class BloggerPostComposerController(
                         language = language.text.toString(),
                         password = password.text.toString(),
                         rights = rights.text.toString(),
-                        downloadLinksJson = linksJson
+                        downloadLinksJson = linksJson,
+                        galleryImageUrls = galleryUrls.toList(),
+                        youtubeVideoId = youtubeId
                     )
                     publishButton.isEnabled = false
                     saveController.save(

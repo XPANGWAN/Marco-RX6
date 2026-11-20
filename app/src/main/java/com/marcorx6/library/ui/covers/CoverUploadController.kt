@@ -11,6 +11,29 @@ internal class CoverUploadController(
     private val executeIo: (() -> Unit) -> Unit,
     private val postToUi: (() -> Unit) -> Unit
 ) {
+    fun uploadGalleryImages(
+        uris: List<Uri>,
+        onComplete: (List<String>, String?) -> Unit
+    ) {
+        executeIo {
+            val urls = mutableListOf<String>()
+            var failure: String? = null
+            for (uri in uris) {
+                var localFile: File? = null
+                try {
+                    val result = repository.saveAndUploadCover(uri, accessToken()) { localFile = it }
+                    urls += result.publicUrl
+                } catch (error: Exception) {
+                    failure = error.message ?: "فشل رفع إحدى صور المعرض"
+                    break
+                } finally {
+                    localFile?.delete()
+                }
+            }
+            postToUi { onComplete(urls, failure) }
+        }
+    }
+
     fun upload(
         uri: Uri,
         onLocalFileSaved: (File) -> Unit,

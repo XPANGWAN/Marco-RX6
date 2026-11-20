@@ -24,7 +24,9 @@ internal class BloggerArticlePreviewFactory(
         language: String = "الإنجليزية",
         password: String = "",
         rights: String = "",
-        downloadLinksJson: String = ""
+        downloadLinksJson: String = "",
+        galleryImageUrls: List<String> = emptyList(),
+        youtubeVideoId: String? = null
     ): WebView {
         val previewTitle = title.trim().ifBlank { "معاينة المقال" }
         val previewHtml =
@@ -43,7 +45,9 @@ internal class BloggerArticlePreviewFactory(
                     language = language,
                     password = password,
                     rights = rights,
-                    downloadLinksJson = downloadLinksJson
+                    downloadLinksJson = downloadLinksJson,
+                    galleryImageUrls = galleryImageUrls,
+                    youtubeVideoId = youtubeVideoId
                 ) +
                 "</body></html>"
 

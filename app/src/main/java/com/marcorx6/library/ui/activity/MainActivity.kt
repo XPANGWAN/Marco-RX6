@@ -34,6 +34,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import android.app.AlertDialog
 import android.os.Bundle
+import android.net.Uri
 import android.view.View
 import android.widget.*
 
@@ -478,6 +479,8 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    private var pendingGallerySelection: ((List<Uri>) -> Unit)? = null
+
     private val bloggerRuntimeFeature: BloggerRuntimeFeature by lazy {
         BloggerRuntimeFeature(
             activity = this,
@@ -525,6 +528,13 @@ class MainActivity : ComponentActivity() {
             coverUploadInProgress = { coverFeature.state.inProgress },
             loadCover = coverRuntimeFeature::load,
             chooseCover = coverFeature::chooseCover,
+            chooseGalleryImages = { callback ->
+                pendingGallerySelection = callback
+                activityResultRuntimeFeature.launchGalleryPicker()
+            },
+            uploadGalleryImages = { uris, callback ->
+                coverFeature.uploadGalleryImages(uris, callback)
+            },
             deleteCoverFileIfUnused = coverRuntimeFeature::deleteIfUnused,
             resetCoverUploadFailed = { coverFeature.state.resetFailure() },
             saveGames = gameDataRuntimeFeature::saveGames
@@ -561,6 +571,11 @@ class MainActivity : ComponentActivity() {
         onFirebaseGoogleSignInResult = { data -> firebaseAccountController.handleGoogleSignInResult(data) },
         onAvatarSelected = { uri -> firebaseAccountController.handleProfilePhotoSelected(uri) },
         onCoverSelected = { uri -> coverFeature.selectionController.handle(uri) },
+        onGalleryImagesSelected = { uris ->
+            val callback = pendingGallerySelection
+            pendingGallerySelection = null
+            callback?.invoke(uris)
+        },
         onDownloadFolderSelected = { uri ->
             try {
                 downloadStoragePreferences.saveTree(uri)
