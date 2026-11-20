@@ -437,10 +437,25 @@ internal class DownloadPageDialog(
             contentDisposition: String = ""
         ) {
             val safeUrl = SecureUrlPolicy.toHttpsUrl(url) ?: return
+            val guessedName = android.webkit.URLUtil.guessFileName(safeUrl, contentDisposition, mimeType)
+            val genericName = guessedName.substringBeforeLast('.', guessedName)
+                .lowercase() in setOf("file", "download", "unknown", "unnamed")
+            val labelName = label.trim().takeIf { candidate ->
+                candidate.isNotBlank() &&
+                    !candidate.equals("download", true) &&
+                    !candidate.equals("open", true) &&
+                    !candidate.equals("file", true) &&
+                    !candidate.equals("ملف مباشر محتمل", true)
+            }
+            val suggestedName = when {
+                genericName && labelName != null -> labelName
+                genericName -> gameTitle
+                guessedName.isBlank() -> labelName ?: gameTitle
+                else -> guessedName
+            }
             DownloadConfirmationPanel(activity, translate, dark).show(
                 url = safeUrl,
-                suggestedName = android.webkit.URLUtil.guessFileName(safeUrl, contentDisposition, mimeType)
-                    .ifBlank { label.ifBlank { gameTitle } },
+                suggestedName = suggestedName,
                 mimeType = mimeType,
                 onConfirm = { fileName ->
                     val safeName = fileName.trim()
@@ -533,6 +548,29 @@ internal class DownloadPageDialog(
                     var words=/(download|تحميل|تنزيل|رابط مباشر|direct|download file)/i;
                     var endpoint=/(?:^|\/)(download|downloads|attachment|file|export|raw)(?:\/|$)/i;
                     var selectors='a[href],a[data-href],a[data-url],[data-download-url],[data-file-url],form[action],video[src],video source[src],audio[src],audio source[src],button[data-href],button[data-url],button[data-download-url],[role="button"][data-href],[role="button"][data-url],input[formaction]';
+                    function fileNameFor(el,fallback){
+                        var node=el;
+                        for(var depth=0;node&&depth<6;depth++,node=node.parentElement){
+                            var direct=node.getAttribute&&(
+                                node.getAttribute('data-filename')||
+                                node.getAttribute('data-file-name')||
+                                node.getAttribute('data-name')
+                            );
+                            if(direct&&ext.test(direct.trim())) return direct.trim();
+                            if(node.querySelector){
+                                var named=node.querySelector(
+                                    '[data-filename],[data-file-name],.filename,.file-name,.fileName,[class*="filename"],[class*="file-name"]'
+                                );
+                                if(named){
+                                    var value=named.getAttribute('data-filename')||
+                                        named.getAttribute('data-file-name')||
+                                        (named.innerText||named.textContent||'').trim();
+                                    if(value&&ext.test(value.trim())) return value.trim();
+                                }
+                            }
+                        }
+                        return fallback||'';
+                    }
                     function add(raw,label,force){
                         try {
                             var u=new URL(raw,location.href);
@@ -551,6 +589,9 @@ internal class DownloadPageDialog(
                             e.getAttribute('data-file-url') || e.getAttribute('action') ||
                             e.getAttribute('formaction') || e.getAttribute('src') || '';
                         var t=(e.innerText||e.textContent||e.getAttribute('aria-label')||e.getAttribute('title')||'').trim();
+                        // Folder providers can put the real filename beside a separate
+                        // Download button; use the containing row's filename when present.
+                        t=fileNameFor(e,t);
                         var d=e.hasAttribute('download');
                         var tag=(e.tagName||'').toUpperCase();
                         var media=tag==='VIDEO'||tag==='AUDIO'||tag==='SOURCE';
