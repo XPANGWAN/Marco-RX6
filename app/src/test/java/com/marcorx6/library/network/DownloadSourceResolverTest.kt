@@ -93,6 +93,25 @@ class DownloadSourceResolverTest {
     }
 
     @Test
+    fun recognizesLinkVaultCodePagesAsBrowserLandingPages() {
+        val urls = listOf(
+            "https://vault3.link-vault.org/c/a2JO2hqs",
+            "https://link-vault.org/c/anotherCode/",
+            "https://vault9.link-vault.org/c/ABC123"
+        )
+        urls.forEach { url ->
+            assertEquals(true, DownloadSourceResolver.isKnownLandingPageUrl(url))
+            assertEquals(false, DownloadSourceResolver.isDirectDownloadEndpointUrl(url))
+        }
+        assertEquals(
+            false,
+            DownloadSourceResolver.isKnownLandingPageUrl(
+                "https://vault3.link-vault.org/c/a2JO2hqs/game.pkg"
+            )
+        )
+    }
+
+    @Test
     fun preservesDirectNoPayStationPackageEndpoints() {
         val url = "https://nopaystation.com/get/PS3/NPEB00882/GTAIVDIGITAL0001/1.06/pkg?version=1.01"
         assertEquals(url, DownloadSourceResolver.normalizeKnownProviderUrl(url))
