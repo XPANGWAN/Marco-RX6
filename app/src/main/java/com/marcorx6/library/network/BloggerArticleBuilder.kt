@@ -12,6 +12,9 @@ internal object BloggerArticleBuilder {
         .replace("\"", "&quot;").replace("'", "&#39;")
 
     private fun safeImageUrl(raw: String): String {
+        val sourceUri = runCatching { URI(raw.trim()) }.getOrNull() ?: return ""
+        if (!sourceUri.scheme.equals("https", true) || sourceUri.host.isNullOrBlank() ||
+            sourceUri.userInfo != null || sourceUri.host.contains("..")) return ""
         val normalized = BloggerFeedParser.normalizeBloggerImageUrl(raw.trim())
         val uri = runCatching { URI(normalized) }.getOrNull() ?: return ""
         return if (uri.scheme.equals("https", true) && !uri.host.isNullOrBlank() &&
