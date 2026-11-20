@@ -76,7 +76,14 @@ internal class GameArticleMediaViewFactory(
             }
             clipToOutline = true
         }
-        val player = WebView(activity).apply {
+        val player = object : WebView(activity) {
+            override fun onDetachedFromWindow() {
+                stopLoading()
+                loadUrl("about:blank")
+                destroy()
+                super.onDetachedFromWindow()
+            }
+        }.apply {
             setBackgroundColor(Color.BLACK)
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = false
