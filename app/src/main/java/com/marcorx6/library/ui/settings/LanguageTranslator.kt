@@ -418,7 +418,6 @@ internal object LanguageTranslator {
             "خطوة 6" to listOf("Step 6", "Étape 6", "Paso 6"),
             "الوضع الليلي" to listOf("Dark mode", "Mode sombre", "Modo oscuro"),
             "الوضع النهاري" to listOf("Light mode", "Mode clair", "Modo claro"),
-            "فضي" to listOf("Silver", "Argent", "Plateado"),
             "اللون الرسمي المعتمد في MARCO" to listOf("The official MARCO color", "La couleur officielle de MARCO", "El color oficial de MARCO"),
             "تفعيل الإشعارات" to listOf("Enable notifications", "Activer les notifications", "Activar notificaciones"),
             "تنبيه عند وصول مقال جديد" to listOf("Alert when a new article arrives", "Alerte à la publication d’un nouvel article", "Aviso cuando llegue un artículo nuevo"),
@@ -557,8 +556,6 @@ internal object LanguageTranslator {
             "لا توجد ألعاب" to listOf("No games available", "Aucun jeu disponible", "No hay juegos disponibles"),
             "كل المنصات" to listOf("All platforms", "Toutes les plateformes", "Todas las plataformas"),
             "المفضلة فقط" to listOf("Favorites only", "Favoris uniquement", "Solo favoritos"),
-            "إضافة إلى المفضلة" to listOf("Add to favorites", "Ajouter aux favoris", "Añadir a favoritos"),
-            "إزالة من المفضلة" to listOf("Remove from favorites", "Retirer des favoris", "Quitar de favoritos"),
             "روابط التحميل" to listOf("Download links", "Liens de téléchargement", "Enlaces de descarga"),
             "وصف اللعبة" to listOf("Game description", "Description du jeu", "Descripción del juego"),
             "ألعاب مشابهة" to listOf("Similar games", "Jeux similaires", "Juegos similares"),
@@ -630,7 +627,6 @@ internal object LanguageTranslator {
             "تعذر إلغاء التنزيل" to listOf("Could not cancel download", "Impossible d’annuler le téléchargement", "No se pudo cancelar la descarga"),
             "تم حذف التنزيل" to listOf("Download deleted", "Téléchargement supprimé", "Descarga eliminada"),
             "تعذر حذف التنزيل" to listOf("Could not delete download", "Impossible de supprimer le téléchargement", "No se pudo eliminar la descarga"),
-            "إلغاء" to listOf("Cancel", "Annuler", "Cancelar"),
             "إغلاق صفحة التنزيلات" to listOf("Close downloads", "Fermer les téléchargements", "Cerrar descargas"),
             "صفحة التحميل" to listOf("Download page", "Page de téléchargement", "Página de descarga"),
             "الإعلانات والمتتبعات المحجوبة:" to listOf("Ads and trackers blocked:", "Publicités et traceurs bloqués :", "Anuncios y rastreadores bloqueados:"),
@@ -959,7 +955,6 @@ internal object LanguageTranslator {
             "حذف هذا الإشعار" to listOf("Delete this notification", "Supprimer cette notification", "Eliminar esta notificación"),
             "حذف هذا الإشعار؟" to listOf("Delete this notification?", "Supprimer cette notification ?", "¿Eliminar esta notificación?"),
             "سيتم حذف هذا الإشعار فقط. لا يمكن التراجع عن هذه العملية." to listOf("Only this notification will be deleted. This cannot be undone.", "Seule cette notification sera supprimée. Cette action est irréversible.", "Solo se eliminará esta notificación. Esta acción no se puede deshacer."),
-            "حذف" to listOf("Delete", "Supprimer", "Eliminar"),
             "تم حذف الإشعار." to listOf("Notification deleted.", "Notification supprimée.", "Notificación eliminada."),
             "تعذر حذف الإشعار. تحقق من الاتصال." to listOf("Could not delete notification. Check your connection.", "Impossible de supprimer la notification. Vérifiez votre connexion.", "No se pudo eliminar la notificación. Comprueba tu conexión."),
             "مسح الكل" to listOf("Clear all", "Tout effacer", "Borrar todo"),
@@ -1018,7 +1013,43 @@ internal object LanguageTranslator {
             "تعذر تحديث معلومات اللعبة من المصدر؛ تحقق من الاتصال بالإنترنت" to listOf("Could not refresh the game information from its source; check your internet connection", "Impossible d’actualiser les informations du jeu depuis sa source ; vérifiez votre connexion Internet", "No se pudo actualizar la información del juego desde su fuente; comprueba tu conexión a Internet"),
             "تم ربط حساب Google؛ جارٍ تحميل مدونة MARCO والتحقق من صلاحيات النشر…" to listOf("Google account connected; loading the MARCO blog and checking publishing permissions…", "Compte Google connecté ; chargement du blog MARCO et vérification des autorisations de publication…", "Cuenta de Google conectada; cargando el blog MARCO y comprobando los permisos de publicación…"),
             "التنزيل عبر Wi-Fi فقط" to listOf("Download over Wi-Fi only", "Télécharger uniquement via Wi-Fi", "Descargar solo por Wi-Fi"),
+            "المنصات" to listOf("Platforms", "Plateformes", "Plataformas"),
+            "اختر المنصة لعرض أقسامها الفرعية" to listOf("Choose a platform to view its subcategories", "Choisissez une plateforme pour afficher ses sous-catégories", "Elige una plataforma para ver sus subcategorías"),
+            "رجوع إلى المنصات" to listOf("Back to platforms", "Retour aux plateformes", "Volver a las plataformas"),
+            "اختر القسم الفرعي" to listOf("Choose a subcategory", "Choisissez une sous-catégorie", "Elige una subcategoría"),
+            "PS3 Arabic" to listOf("PS3 Arabic", "PS3 arabe", "PS3 árabe"),
+            "تصفح أقسام المنصات" to listOf("Browse platform sections", "Parcourir les sections des plateformes", "Explorar las secciones de plataformas"),
+            "عرض 8 من " to listOf("Showing 8 of ", "Affichage de 8 sur ", "Mostrando 8 de "),
+            "تعذر تحميل بيانات الحسابات (" to listOf("Could not load account data (", "Impossible de charger les données des comptes (", "No se pudieron cargar los datos de las cuentas ("),
+            "تم حظر تحويل إعلاني غير مرغوب؛ بقيت في الصفحة الأصلية" to listOf("An unwanted advertising redirect was blocked; you stayed on the original page", "Une redirection publicitaire indésirable a été bloquée ; vous êtes resté sur la page d’origine", "Se bloqueó una redirección publicitaria no deseada; permaneciste en la página original"),
+            "تم حظر نافذة منبثقة غير مطلوبة؛ بقيت في الصفحة الأصلية" to listOf("An unwanted pop-up was blocked; you stayed on the original page", "Une fenêtre contextuelle indésirable a été bloquée ; vous êtes resté sur la page d’origine", "Se bloqueó una ventana emergente no deseada; permaneciste en la página original"),
+            "تم تحميل جزء من المكتبة. تحقق من الاتصال لإكمال التحديث." to listOf("Part of the library loaded. Check your connection to finish updating.", "Une partie de la bibliothèque a été chargée. Vérifiez votre connexion pour terminer la mise à jour.", "Se cargó parte de la biblioteca. Comprueba tu conexión para terminar la actualización."),
+            "الحجم المتبقي" to listOf("Remaining size", "Taille restante", "Tamaño restante"),
+            "سبب إعادة المحاولة:" to listOf("Retry reason:", "Motif de la nouvelle tentative :", "Motivo del reintento:"),
+            "جارٍ حجز مساحة التخزين قبل بدء التنزيل" to listOf("Reserving storage space before starting the download", "Réservation de l’espace de stockage avant le début du téléchargement", "Reservando espacio de almacenamiento antes de iniciar la descarga"),
+            "مجتمع MARCO الرسمي على Telegram" to listOf("Official MARCO community on Telegram", "Communauté officielle MARCO sur Telegram", "Comunidad oficial de MARCO en Telegram"),
+            "تابع أخبار وإعلانات MARCO وانضم إلى المجتمع" to listOf("Follow MARCO news and announcements and join the community", "Suivez les actualités et annonces de MARCO et rejoignez la communauté", "Sigue las noticias y anuncios de MARCO y únete a la comunidad"),
+            "افتح الموقع الرسمي لـ MARCO RX6 لمشاهدة أحدث إصدار وتحميله" to listOf("Visit the official MARCO RX6 website to see and download the latest release", "Visitez le site officiel de MARCO RX6 pour voir et télécharger la dernière version", "Visita el sitio oficial de MARCO RX6 para ver y descargar la última versión"),
+            "فتح المجلد" to listOf("Open folder", "Ouvrir le dossier", "Abrir carpeta"),
+            "تعذر فتح مجلد التنزيلات؛ افتح Download/MARCO RX6 من مدير الملفات" to listOf("Could not open the downloads folder; open Download/MARCO RX6 in your file manager", "Impossible d’ouvrir le dossier des téléchargements ; ouvrez Download/MARCO RX6 dans votre gestionnaire de fichiers", "No se pudo abrir la carpeta de descargas; abre Download/MARCO RX6 en tu gestor de archivos"),
         )
+
+    // Compile parameterized-message patterns once. Translation is called while building
+    // every visible screen, so allocating Regex objects for each TextView is avoidable UI work.
+    private val serverHttpErrorPattern = Regex("^الخادم رفض رابط التنزيل \\(HTTP ([^)]+)\\)$")
+    private val driveUploadErrorPattern = Regex("^فشل رفع الصورة إلى Google Drive \\(([^)]+)\\): (.*)$", RegexOption.DOT_MATCHES_ALL)
+    private val imagePublicErrorPattern = Regex("^تم رفع الصورة لكن تعذر جعلها متاحة للموقع \\(([^)]+)\\): (.*)$", RegexOption.DOT_MATCHES_ALL)
+    private val imageVerifyErrorPattern = Regex("^تعذر التحقق من رابط الصورة \\(HTTP ([^،]+)، النوع: (.*)\\)$")
+    private val ratingsCountPattern = Regex("^تقييماتي • (\\d+)$")
+    private val favoritesPreviewPattern = Regex("^عرض 8 من (\\d+) لعبة مفضلة$")
+    private val favoritesCountPattern = Regex("^(\\d+) لعبة محفوظة في المفضلة$")
+    private val accountLoadErrorPattern = Regex("^تعذر تحميل بيانات الحسابات \\((.*)\\)$")
+    private val listLoadErrorPattern = Regex("^تعذر تحميل القائمة \\((.*)\\)$")
+    private val tabPattern = Regex("^تبويب (\\d+)$")
+    private val numberedTabPattern = Regex("^التبويب (\\d+)$")
+    private val blockedAdsPattern = Regex("^عدد الإعلانات المحجوبة: (\\d+)$")
+    private val stepPattern = Regex("^خطوة (\\d+)$")
+    private val blockedTrackersPattern = Regex("^الإعلانات والمتتبعات المحجوبة: (\\d+)$")
 
     /** Returns keys whose catalog entries do not cover all three non-Arabic languages. */
     internal fun incompleteTranslationKeys(): List<String> =
@@ -1029,19 +1060,19 @@ internal object LanguageTranslator {
         val index = when (lang) { "en" -> 0; "fr" -> 1; "es" -> 2; else -> return ar }
         fun localized(key: String): String? = translations[key]?.getOrNull(index)
 
-        Regex("^الخادم رفض رابط التنزيل \\(HTTP ([^)]+)\\)$").matchEntire(ar)?.let { match ->
+        serverHttpErrorPattern.matchEntire(ar)?.let { match ->
             return "${localized("الخادم رفض رابط التنزيل") ?: "الخادم رفض رابط التنزيل"} (HTTP ${match.groupValues[1]})"
         }
-        Regex("^فشل رفع الصورة إلى Google Drive \\(([^)]+)\\): (.*)$", RegexOption.DOT_MATCHES_ALL).matchEntire(ar)?.let { match ->
+        driveUploadErrorPattern.matchEntire(ar)?.let { match ->
             return "${localized("فشل رفع الصورة إلى Google Drive") ?: "فشل رفع الصورة إلى Google Drive"} (${match.groupValues[1]}): ${match.groupValues[2]}"
         }
-        Regex("^تم رفع الصورة لكن تعذر جعلها متاحة للموقع \\(([^)]+)\\): (.*)$", RegexOption.DOT_MATCHES_ALL).matchEntire(ar)?.let { match ->
+        imagePublicErrorPattern.matchEntire(ar)?.let { match ->
             return "${localized("تم رفع الصورة لكن تعذر جعلها متاحة للموقع") ?: "تم رفع الصورة لكن تعذر جعلها متاحة للموقع"} (${match.groupValues[1]}): ${match.groupValues[2]}"
         }
-        Regex("^تعذر التحقق من رابط الصورة \\(HTTP ([^،]+)، النوع: (.*)\\)$").matchEntire(ar)?.let { match ->
+        imageVerifyErrorPattern.matchEntire(ar)?.let { match ->
             return "${localized("تعذر التحقق من رابط الصورة") ?: "تعذر التحقق من رابط الصورة"} (HTTP ${match.groupValues[1]}, type: ${match.groupValues[2]})"
         }
-        Regex("^تقييماتي • (\\d+)$").matchEntire(ar)?.let { match ->
+        ratingsCountPattern.matchEntire(ar)?.let { match ->
             val count = match.groupValues[1]
             return when (lang) {
                 "en" -> "My ratings • $count"
@@ -1050,7 +1081,7 @@ internal object LanguageTranslator {
                 else -> ar
             }
         }
-        Regex("^عرض 8 من (\\d+) لعبة مفضلة$").matchEntire(ar)?.let { match ->
+        favoritesPreviewPattern.matchEntire(ar)?.let { match ->
             val count = match.groupValues[1]
             return when (lang) {
                 "en" -> "Showing 8 of $count favorite games"
@@ -1059,7 +1090,7 @@ internal object LanguageTranslator {
                 else -> ar
             }
         }
-        Regex("^(\\d+) لعبة محفوظة في المفضلة$").matchEntire(ar)?.let { match ->
+        favoritesCountPattern.matchEntire(ar)?.let { match ->
             val count = match.groupValues[1]
             return when (lang) {
                 "en" -> "$count games saved as favorites"
@@ -1068,7 +1099,7 @@ internal object LanguageTranslator {
                 else -> ar
             }
         }
-        Regex("^تعذر تحميل بيانات الحسابات \\((.*)\\)$").matchEntire(ar)?.let { match ->
+        accountLoadErrorPattern.matchEntire(ar)?.let { match ->
             val code = match.groupValues[1]
             val prefix = when (lang) {
                 "en" -> "Could not load account data"
@@ -1078,7 +1109,7 @@ internal object LanguageTranslator {
             }
             return "$prefix ($code)"
         }
-        Regex("^تعذر تحميل القائمة \\((.*)\\)$").matchEntire(ar)?.let { match ->
+        listLoadErrorPattern.matchEntire(ar)?.let { match ->
             val code = match.groupValues[1]
             val prefix = when (lang) {
                 "en" -> "Could not load the list"
@@ -1088,7 +1119,7 @@ internal object LanguageTranslator {
             }
             return "$prefix ($code)"
         }
-        Regex("^تبويب (\\d+)$").matchEntire(ar)?.let { match ->
+        tabPattern.matchEntire(ar)?.let { match ->
             val number = match.groupValues[1]
             return when (lang) {
                 "en" -> "Tab $number"
@@ -1097,7 +1128,7 @@ internal object LanguageTranslator {
                 else -> ar
             }
         }
-        Regex("^التبويب (\\d+)$").matchEntire(ar)?.let { match ->
+        numberedTabPattern.matchEntire(ar)?.let { match ->
             val number = match.groupValues[1]
             return when (lang) {
                 "en" -> "Tab $number"
@@ -1106,7 +1137,7 @@ internal object LanguageTranslator {
                 else -> ar
             }
         }
-        Regex("^عدد الإعلانات المحجوبة: (\\d+)$").matchEntire(ar)?.let { match ->
+        blockedAdsPattern.matchEntire(ar)?.let { match ->
             val count = match.groupValues[1]
             return when (lang) {
                 "en" -> "Ads blocked: $count"
@@ -1115,11 +1146,11 @@ internal object LanguageTranslator {
                 else -> ar
             }
         }
-        Regex("^خطوة (\\d+)$").matchEntire(ar)?.let { match ->
+        stepPattern.matchEntire(ar)?.let { match ->
             val prefix = localized("خطوة")
             if (prefix != null) return "$prefix ${match.groupValues[1]}"
         }
-        Regex("^الإعلانات والمتتبعات المحجوبة: (\\d+)$").matchEntire(ar)?.let { match ->
+        blockedTrackersPattern.matchEntire(ar)?.let { match ->
             val prefix = localized("الإعلانات والمتتبعات المحجوبة:")
             if (prefix != null) return "$prefix ${match.groupValues[1]}"
         }
