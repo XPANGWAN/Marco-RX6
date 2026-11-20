@@ -422,4 +422,41 @@ class LanguageTranslatorTest {
         assertEquals("Cuenta de Google conectada; cargando el blog MARCO y comprobando los permisos de publicación…", LanguageTranslator.translate(connected, "es"))
     }
 
+
+    @Test
+    fun translatesPlatformNavigationIntoAllSupportedLanguages() {
+        val cases = listOf(
+            "المنصات" to listOf("Platforms", "Plateformes", "Plataformas"),
+            "اختر المنصة لعرض أقسامها الفرعية" to listOf(
+                "Choose a platform to view its subcategories",
+                "Choisissez une plateforme pour afficher ses sous-catégories",
+                "Elige una plataforma para ver sus subcategorías"
+            ),
+            "رجوع إلى المنصات" to listOf(
+                "Back to platforms", "Retour aux plateformes", "Volver a las plataformas"
+            ),
+            "اختر القسم الفرعي" to listOf(
+                "Choose a subcategory", "Choisissez une sous-catégorie", "Elige una subcategoría"
+            ),
+            "PS3 Arabic" to listOf("PS3 Arabic", "PS3 arabe", "PS3 árabe"),
+            "تصفح أقسام المنصات" to listOf(
+                "Browse platform sections",
+                "Parcourir les sections des plateformes",
+                "Explorar las secciones de plataformas"
+            )
+        )
+        cases.forEach { (source, expected) ->
+            assertEquals(expected[0], LanguageTranslator.translate(source, "en"))
+            assertEquals(expected[1], LanguageTranslator.translate(source, "fr"))
+            assertEquals(expected[2], LanguageTranslator.translate(source, "es"))
+            assertEquals(source, LanguageTranslator.translate(source, "ar"))
+        }
+    }
+
+    @Test
+    fun translatesDynamicOnboardingStepNumbersWithoutAllocatingPatternsPerCall() {
+        assertEquals("Step 3", LanguageTranslator.translate("خطوة 3", "en"))
+        assertEquals("Étape 3", LanguageTranslator.translate("خطوة 3", "fr"))
+        assertEquals("Paso 3", LanguageTranslator.translate("خطوة 3", "es"))
+    }
 }
