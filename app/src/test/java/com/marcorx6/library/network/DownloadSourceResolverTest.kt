@@ -112,6 +112,49 @@ class DownloadSourceResolverTest {
     }
 
     @Test
+    fun treatsUnknownOpaqueHttpsUrlsAsBrowserPagesWithoutHostAllowlist() {
+        val links = listOf(
+            "https://vault3.link-vault.org/c/a2JO2hqs",
+            "https://fileshare.example.net/s/AbC123",
+            "https://redirect.example.org/r/token-987",
+            "https://download-gateway.example.com/go?id=abc"
+        )
+        links.forEach { url ->
+            assertEquals(true, DownloadSourceResolver.shouldOpenInBrowserBeforeProbe(url))
+        }
+    }
+
+    @Test
+    fun keepsExplicitFileEndpointsOnTheDirectDownloadPath() {
+        assertEquals(
+            false,
+            DownloadSourceResolver.shouldOpenInBrowserBeforeProbe(
+                "https://cdn.example.net/files/game.pkg?token=abc"
+            )
+        )
+        assertEquals(
+            false,
+            DownloadSourceResolver.shouldOpenInBrowserBeforeProbe(
+                "https://example.net/download?id=123"
+            )
+        )
+        assertEquals(
+            false,
+            DownloadSourceResolver.shouldOpenInBrowserBeforeProbe(
+                "https://example.net/share/123",
+                hintedMimeType = "application/octet-stream"
+            )
+        )
+        assertEquals(
+            false,
+            DownloadSourceResolver.shouldOpenInBrowserBeforeProbe(
+                "https://example.net/get",
+                hintedDisposition = "attachment; filename=game.zip"
+            )
+        )
+    }
+
+    @Test
     fun preservesDirectNoPayStationPackageEndpoints() {
         val url = "https://nopaystation.com/get/PS3/NPEB00882/GTAIVDIGITAL0001/1.06/pkg?version=1.01"
         assertEquals(url, DownloadSourceResolver.normalizeKnownProviderUrl(url))
