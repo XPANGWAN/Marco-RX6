@@ -103,4 +103,46 @@ class DownloadFileNamesTest {
         )
     }
 
+
+    @Test
+    fun keepsGameTitleWhenServerReturnsContradictoryFilename() {
+        assertEquals(
+            "Marco.pkg",
+            DownloadFileNames.resolvePreferredName(
+                "Marco.pkg",
+                "Empty.bin",
+                "application/octet-stream",
+                77,
+                "https://cdn.example.org/download?id=123"
+            )
+        )
+    }
+
+    @Test
+    fun usesExplicitUrlExtensionWhenServerFilenameIsContradictory() {
+        assertEquals(
+            "Marco.pkg",
+            DownloadFileNames.resolvePreferredName(
+                "Marco",
+                "Empty.bin",
+                "application/octet-stream",
+                78,
+                "https://cdn.example.org/files/game.pkg?token=abc"
+            )
+        )
+    }
+
+    @Test
+    fun acceptsServerFilenameWhenThereIsNoConflictingEvidence() {
+        assertEquals(
+            "Game.pkg",
+            DownloadFileNames.resolvePreferredName(
+                "Game",
+                "Game.pkg",
+                "application/octet-stream",
+                79,
+                "https://cdn.example.org/download?id=123"
+            )
+        )
+    }
 }
