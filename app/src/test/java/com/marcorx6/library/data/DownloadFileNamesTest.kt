@@ -53,6 +53,20 @@ class DownloadFileNamesTest {
     }
 
     @Test
+    fun extensionOnlyEndpointIsNotMistakenForTheFilename() {
+        val url = "https://nopaystation.com/get/PS3/NPEB00882/GTAIVDIGITAL0001/1.06/pkg?version=1.01"
+        assertEquals(
+            "GTA IV.pkg",
+            DownloadFileNames.safeName(
+                DownloadFileNames.fromResponse(null, url) ?: "GTA IV",
+                "application/octet-stream",
+                6,
+                url
+            )
+        )
+    }
+
+    @Test
     fun addsApkExtensionFromMimeWhenTitleHasNoExtension() {
         assertEquals(
             "Marco.apk",
