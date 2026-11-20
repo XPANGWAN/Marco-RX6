@@ -1018,6 +1018,12 @@ internal object LanguageTranslator {
             "تعذر تحديث معلومات اللعبة من المصدر؛ تحقق من الاتصال بالإنترنت" to listOf("Could not refresh the game information from its source; check your internet connection", "Impossible d’actualiser les informations du jeu depuis sa source ; vérifiez votre connexion Internet", "No se pudo actualizar la información del juego desde su fuente; comprueba tu conexión a Internet"),
             "تم ربط حساب Google؛ جارٍ تحميل مدونة MARCO والتحقق من صلاحيات النشر…" to listOf("Google account connected; loading the MARCO blog and checking publishing permissions…", "Compte Google connecté ; chargement du blog MARCO et vérification des autorisations de publication…", "Cuenta de Google conectada; cargando el blog MARCO y comprobando los permisos de publicación…"),
             "التنزيل عبر Wi-Fi فقط" to listOf("Download over Wi-Fi only", "Télécharger uniquement via Wi-Fi", "Descargar solo por Wi-Fi"),
+            "المنصات" to listOf("Platforms", "Plateformes", "Plataformas"),
+            "اختر المنصة لعرض أقسامها الفرعية" to listOf("Choose a platform to view its subcategories", "Choisissez une plateforme pour afficher ses sous-catégories", "Elige una plataforma para ver sus subcategorías"),
+            "رجوع إلى المنصات" to listOf("Back to platforms", "Retour aux plateformes", "Volver a las plataformas"),
+            "اختر القسم الفرعي" to listOf("Choose a subcategory", "Choisissez une sous-catégorie", "Elige una subcategoría"),
+            "PS3 Arabic" to listOf("PS3 Arabic", "PS3 arabe", "PS3 árabe"),
+            "تصفح أقسام المنصات" to listOf("Browse platform sections", "Parcourir les sections des plateformes", "Explorar las secciones de plataformas"),
         )
 
     // Compile parameterized-message patterns once. Translation is called while building
