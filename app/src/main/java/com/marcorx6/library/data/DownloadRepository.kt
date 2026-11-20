@@ -427,7 +427,10 @@ internal class DownloadRepository(context: Context) {
         if (com.marcorx6.library.network.DownloadSourceResolver.isDirectDownloadEndpointUrl(link)) {
             return DownloadProbe(link, "application/octet-stream", true, null)
         }
-        if (com.marcorx6.library.network.DownloadSourceResolver.isKnownLandingPageUrl(link)) {
+        if (com.marcorx6.library.network.DownloadSourceResolver.shouldOpenInBrowserBeforeProbe(
+                link, hintedMimeType, hintedDisposition
+            )
+        ) {
             return DownloadProbe(link, "text/html", false, null)
         }
         val connection = com.marcorx6.library.network.RedirectingHttpConnection.open(
