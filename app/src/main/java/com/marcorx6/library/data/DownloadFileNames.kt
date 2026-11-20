@@ -66,7 +66,10 @@ internal object DownloadFileNames {
 
     private fun urlExtensionName(url: String): String? {
         val decoded = decodePathSegment(lastPathSegment(url))
-        return decoded.takeIf { extensionFromUrl(url) != null }?.let(::clean)
+        // An extension-only endpoint such as /.../pkg is not a filename.
+        // Let safeName append that extension to the game title instead.
+        val suffix = decoded.substringAfterLast('.', "").lowercase(Locale.ROOT)
+        return decoded.takeIf { suffix in knownExtensions }?.let(::clean)
     }
 
     /**
@@ -88,6 +91,7 @@ internal object DownloadFileNames {
         if (mime.isBlank() || mime == "application/octet-stream") return null
         val knownMime = when (mime) {
             "application/vnd.android.package-archive" -> "apk"
+            "application/vnd.playstation.pkg", "application/x-pkg" -> "pkg"
             "application/zip", "application/x-zip-compressed" -> "zip"
             else -> null
         }
