@@ -169,6 +169,19 @@ class DownloadSourceResolverTest {
     }
 
     @Test
+    fun recognizesMoreGenericGameAndArchiveFileEndpoints() {
+        listOf(
+            "https://cdn.example.org/game.3ds",
+            "https://cdn.example.org/patch.tar.gz",
+            "https://cdn.example.org/rom.nes",
+            "https://cdn.example.org/installer.exe",
+            "https://cdn.example.org/game.torrent"
+        ).forEach { url ->
+            assertEquals(true, DownloadSourceResolver.isDirectDownloadEndpointUrl(url))
+        }
+    }
+
+    @Test
     fun extractsMediaFireDownloadButtonUrl() {
         val html = """<html><a class="input popsok" id="downloadButton" href="https://download123.mediafire.com/token/game.pkg">Download</a></html>"""
         assertEquals(
