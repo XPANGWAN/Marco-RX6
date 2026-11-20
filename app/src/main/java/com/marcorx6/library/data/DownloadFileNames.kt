@@ -35,6 +35,39 @@ internal object DownloadFileNames {
         return urlExtensionName(url)
     }
 
+    /**
+     * Prefer the app's game title when the server reports a contradictory filename.
+     * A response such as "Empty.bin" must not replace a known game title "Marco.pkg",
+     * and a URL ending in .pkg must not inherit a conflicting .bin response suffix.
+     */
+    fun resolvePreferredName(
+        preferredTitle: String,
+        responseName: String?,
+        mimeType: String,
+        id: Long,
+        sourceUrl: String = ""
+    ): String {
+        val preferred = clean(preferredTitle).ifBlank { "download_$id" }
+        val response = responseName?.let(::clean).orEmpty()
+        val preferredExtension = knownExtension(preferred)
+        val responseExtension = knownExtension(response)
+        val urlExtension = extensionFromUrl(sourceUrl)
+        val chosen = when {
+            preferredExtension != null && responseExtension != null &&
+                preferredExtension != responseExtension -> preferred
+            urlExtension != null && responseExtension != null &&
+                urlExtension != responseExtension -> preferred
+            response.isNotBlank() -> response
+            else -> preferred
+        }
+        return safeName(chosen, mimeType, id, sourceUrl)
+    }
+
+    private fun knownExtension(name: String): String? {
+        val extension = name.substringAfterLast('.', "").lowercase(Locale.ROOT)
+        return extension.takeIf { it in knownExtensions }
+    }
+
     /** Generic octet-stream responses are not reliable MIME extension sources. */
     fun safeName(value: String, mimeType: String, id: Long, sourceUrl: String = ""): String {
         var name = clean(value).replace(Regex("""[\u0000-\u001F\u007F/\\:*?"<>|]"""), "_")
