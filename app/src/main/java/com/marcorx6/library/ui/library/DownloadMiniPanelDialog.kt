@@ -164,7 +164,15 @@ internal class DownloadMiniPanelDialog(
                 maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
             }
             val statusView = TextView(activity).apply { textSize = 10f; setTextColor(accentText); setPadding(0, dp(3), 0, 0) }
-            val detailsView = TextView(activity).apply { textSize = 10f; setTextColor(muted); setPadding(0, dp(3), 0, 0) }
+            val detailsView = TextView(activity).apply {
+                textSize = 10f
+                setTextColor(muted)
+                setPadding(0, dp(3), 0, 0)
+                // Keep the metric sequence stable in RTL locales: downloaded / total,
+                // remaining size, speed, then ETA. Arabic words still render with bidi shaping.
+                textDirection = View.TEXT_DIRECTION_LTR
+                gravity = Gravity.START
+            }
             val bar = ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal).apply {
                 max = 100
                 progressTintList = android.content.res.ColorStateList.valueOf(accent)
