@@ -43,7 +43,7 @@ internal class GameArticleMediaViewFactory(
                     cornerRadius = dp(13).toFloat()
                 }
                 clipToOutline = true
-                contentDescription = "صورة \${index + 1} من \${game.name}"
+                contentDescription = "صورة ${index + 1} من ${game.name}"
             }
             loadCover(image, "", url)
             image.setOnClickListener { showImage(url, game.name, index + 1) }
