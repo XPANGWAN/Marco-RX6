@@ -47,6 +47,7 @@ MARCO RX6 is an Android game-library companion designed to help you explore, org
 - **PlayStation 2 (PS2)**
 - **PlayStation 3 (PS3)**
 - **PlayStation 4 (PS4)**
+- **PlayStation 5 (PS5)**
 
 ### Languages
 
