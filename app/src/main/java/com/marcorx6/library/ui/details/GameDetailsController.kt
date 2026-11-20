@@ -23,6 +23,7 @@ internal class GameDetailsController(
     private val ratingViewFactory: GameRatingViewFactory,
     private val recordViewOnce: (Game) -> Unit,
     private val similarGamesViewFactory: GameSimilarGamesViewFactory,
+    private val articleMediaViewFactory: GameArticleMediaViewFactory,
     private val downloadLinksViewFactory: GameDownloadLinksViewFactory,
     private val isAdmin: () -> Boolean,
     private val showGameDialog: (Game) -> Unit,
@@ -69,10 +70,20 @@ internal class GameDetailsController(
             })
         }
 
-        // Keep user ratings and related games available in the details page.
+        // Keep the established rating controls, then append optional article media.
         content.addView(ratingViewFactory.create(game), LinearLayout.LayoutParams(-1, -2).apply {
             topMargin = dp(10)
         })
+        articleMediaViewFactory.createGallery(game)?.let { gallery ->
+            content.addView(gallery, LinearLayout.LayoutParams(-1, -2).apply {
+                topMargin = dp(10)
+            })
+        }
+        articleMediaViewFactory.createYoutubePlayer(game)?.let { player ->
+            content.addView(player, LinearLayout.LayoutParams(-1, -2).apply {
+                topMargin = dp(10)
+            })
+        }
         similarGamesViewFactory.create(game, games()) { selected ->
             reader.dismiss()
             show(selected)
