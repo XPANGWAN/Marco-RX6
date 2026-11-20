@@ -53,8 +53,15 @@ internal object DownloadFileNames {
     private fun extensionFromUrl(url: String): String? {
         if (url.isBlank()) return null
         val decoded = decodePathSegment(lastPathSegment(url))
-        val extension = decoded.substringAfterLast('.', "").lowercase(Locale.ROOT)
-        return extension.takeIf { it in knownExtensions }
+        val lastSegment = decoded.substringAfter('/')
+        val extension = lastSegment.substringAfterLast('.', "").lowercase(Locale.ROOT)
+        // Some gateways encode the file type as the final path segment,
+        // e.g. /get/.../pkg?version=1.01, rather than a filename suffix.
+        return when {
+            extension in knownExtensions -> extension
+            lastSegment.lowercase(Locale.ROOT) in knownExtensions -> lastSegment.lowercase(Locale.ROOT)
+            else -> null
+        }
     }
 
     private fun urlExtensionName(url: String): String? {
