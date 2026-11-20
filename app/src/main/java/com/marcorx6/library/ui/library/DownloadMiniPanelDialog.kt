@@ -113,7 +113,11 @@ internal class DownloadMiniPanelDialog(
             val actions: LinearLayout
         )
         val rows = linkedMapOf<Long, Row>()
-        // Keep the timestamp of the last observed byte change, not the last UI refresh.\n        // The panel refreshes every 250 ms while the engine commits progress about once\n        // per second; sampling every redraw would inflate speed by up to 4x.\n        val speedSamples = mutableMapOf<Long, Pair<Long, Long>>()\n        val speedValues = mutableMapOf<Long, Long>()
+        // Keep the timestamp of the last observed byte change, not the last UI refresh.
+        // The panel refreshes every 250 ms while the engine commits progress about once
+        // per second; sampling every redraw would inflate speed by up to 4x.
+        val speedSamples = mutableMapOf<Long, Pair<Long, Long>>()
+        val speedValues = mutableMapOf<Long, Long>()
         val emptyState = TextView(activity).apply {
             text = translate("لا توجد تنزيلات في القائمة")
             textSize = 12f
