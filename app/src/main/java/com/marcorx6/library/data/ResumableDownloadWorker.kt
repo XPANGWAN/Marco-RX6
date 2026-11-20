@@ -95,7 +95,15 @@ internal class ResumableDownloadWorker(
                 wifiOnly = DownloadConcurrencyPreferences(applicationContext).wifiOnly(),
                 activeNetworkIsWifi = hasWifiConnection()
             )) {
-            database.status(id, DownloadManager.STATUS_PENDING)
+            database.transition(
+                id,
+                setOf(
+                    DownloadManager.STATUS_PENDING,
+                    DownloadManager.STATUS_RUNNING,
+                    DownloadDatabase.STATUS_SCHEDULED
+                ),
+                DownloadManager.STATUS_PENDING
+            )
             return Result.success()
         }
         return try {
@@ -176,18 +184,36 @@ internal class ResumableDownloadWorker(
                 // transition. Treat it as a resumable stop, not a permanent failure.
                 // Do not overwrite PENDING/SCHEDULED when a replacement worker has
                 // already been queued by a fast pause/resume action.
-                if (latest.status == DownloadManager.STATUS_RUNNING) {
-                    database.status(id, DownloadManager.STATUS_PENDING, error.message ?: "Download paused")
-                }
+                database.transition(
+                    id,
+                    setOf(DownloadManager.STATUS_RUNNING, DownloadDatabase.STATUS_PREPARING),
+                    DownloadManager.STATUS_PENDING,
+                    error.message ?: "Download paused"
+                )
                 Result.retry()
             } else if (error is IOException && runAttemptCount < MAX_AUTOMATIC_RETRIES) {
-                database.status(id, DownloadManager.STATUS_PENDING, error.message ?: "Network interrupted")
+                database.transition(
+                    id,
+                    setOf(DownloadManager.STATUS_RUNNING, DownloadDatabase.STATUS_PREPARING),
+                    DownloadManager.STATUS_PENDING,
+                    error.message ?: "Network interrupted"
+                )
                 Result.retry()
             } else if (error is IOException) {
-                database.status(id, DownloadManager.STATUS_FAILED, error.message ?: "Download needs attention")
+                database.transition(
+                    id,
+                    setOf(DownloadManager.STATUS_RUNNING, DownloadDatabase.STATUS_PREPARING),
+                    DownloadManager.STATUS_FAILED,
+                    error.message ?: "Download needs attention"
+                )
                 Result.failure()
             } else {
-                database.status(id, DownloadManager.STATUS_FAILED, error.message ?: "Download failed")
+                database.transition(
+                    id,
+                    setOf(DownloadManager.STATUS_RUNNING, DownloadDatabase.STATUS_PREPARING),
+                    DownloadManager.STATUS_FAILED,
+                    error.message ?: "Download failed"
+                )
                 Result.failure()
             }
         } finally {
