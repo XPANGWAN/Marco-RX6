@@ -41,7 +41,16 @@ internal class ResumableDownloadWorker(
         // Enter foreground before waiting for the per-download writer lease.
         // Previously a lease collision returned Result.retry() before any
         // foreground notification existed, which looked like a silent stuck job.
-        setForeground(createForegroundInfo(queuedItem.title, id))
+        try {
+            setForeground(createForegroundInfo(queuedItem.title, id))
+        } catch (error: Exception) {
+            android.util.Log.e(
+                "MarcoDownloadWorker",
+                "Could not enter foreground for download $id: ${error.message ?: error.javaClass.simpleName}",
+                error
+            )
+            return Result.retry()
+        }
 
         // A replacement worker can briefly overlap the previous worker after
         // pause/resume or process recovery. Wait for its OS file lock instead of
