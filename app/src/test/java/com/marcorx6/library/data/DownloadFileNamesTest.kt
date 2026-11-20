@@ -42,6 +42,17 @@ class DownloadFileNamesTest {
     }
 
     @Test
+    fun recognizesExtensionOnlyNopaystationPkgPathWithQueryString() {
+        assertEquals(
+            "GTA IV.pkg",
+            DownloadFileNames.safeName(
+                "GTA IV", "application/octet-stream", 5,
+                "https://nopaystation.com/get/PS3/NPEB00882/GTAIVDIGITAL0001/1.06/pkg?version=1.01"
+            )
+        )
+    }
+
+    @Test
     fun addsApkExtensionFromMimeWhenTitleHasNoExtension() {
         assertEquals(
             "Marco.apk",
