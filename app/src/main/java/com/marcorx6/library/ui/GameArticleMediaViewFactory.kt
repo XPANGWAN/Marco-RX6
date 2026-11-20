@@ -95,7 +95,7 @@ internal class GameArticleMediaViewFactory(
             webViewClient = object : WebViewClient() {
                 private fun trusted(url: String): Boolean {
                     val host = runCatching { java.net.URI(url).host?.lowercase() }.getOrNull()
-                    return url.startsWith("https://", true) &&
+                    return url.startsWith("https://", true) && host != null &&
                         host in setOf("www.youtube-nocookie.com", "youtube-nocookie.com", "www.youtube.com", "youtube.com")
                 }
                 override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean =
