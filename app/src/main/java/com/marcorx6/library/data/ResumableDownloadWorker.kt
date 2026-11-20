@@ -47,12 +47,15 @@ internal class ResumableDownloadWorker(
         // pause/resume or process recovery. Wait for its OS file lock instead of
         // immediately cycling through WorkManager backoff with no visible signal.
         var lease: DownloadExecutionLock.Lease? = null
-        repeat(60) {
-            if (isStopped) return Result.retry()
+        var lockAttempts = 0
+        while (lease == null && lockAttempts < 60 && !isStopped) {
             lease = DownloadExecutionLock.acquire(applicationContext, id)
-            if (lease != null) return@repeat
-            kotlinx.coroutines.delay(250L)
+            if (lease == null) {
+                lockAttempts++
+                kotlinx.coroutines.delay(250L)
+            }
         }
+        if (isStopped) return Result.retry()
         val acquired = lease ?: run {
             android.util.Log.w(
                 "MarcoDownloadWorker",
