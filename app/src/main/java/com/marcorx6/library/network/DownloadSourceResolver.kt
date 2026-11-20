@@ -52,10 +52,13 @@ internal object DownloadSourceResolver {
         // WebView executes the site's normal JavaScript download flow.
         val isRootzSharePage = host in setOf("rootz.so", "www.rootz.so") &&
             Regex("""^/d/[^/]+/?$""", RegexOption.IGNORE_CASE).matches(path)
+        val isLinkVaultLandingPage =
+            (host == "link-vault.org" || host.endsWith(".link-vault.org")) &&
+                Regex("""^/c/[^/]+/?$""", RegexOption.IGNORE_CASE).matches(path)
         val isMediaFireLandingPage = host == "mediafire.com" ||
             host == "www.mediafire.com"
         return (isShareLandingPage && knownVikingHost) || isRootzSharePage ||
-            isMediaFireLandingPage
+            isMediaFireLandingPage || isLinkVaultLandingPage
     }
 
     /**
