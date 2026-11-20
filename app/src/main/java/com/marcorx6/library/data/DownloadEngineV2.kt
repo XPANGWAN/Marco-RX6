@@ -13,7 +13,7 @@ import java.net.URL
 
 /** Sequential transfer engine with durable checkpoints and an explicit destination writer. */
 internal object DownloadEngineV2 {
-        fun download(context: Context, item: StoredDownload, database: DownloadDatabase, destinationUri: android.net.Uri?, shouldStop: () -> Boolean, onProgress: (Long, Long) -> Unit, onPreparing: (Int) -> Unit) {
+        fun download(context: Context, item: StoredDownload, database: DownloadDatabase, destinationUri: android.net.Uri?, shouldStop: () -> Boolean, onProgress: (Long, Long) -> Unit) {
             val directory = File(context.filesDir, "MARCO_RX6_downloads").apply { mkdirs() }
             val partial = File(directory, "${item.id}.part")
             val durableProgress = File(directory, "${item.id}.part.progress")
