@@ -55,7 +55,10 @@ internal class ResumableDownloadWorker(
                 kotlinx.coroutines.delay(250L)
             }
         }
-        if (isStopped) return Result.retry()
+        if (isStopped) {
+            lease?.close()
+            return Result.retry()
+        }
         val acquired = lease ?: run {
             android.util.Log.w(
                 "MarcoDownloadWorker",
