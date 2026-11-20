@@ -281,6 +281,7 @@ internal class DownloadRepository(context: Context) {
     fun resumeAllDownloads(): Int {
         val ids = database.pausedOrFailedIds()
         val resumedIds = mutableSetOf<Long>()
+        var resumedCount = 0
         ids.forEach { id ->
             val stillResolving = File(appContext.filesDir, "MARCO_RX6_downloads/$id.probing").isFile
             val targetState = if (stillResolving) {
@@ -293,10 +294,13 @@ internal class DownloadRepository(context: Context) {
                 setOf(DownloadManager.STATUS_PAUSED, DownloadManager.STATUS_FAILED),
                 targetState
             )
-            if (changed && !stillResolving) resumedIds.add(id)
+            if (changed) {
+                resumedCount++
+                if (!stillResolving) resumedIds.add(id)
+            }
         }
         if (resumedIds.isNotEmpty()) DownloadWorkScheduler.scheduleResumed(appContext, resumedIds)
-        return resumedIds.size
+        return resumedCount
     }
 
     fun setDownloadPriority(id: Long, priority: Int): Boolean {
