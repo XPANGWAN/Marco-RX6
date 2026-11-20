@@ -113,7 +113,7 @@ internal class DownloadMiniPanelDialog(
             val actions: LinearLayout
         )
         val rows = linkedMapOf<Long, Row>()
-        val speedSamples = mutableMapOf<Long, Pair<Long, Long>>()
+        // Keep the timestamp of the last observed byte change, not the last UI refresh.\n        // The panel refreshes every 250 ms while the engine commits progress about once\n        // per second; sampling every redraw would inflate speed by up to 4x.\n        val speedSamples = mutableMapOf<Long, Pair<Long, Long>>()\n        val speedValues = mutableMapOf<Long, Long>()
         val emptyState = TextView(activity).apply {
             text = translate("لا توجد تنزيلات في القائمة")
             textSize = 12f
@@ -241,20 +241,45 @@ internal class DownloadMiniPanelDialog(
                         val percent = if (isPreparing) {
                             item.preparationPercent.coerceIn(0, 100)
                         } else if (item.totalBytes > 0L) {
-                            (item.downloadedBytes * 100L / item.totalBytes).coerceIn(0L, 100L).toInt()
+                            ((item.downloadedBytes.coerceAtLeast(0L).toDouble() /
+                                item.totalBytes.toDouble()) * 100.0).toInt().coerceIn(0, 100)
                         } else 0
                         val now = SystemClock.elapsedRealtime()
                         val previous = speedSamples[item.id]
-                        val speed = if (item.status == DownloadManager.STATUS_RUNNING && previous != null && now > previous.second && item.downloadedBytes >= previous.first) {
-                            ((item.downloadedBytes - previous.first) * 1000L) / (now - previous.second).coerceAtLeast(1L)
-                        } else 0L
-                        if (item.status == DownloadManager.STATUS_RUNNING) speedSamples[item.id] = item.downloadedBytes to now else speedSamples.remove(item.id)
+                        val speed = if (item.status == DownloadManager.STATUS_RUNNING) {
+                            when {
+                                previous == null || item.downloadedBytes < previous.first -> {
+                                    speedSamples[item.id] = item.downloadedBytes to now
+                                    speedValues[item.id] = 0L
+                                    0L
+                                }
+                                item.downloadedBytes > previous.first && now > previous.second -> {
+                                    val measured = ((item.downloadedBytes - previous.first) * 1000L) /
+                                        (now - previous.second).coerceAtLeast(1L)
+                                    speedSamples[item.id] = item.downloadedBytes to now
+                                    speedValues[item.id] = measured
+                                    measured
+                                }
+                                now - previous.second > 3_000L -> {
+                                    speedValues[item.id] = 0L
+                                    0L
+                                }
+                                else -> speedValues[item.id] ?: 0L
+                            }
+                        } else {
+                            speedSamples.remove(item.id)
+                            speedValues.remove(item.id)
+                            0L
+                        }
                         row.status.text = if (isPreparing || item.totalBytes > 0L) "$statusLabel • $percent%" else statusLabel
                         val downloaded = android.text.format.Formatter.formatFileSize(activity, item.downloadedBytes.coerceAtLeast(0L))
                         val total = if (item.totalBytes > 0L) android.text.format.Formatter.formatFileSize(activity, item.totalBytes) else translate("حجم غير معروف")
                         val speedText = if (item.status == DownloadManager.STATUS_RUNNING) " • " + android.text.format.Formatter.formatFileSize(activity, speed) + "/s" else ""
                         val etaText = if (item.status == DownloadManager.STATUS_RUNNING && speed > 0L && item.totalBytes > item.downloadedBytes) {
-                            val seconds = ((item.totalBytes - item.downloadedBytes) / speed).coerceAtLeast(0L)
+                            val remainingBytes = (item.totalBytes - item.downloadedBytes).coerceAtLeast(0L)
+                            val seconds = kotlin.math.ceil(
+                                remainingBytes.toDouble() / speed.toDouble()
+                            ).toLong().coerceAtLeast(0L)
                             val eta = if (seconds >= 3600L) "${seconds / 3600L}h ${(seconds % 3600L) / 60L}m"
                                 else if (seconds >= 60L) "${seconds / 60L}m ${seconds % 60L}s" else "${seconds}s"
                             " • " + translate("متبقي") + " " + eta
