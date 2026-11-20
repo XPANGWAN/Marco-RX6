@@ -278,6 +278,16 @@ internal class DownloadMiniPanelDialog(
                         row.status.text = if (isPreparing || item.totalBytes > 0L) "$statusLabel • $percent%" else statusLabel
                         val downloaded = android.text.format.Formatter.formatFileSize(activity, item.downloadedBytes.coerceAtLeast(0L))
                         val total = if (item.totalBytes > 0L) android.text.format.Formatter.formatFileSize(activity, item.totalBytes) else translate("حجم غير معروف")
+                        val remainingSizeText = if (
+                            item.status == DownloadManager.STATUS_RUNNING &&
+                            item.totalBytes > item.downloadedBytes
+                        ) {
+                            " • " + translate("الحجم المتبقي") + ": " +
+                                android.text.format.Formatter.formatFileSize(
+                                    activity,
+                                    (item.totalBytes - item.downloadedBytes).coerceAtLeast(0L)
+                                )
+                        } else ""
                         val speedText = if (item.status == DownloadManager.STATUS_RUNNING) " • " + android.text.format.Formatter.formatFileSize(activity, speed) + "/s" else ""
                         val etaText = if (item.status == DownloadManager.STATUS_RUNNING && speed > 0L && item.totalBytes > item.downloadedBytes) {
                             val remainingBytes = (item.totalBytes - item.downloadedBytes).coerceAtLeast(0L)
@@ -297,7 +307,7 @@ internal class DownloadMiniPanelDialog(
                                 translate("سبب إعادة المحاولة:") + " " + retryError
                             waitingForWifi -> translate("بانتظار اتصال Wi-Fi")
                             isPreparing -> translate("جارٍ حجز مساحة التخزين قبل بدء التنزيل")
-                            else -> "$downloaded / $total$speedText$etaText"
+                            else -> "$downloaded / $total$remainingSizeText$speedText$etaText"
                         }
                         row.progress.isIndeterminate =
                             item.status == DownloadManager.STATUS_RUNNING && item.totalBytes <= 0L
