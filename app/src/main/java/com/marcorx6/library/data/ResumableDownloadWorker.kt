@@ -165,7 +165,13 @@ internal class ResumableDownloadWorker(
                 Result.success()
             } else if (latest.status == DownloadManager.STATUS_PAUSED) {
                 Result.success()
-            } else if ((isStopped || error is IOException) && runAttemptCount < MAX_AUTOMATIC_RETRIES) {
+            } else if (isStopped) {
+                // pause -> resume can happen before the cancelled worker unwinds.
+                // In that race the row is already PENDING/SCHEDULED for the new
+                // WorkRequest. Never overwrite its state with this stale worker's
+                // cancellation error; let WorkManager retire this attempt.
+                Result.retry()
+            } else if (error is IOException && runAttemptCount < MAX_AUTOMATIC_RETRIES) {
                 database.status(id, DownloadManager.STATUS_PENDING, error.message ?: "Network interrupted")
                 Result.retry()
             } else if (error is IOException) {
