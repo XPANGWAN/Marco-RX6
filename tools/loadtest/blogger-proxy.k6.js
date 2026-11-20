@@ -5,7 +5,7 @@ import { Rate, Trend } from "k6/metrics";
 const failures = new Rate("proxy_failures");
 const responseTime = new Trend("proxy_response_time", true);
 
-const target = (__ENV.TARGET_URL || "https://marcorx6app.dpdns.org/api/games").trim();
+const target = (__ENV.TARGET_URL || "https://marcorx6app.dpdns.org/api/games?alt=json&max-results=100").trim();
 const maxVus = Number(__ENV.MAX_VUS || "100");
 const allowHighLoad = __ENV.ALLOW_HIGH_LOAD === "1";
 
