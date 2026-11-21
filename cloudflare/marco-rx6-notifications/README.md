@@ -11,6 +11,7 @@ This Worker runs every minute. It polls the Blogger JSON feed, queues each newly
    - Cloud Datastore User (`roles/datastore.user`) so it can query notifications, read device tokens, and update delivery status.
 4. Add the Cron Trigger `*/1 * * * *` (once per minute).
 5. Deploy the contents of `worker.js`. The `/health` route only confirms that the Worker is running; it does not send a test push.
+6. Keep the GitHub Actions FCM workflow manual-only; its scheduled sender is disabled to prevent duplicate pushes. Cloudflare is the sole scheduled FCM sender.
 
 ## Firestore queue contract
 
