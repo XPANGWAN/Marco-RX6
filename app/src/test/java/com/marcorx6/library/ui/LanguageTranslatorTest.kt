@@ -174,6 +174,81 @@ class LanguageTranslatorTest {
     }
 
     @Test
+    fun translatesPreviouslyUncoveredAccountSocialAndRepositoryMessages() {
+        val cases = mapOf(
+            "لا توجد جلسة مستخدم" to listOf("No active user session", "Aucune session utilisateur active", "No hay una sesión de usuario activa"),
+            "سجّل الدخول أولاً" to listOf("Sign in first", "Connectez-vous d’abord", "Inicia sesión primero"),
+            "التقييم متاح للمستخدمين المسجلين فقط" to listOf("Ratings are available to registered users only", "Les évaluations sont réservées aux utilisateurs inscrits", "Las valoraciones están disponibles solo para usuarios registrados"),
+            "التقييم يجب أن يكون بين نجمة و5 نجوم" to listOf("The rating must be between 1 and 5 stars", "La note doit être comprise entre 1 et 5 étoiles", "La valoración debe estar entre 1 y 5 estrellas"),
+            "تعذر التحقق من المتابعة المتبادلة" to listOf("Could not verify mutual following", "Impossible de vérifier le suivi mutuel", "No se pudo verificar el seguimiento mutuo"),
+            "معرّف المستخدم غير صالح" to listOf("Invalid user ID", "Identifiant utilisateur invalide", "ID de usuario no válido"),
+            "تعذر التحقق من صلاحية المراسلة" to listOf("Could not verify messaging permission", "Impossible de vérifier l’autorisation de messagerie", "No se pudo verificar el permiso de mensajería"),
+            "يمكنك المراسلة فقط عندما يتابع كل منكما الآخر" to listOf("You can message only when you follow each other", "Vous pouvez échanger des messages uniquement si vous vous suivez mutuellement", "Solo pueden enviarse mensajes cuando se siguen mutuamente"),
+            "بيانات المشاركين في المحادثة غير صالحة" to listOf("Conversation participant data is invalid", "Les données des participants à la conversation sont invalides", "Los datos de los participantes de la conversación no son válidos"),
+            "تعذر إنشاء المحادثة" to listOf("Could not create the conversation", "Impossible de créer la conversation", "No se pudo crear la conversación"),
+            "الرسالة غير صالحة أو تتجاوز الحد المسموح" to listOf("The message is invalid or exceeds the allowed limit", "Le message est invalide ou dépasse la limite autorisée", "El mensaje no es válido o supera el límite permitido"),
+            "تعذر تحميل بيانات المحادثة والمرسل" to listOf("Could not load conversation and sender data", "Impossible de charger les données de la conversation et de l’expéditeur", "No se pudieron cargar los datos de la conversación y del remitente"),
+            "معرّف المحادثة غير صالح" to listOf("Invalid conversation ID", "Identifiant de conversation invalide", "ID de conversación no válido"),
+            "الرسالة غير صالحة" to listOf("Invalid message", "Message invalide", "Mensaje no válido"),
+            "تعذر تحميل الرسالة" to listOf("Could not load the message", "Impossible de charger le message", "No se pudo cargar el mensaje"),
+            "تعذر تحميل المحادثة" to listOf("Could not load the conversation", "Impossible de charger la conversation", "No se pudo cargar la conversación"),
+            "تم حذف رسالة" to listOf("A message was deleted", "Un message a été supprimé", "Se eliminó un mensaje"),
+            "معرّف الحساب غير صالح" to listOf("Invalid account ID", "Identifiant de compte invalide", "ID de cuenta no válido"),
+            "إشعار غير صالح" to listOf("Invalid notification", "Notification invalide", "Notificación no válida"),
+            "تعذر تحميل الإشعارات" to listOf("Could not load notifications", "Impossible de charger les notifications", "No se pudieron cargar las notificaciones"),
+            "تعذر قراءة ملف المستخدم" to listOf("Could not read the user profile", "Impossible de lire le profil utilisateur", "No se pudo leer el perfil del usuario"),
+            "الصورة العامة كبيرة جداً؛ اختر صورة أصغر." to listOf("The public profile image is too large; choose a smaller image.", "L’image du profil public est trop volumineuse ; choisissez une image plus petite.", "La imagen del perfil público es demasiado grande; elige una imagen más pequeña."),
+            "تعذر البحث عن اسم المستخدم" to listOf("Could not look up the username", "Impossible de rechercher le nom d’utilisateur", "No se pudo buscar el nombre de usuario"),
+            "اسم المستخدم يجب أن يتكون من 3 إلى 20 حرفاً إنجليزياً أو رقماً أو _" to listOf("The username must contain 3–20 English letters, digits, or underscores", "Le nom d’utilisateur doit contenir de 3 à 20 lettres anglaises, chiffres ou tirets bas", "El nombre de usuario debe contener entre 3 y 20 letras inglesas, números o guiones bajos"),
+            "اسم المستخدم مستخدم بالفعل. اختر اسماً آخر." to listOf("This username is already taken. Choose another.", "Ce nom d’utilisateur est déjà utilisé. Choisissez-en un autre.", "Este nombre de usuario ya está en uso. Elige otro."),
+            "تعذر حجز اسم المستخدم" to listOf("Could not reserve the username", "Impossible de réserver le nom d’utilisateur", "No se pudo reservar el nombre de usuario"),
+            "معرّف المتابعة غير صالح" to listOf("Invalid follow ID", "Identifiant d’abonnement invalide", "ID de seguimiento no válido"),
+            "متابع جديد" to listOf("New follower", "Nouvel abonné", "Nuevo seguidor"),
+            "بدأ هذا المستخدم بمتابعتك" to listOf("This user started following you", "Cet utilisateur a commencé à vous suivre", "Este usuario ha empezado a seguirte"),
+            "تعذر تحميل حالة المتابعة" to listOf("Could not load follow status", "Impossible de charger le statut de suivi", "No se pudo cargar el estado de seguimiento"),
+            "تعذر تحميل إحصائيات المتابعة" to listOf("Could not load follow statistics", "Impossible de charger les statistiques de suivi", "No se pudieron cargar las estadísticas de seguimiento"),
+            "تعذر قراءة إعدادات الملف" to listOf("Could not read profile settings", "Impossible de lire les paramètres du profil", "No se pudieron leer los ajustes del perfil"),
+            "تعذر تحديث إحصائيات المتابعة" to listOf("Could not update follow statistics", "Impossible de mettre à jour les statistiques de suivi", "No se pudieron actualizar las estadísticas de seguimiento"),
+            "تعذر قراءة الملف العام" to listOf("Could not read the public profile", "Impossible de lire le profil public", "No se pudo leer el perfil público"),
+            "تعذر تحميل المتابعين" to listOf("Could not load followers", "Impossible de charger les abonnés", "No se pudieron cargar los seguidores"),
+            "تعذر تحميل قائمة المتابعة" to listOf("Could not load the following list", "Impossible de charger la liste des abonnements", "No se pudo cargar la lista de seguidos"),
+            "تعذر تحميل علاقات المتابعة" to listOf("Could not load follow relationships", "Impossible de charger les relations de suivi", "No se pudieron cargar las relaciones de seguimiento"),
+            "تعذر حذف علاقات المتابعة" to listOf("Could not delete follow relationships", "Impossible de supprimer les relations de suivi", "No se pudieron eliminar las relaciones de seguimiento"),
+            "تعذر تحميل تقييمات الحساب" to listOf("Could not load account ratings", "Impossible de charger les évaluations du compte", "No se pudieron cargar las valoraciones de la cuenta"),
+            "تعذر حذف تقييمات الحساب" to listOf("Could not delete account ratings", "Impossible de supprimer les évaluations du compte", "No se pudieron eliminar las valoraciones de la cuenta"),
+            "تعذر حذف الملف العام" to listOf("Could not delete the public profile", "Impossible de supprimer le profil public", "No se pudo eliminar el perfil público"),
+            "تعذر حذف الحساب واسم المستخدم" to listOf("Could not delete the account and username", "Impossible de supprimer le compte et le nom d’utilisateur", "No se pudo eliminar la cuenta y el nombre de usuario"),
+            "إشعارات MARCO" to listOf("MARCO notifications", "Notifications MARCO", "Notificaciones de MARCO"),
+            "رسائل ومتابعون وتحديثات الألعاب" to listOf("Messages, followers and game updates", "Messages, abonnés et mises à jour des jeux", "Mensajes, seguidores y actualizaciones de juegos"),
+            "مجتمع MARCO" to listOf("MARCO Community", "Communauté MARCO", "Comunidad MARCO"),
+            "أنت تتابع هذا المستخدم. اضغط لإلغاء المتابعة" to listOf("You follow this user. Tap to unfollow.", "Vous suivez cet utilisateur. Touchez pour vous désabonner.", "Sigues a este usuario. Toca para dejar de seguirlo."),
+            "اضغط لمتابعة هذا المستخدم" to listOf("Tap to follow this user", "Touchez pour suivre cet utilisateur", "Toca para seguir a este usuario"),
+            "فشل رفع إحدى صور المعرض" to listOf("One of the gallery images could not be uploaded", "L’envoi de l’une des images de la galerie a échoué", "No se pudo subir una de las imágenes de la galería"),
+            "الألعاب العربية" to listOf("Arabic games", "Jeux en arabe", "Juegos en árabe"),
+            "العاب عربية" to listOf("Arabic games", "Jeux en arabe", "Juegos en árabe"),
+            "العاب" to listOf("Games", "Jeux", "Juegos"),
+            "التطبيقات والادوات" to listOf("Apps & Tools", "Applications et outils", "Aplicaciones y herramientas"),
+            "محاكيات" to listOf("Emulators", "Émulateurs", "Emuladores"),
+            "افتارات" to listOf("Avatars", "Avatars", "Avatares"),
+            "ثيمات" to listOf("Themes", "Thèmes", "Temas")
+        )
+        cases.forEach { (source, expected) ->
+            assertEquals(expected[0], LanguageTranslator.translate(source, "en"))
+            assertEquals(expected[1], LanguageTranslator.translate(source, "fr"))
+            assertEquals(expected[2], LanguageTranslator.translate(source, "es"))
+        }
+    }
+
+    @Test
+    fun normalizesLegacySectionLabelsToFormalArabic() {
+        assertEquals("الألعاب", LanguageTranslator.translate("العاب", "ar"))
+        assertEquals("الألعاب العربية", LanguageTranslator.translate("العاب عربية", "ar"))
+        assertEquals("التطبيقات والأدوات", LanguageTranslator.translate("التطبيقات والادوات", "ar"))
+        assertEquals("صور رمزية", LanguageTranslator.translate("افتارات", "ar"))
+        assertEquals("السمات", LanguageTranslator.translate("ثيمات", "ar"))
+    }
+
+    @Test
     fun preservesUnknownTextAndUnsupportedLanguageCodes() {
         val source = "نص جديد غير موجود في القاموس"
         assertEquals(source, LanguageTranslator.translate(source, "en"))
