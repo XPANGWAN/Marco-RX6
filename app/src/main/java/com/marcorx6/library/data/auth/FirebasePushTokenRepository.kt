@@ -16,7 +16,15 @@ internal class FirebasePushTokenRepository(
     private val messaging: FirebaseMessaging = FirebaseMessaging.getInstance()
 ) {
     fun syncCurrentToken() {
-        val user = auth.currentUser ?: return
+        val user = auth.currentUser
+        if (user == null) {
+            android.util.Log.i("MarcoFCM", "Token sync deferred: Firebase user is not ready")
+            return
+        }
+        if (user.isAnonymous) {
+            android.util.Log.i("MarcoFCM", "Token sync deferred: waiting for a registered account")
+            return
+        }
         messaging.token
             .addOnSuccessListener { token -> saveTokenForUser(token, user.uid) }
             .addOnFailureListener { error ->
@@ -49,6 +57,11 @@ internal class FirebasePushTokenRepository(
                 ),
                 SetOptions.merge()
             )
+            .addOnSuccessListener {
+                val enabled = context.getSharedPreferences("notification_settings", Context.MODE_PRIVATE)
+                    .getBoolean("enabled", false)
+                android.util.Log.i("MarcoFCM", "FCM device registration saved; blogNotificationsEnabled=$enabled")
+            }
             .addOnFailureListener { error ->
                 android.util.Log.w("MarcoFCM", "Unable to save FCM device token", error)
             }
