@@ -283,7 +283,7 @@ export default {
   async fetch(request) {
     const url = new URL(request.url);
     if (url.pathname === "/health") {
-      return Response.json({ service: "marco-rx6-push", status: "ready" });
+      return Response.json({ service: "marco-rx6-notifications", status: "ready" });
     }
     return new Response("Use the scheduled trigger.", { status: 200 });
   },
