@@ -21,6 +21,9 @@ internal class GameArticleMediaViewFactory(
     private val isDarkMode: () -> Boolean,
     private val makeText: (String, Float, Int, Boolean) -> TextView,
     private val primary: () -> Int,
+    private val panel: () -> Int,
+    private val gray: () -> Int,
+    private val translate: (String) -> String,
     private val loadCover: (ImageView, String, String) -> Unit
 ) {
     fun createGallery(game: Game): View? {
@@ -31,7 +34,7 @@ internal class GameArticleMediaViewFactory(
             orientation = LinearLayout.VERTICAL
             setPadding(0, dp(8), 0, dp(4))
         }
-        root.addView(makeText("صور من اللعبة", 15f, primary(), true).apply {
+        root.addView(makeText(translate("صور من اللعبة"), 15f, primary(), true).apply {
             setPadding(dp(2), 0, 0, dp(9))
         })
         val row = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
@@ -39,11 +42,12 @@ internal class GameArticleMediaViewFactory(
             val image = ImageView(activity).apply {
                 scaleType = ImageView.ScaleType.CENTER_CROP
                 background = GradientDrawable().apply {
-                    setColor(if (dark) Color.rgb(35, 38, 45) else Color.rgb(222, 226, 232))
+                    setColor(panel())
+                    setStroke(dp(1), gray())
                     cornerRadius = dp(13).toFloat()
                 }
                 clipToOutline = true
-                contentDescription = "صورة ${index + 1} من ${game.name}"
+                contentDescription = "${translate("صورة")} ${index + 1} ${translate("من")} ${game.name}"
             }
             loadCover(image, "", url)
             image.setOnClickListener { showImage(media.images, index, game.name) }
@@ -66,7 +70,7 @@ internal class GameArticleMediaViewFactory(
             orientation = LinearLayout.VERTICAL
             setPadding(0, dp(8), 0, dp(4))
         }
-        root.addView(makeText("فيديو اللعبة", 15f, primary(), true).apply {
+        root.addView(makeText(translate("فيديو اللعبة"), 15f, primary(), true).apply {
             setPadding(dp(2), 0, 0, dp(9))
         })
         val frame = FrameLayout(activity).apply {
@@ -106,7 +110,7 @@ internal class GameArticleMediaViewFactory(
             }
             loadDataWithBaseURL(
                 "https://www.youtube-nocookie.com/",
-                """<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;width:100%;height:100%;background:#000}iframe{border:0;width:100%;height:100%}</style></head><body><iframe src="https://www.youtube-nocookie.com/embed/$id?playsinline=1&rel=0" title="Game video" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></body></html>""",
+                """<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;width:100%;height:100%;background:#000}iframe{border:0;width:100%;height:100%}</style></head><body><iframe src="https://www.youtube-nocookie.com/embed/$id?playsinline=1&rel=0" title="${translate("فيديو اللعبة")}" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></body></html>""",
                 "text/html", "UTF-8", null
             )
         }
@@ -125,7 +129,7 @@ internal class GameArticleMediaViewFactory(
         val container = FrameLayout(activity).apply { setBackgroundColor(Color.BLACK) }
         val image = ImageView(activity).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
-            contentDescription = "${gameName} - ${currentIndex + 1}"
+            contentDescription = "${gameName} - ${translate("صورة")} ${currentIndex + 1}"
             setBackgroundColor(Color.BLACK)
         }
         container.addView(image, FrameLayout.LayoutParams(-1, -1))
@@ -133,11 +137,12 @@ internal class GameArticleMediaViewFactory(
         val counter = TextView(activity).apply {
             text = "${currentIndex + 1} / ${images.size}"
             textSize = 14f
-            setTextColor(Color.WHITE)
+            setTextColor(primary())
             gravity = android.view.Gravity.CENTER
             setPadding(dp(14), dp(7), dp(14), dp(7))
             background = GradientDrawable().apply {
-                setColor(0x99000000.toInt())
+                setColor(panel())
+                setStroke(dp(1), gray())
                 cornerRadius = dp(18).toFloat()
             }
         }
@@ -150,9 +155,11 @@ internal class GameArticleMediaViewFactory(
             text = "✕"
             textSize = 22f
             gravity = android.view.Gravity.CENTER
-            setTextColor(Color.WHITE)
+            setTextColor(primary())
+            contentDescription = translate("إغلاق")
             background = GradientDrawable().apply {
-                setColor(0x88000000.toInt())
+                setColor(panel())
+                setStroke(dp(1), gray())
                 shape = GradientDrawable.OVAL
             }
             setOnClickListener { dialog.dismiss() }
@@ -168,7 +175,7 @@ internal class GameArticleMediaViewFactory(
             matrixReady = false
             image.scaleType = ImageView.ScaleType.FIT_CENTER
             image.imageMatrix = android.graphics.Matrix()
-            image.contentDescription = "${gameName} - ${currentIndex + 1}"
+            image.contentDescription = "${gameName} - ${translate("صورة")} ${currentIndex + 1}"
             loadCover(image, "", images[currentIndex])
             counter.text = "${currentIndex + 1} / ${images.size}"
         }
