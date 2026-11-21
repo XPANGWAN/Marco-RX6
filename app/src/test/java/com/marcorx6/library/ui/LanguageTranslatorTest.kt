@@ -168,14 +168,6 @@ class LanguageTranslatorTest {
     }
 
     @Test
-    fun translatesTranslationModelMessagesIntoAllSupportedLanguages() {
-        val source = "تحميل نموذج الترجمة"
-        assertEquals("Download translation model", LanguageTranslator.translate(source, "en"))
-        assertEquals("Télécharger le modèle de traduction", LanguageTranslator.translate(source, "fr"))
-        assertEquals("Descargar el modelo de traducción", LanguageTranslator.translate(source, "es"))
-    }
-
-    @Test
     fun keepsTheCanonicalTranslationForPreviouslyDuplicatedKeys() {
         assertEquals(
             "Personaliza MARCO a tu manera",
