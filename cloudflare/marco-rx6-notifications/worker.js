@@ -118,7 +118,7 @@ function parsePost(entry) {
   const thumbnail = entry?.["media$thumbnail"]?.url || "";
   const html = entry?.content?.$t || entry?.summary?.$t || "";
   const embedded = html.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1] || "";
-  const candidate = String(thumbnail || embedded).replace(/&amp;/g, "&");
+  // Prefer the full-size image embedded in the post; Blogger media$thumbnail is usually only 72px.\n  const candidate = String(embedded || thumbnail).replace(/&amp;/g, "&");
   const imageUrl = candidate.startsWith("https://") ? candidate : "";
   return id && title ? { id, title: title.slice(0, 120), link, imageUrl } : null;
 }
