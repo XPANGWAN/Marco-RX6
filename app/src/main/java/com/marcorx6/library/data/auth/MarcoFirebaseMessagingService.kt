@@ -8,6 +8,11 @@ import android.content.pm.PackageManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import java.io.ByteArrayOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationManagerCompat
@@ -65,8 +70,20 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
 
-        // Keep notifications compact: text and the app small icon only.
-        builder.setStyle(NotificationCompat.BigTextStyle().bigText(localizedBody))
+        // Show the game cover in the expanded notification when a safe HTTPS image is available.
+        // If image loading fails, keep the normal readable text notification.
+        val imageUrl = data["imageUrl"].orEmpty()
+        val cover = downloadNotificationImage(imageUrl)
+        if (cover != null) {
+            builder.setStyle(
+                NotificationCompat.BigPictureStyle()
+                    .bigPicture(cover)
+                    .bigLargeIcon(null as Bitmap?)
+                    .setSummaryText(localizedBody)
+            )
+        } else {
+            builder.setStyle(NotificationCompat.BigTextStyle().bigText(localizedBody))
+        }
         val notification = builder.build()
         // Android 13+ can revoke notification permission at runtime.
         // Do not attempt to post when permission is unavailable.
@@ -83,6 +100,50 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
             )
         } catch (_: SecurityException) {
             // Permission may be revoked between the check and notify call.
+        }
+    }
+
+    private fun downloadNotificationImage(imageUrl: String): Bitmap? {
+        if (!imageUrl.startsWith("https://", ignoreCase = true)) return null
+        var connection: HttpURLConnection? = null
+        return try {
+            connection = (URL(imageUrl).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 4500
+                readTimeout = 4500
+                instanceFollowRedirects = true
+                requestMethod = "GET"
+                setRequestProperty("Accept", "image/*")
+            }
+            connection.connect()
+            if (connection.responseCode !in 200..299) return null
+            val length = connection.contentLength
+            if (length > 4 * 1024 * 1024) return null
+            val output = ByteArrayOutputStream()
+            connection.inputStream.use { input ->
+                val buffer = ByteArray(8192)
+                var total = 0
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    total += count
+                    if (total > 4 * 1024 * 1024) return null
+                    output.write(buffer, 0, count)
+                }
+            }
+            val bytes = output.toByteArray()
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+            var sample = 1
+            while (bounds.outWidth / sample > 1200 || bounds.outHeight / sample > 1200) sample *= 2
+            BitmapFactory.decodeByteArray(
+                bytes, 0, bytes.size,
+                BitmapFactory.Options().apply { inSampleSize = sample }
+            )
+        } catch (_: Exception) {
+            null
+        } finally {
+            connection?.disconnect()
         }
     }
 
