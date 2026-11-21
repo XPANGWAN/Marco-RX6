@@ -312,6 +312,8 @@ async function runScheduled(env) {
       await processNotification(document, projectId, token);
     } catch (error) {
       console.error("Notification processing failed", document.name, error.message);
+      try { await setPushStatus(document.name, token, "pending"); }
+      catch (retryError) { console.error("Unable to requeue notification", document.name, retryError.message); }
     }
   }
   console.log("MARCO push sweep complete; queued:", documents.length);
