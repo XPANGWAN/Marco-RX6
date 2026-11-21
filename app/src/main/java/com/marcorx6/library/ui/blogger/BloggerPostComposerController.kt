@@ -197,7 +197,11 @@ internal class BloggerPostComposerController(
             if (pendingCoverPublicUrl().isNotBlank()) coverUrl.setText(pendingCoverPublicUrl())
         }
 
-        val labelsUi = labelsController.create(existing?.platform, existing == null)
+        val initialBloggerLabels = existing?.bloggerLabels
+            ?.filter { it.isNotBlank() }
+            ?.ifEmpty { listOfNotNull(existing.platform.takeIf { it.isNotBlank() }) }
+            .orEmpty()
+        val labelsUi = labelsController.create(initialBloggerLabels, existing == null)
         val selectedLabels = labelsUi.selectedLabels
         box.addView(section("01 • " + translate("صورة الغلاف")))
         box.addView(coverPreview, LinearLayout.LayoutParams(-1, dp(178)).apply {
