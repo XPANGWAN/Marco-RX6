@@ -140,7 +140,7 @@ async function optedInUsers(env) {
   const devices = await queryGroup(env, "devices", "blogNotificationsEnabled", "EQUAL", { booleanValue: true }, 500);
   const users = new Set();
   for (const device of devices) {
-    const match = device.name?.match(/documents\/users\/([^/]+)\/devices\//);
+    const match = device.name?.match(/documents\\/users\\/([^/]+)\\/devices\\//);
     if (match) users.add(match[1]);
   }
   return [...users];
@@ -210,7 +210,7 @@ async function listDevices(env, userId, blogOnly) {
   });
 }
 async function setPushStatus(env, documentName, status) {
-  const name = documentName.replace(/^projects\/marco-rx6-v2\/databases\/\(default\)\/documents\//, "");
+  const name = documentName.replace(/^projects\\/marco-rx6-v2\\/databases\\/\\(default\\)\\/documents\\//, "");
   const token = await accessToken(env);
   const response = await fetch(
     "https://firestore.googleapis.com/v1/projects/marco-rx6-v2/databases/(default)/documents/" + name +
@@ -283,7 +283,11 @@ export default {
   async fetch(request) {
     const url = new URL(request.url);
     if (url.pathname === "/health") {
-      return Response.json({ service: "marco-rx6-notifications", status: "ready" });
+      return Response.json({
+        service: "marco-rx6-notifications",
+        status: "ready",
+        build: "notifications-rebuild-2026-11-21"
+      });
     }
     return new Response("Use the scheduled trigger.", { status: 200 });
   },
