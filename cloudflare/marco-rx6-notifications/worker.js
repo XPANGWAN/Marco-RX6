@@ -246,6 +246,22 @@ async function sendOne(env, notification) {
   }
   data.notificationId = parts[parts.length - 1];
   const devices = await listDevices(env, userId, data.type === "blog_game");
+  let imageHost = "";
+  if (data.imageUrl) {
+    try {
+      const parsedImageUrl = new URL(data.imageUrl);
+      imageHost = parsedImageUrl.protocol === "https:" ? parsedImageUrl.hostname : "non-https";
+    } catch {
+      imageHost = "invalid-url";
+    }
+  }
+  console.log("MARCO FCM payload diagnostic", JSON.stringify({
+    type: data.type || "unknown",
+    imagePresent: Boolean(data.imageUrl),
+    imageHost,
+    imageLength: data.imageUrl ? data.imageUrl.length : 0,
+    deviceCount: devices.length
+  }));
   if (!devices.length) {
     await setPushStatus(env, notification.name, "skipped_no_devices");
     return "skipped";
