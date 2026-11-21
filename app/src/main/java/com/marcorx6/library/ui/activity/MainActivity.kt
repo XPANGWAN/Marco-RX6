@@ -298,7 +298,13 @@ class MainActivity : ComponentActivity() {
     private val gameEngagementRepository by lazy { GameEngagementRepository() }
 
     private val firebaseSessionCoordinator: FirebaseSessionCoordinator by lazy {
-        FirebaseSessionCoordinator()
+        FirebaseSessionCoordinator(
+            onAuthenticatedUser = {
+                // Re-register the FCM device after Firebase restores or changes
+                // the signed-in account, even if the first Activity sync ran too early.
+                FirebasePushTokenRepository(this).syncCurrentToken()
+            }
+        )
     }
     private val firebaseAuthRepository: FirebaseAuthRepository by lazy {
         FirebaseAuthRepository()
