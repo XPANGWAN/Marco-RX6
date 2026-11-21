@@ -32,6 +32,9 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
         val data = message.data
+        val notificationKey = data["notificationId"]?.takeIf { it.isNotBlank() }
+            ?: message.messageId?.takeIf { it.isNotBlank() }
+            ?: "${data["type"].orEmpty()}:${data["title"].orEmpty()}:${data["body"].orEmpty()}"
         val title = data["title"]?.take(80)
             ?: message.notification?.title?.take(80)
             ?: "MARCO"
@@ -93,15 +96,36 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
             ) != PackageManager.PERMISSION_GRANTED
         ) return
 
-        try {
-            NotificationManagerCompat.from(this).notify(
-                (System.currentTimeMillis() % Int.MAX_VALUE).toInt(),
-                notification
-            )
-        } catch (_: SecurityException) {
-            // Permission may be revoked between the check and notify call.
+        notifyOnce(notificationKey, notification)
+    }
+
+    /**
+     * FCM may retry a message when delivery acknowledgement or the server status
+     * update is delayed. A stable ID updates the same Android notification, while
+     * this bounded local ledger prevents a dismissed notification from reappearing.
+     */
+    private fun notifyOnce(key: String, notification: android.app.Notification) {
+        synchronized(notificationLock) {
+            val preferences = getSharedPreferences("marco_push_dedupe", Context.MODE_PRIVATE)
+            val delivered = preferences.getStringSet("delivered_ids", emptySet()).orEmpty()
+            if (key in delivered) {
+                android.util.Log.i("MarcoFCM", "Duplicate push ignored")
+                return
+            }
+            try {
+                val stableId = (key.hashCode() and Int.MAX_VALUE).let { if (it == 0) 1 else it }
+                NotificationManagerCompat.from(this).notify(stableId, notification)
+                val updated = LinkedHashSet(delivered)
+                updated.add(key)
+                while (updated.size > 300) updated.remove(updated.first())
+                preferences.edit().putStringSet("delivered_ids", updated).apply()
+            } catch (_: SecurityException) {
+                // Permission may be revoked between the check and notify call.
+            }
         }
     }
+
+    private val notificationLock = Any()
 
     private fun downloadNotificationImage(imageUrl: String): Bitmap? {
         if (!imageUrl.startsWith("https://", ignoreCase = true)) return null
