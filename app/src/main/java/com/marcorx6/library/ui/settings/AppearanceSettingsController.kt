@@ -116,7 +116,7 @@ internal class AppearanceSettingsController(
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(16), dp(16), dp(16))
             background = GradientDrawable().apply {
-                setColors(if (selectedAccentId == "black_silver") intArrayOf(
+                setColors(if (selectedAccentId == "black_silver" && dark) intArrayOf(
                     Color.rgb(7, 8, 11),
                     Color.rgb(52, 61, 74),
                     Color.rgb(90, 100, 115)
@@ -131,8 +131,10 @@ internal class AppearanceSettingsController(
                 setStroke(dp(1), Color.argb(175, Color.red(silverAccent), Color.green(silverAccent), Color.blue(silverAccent)))
             }
         }
-        val paletteCardInk = if (selectedAccentId == "black_silver") Color.WHITE else ink
-        val paletteCardMuted = if (selectedAccentId == "black_silver") Color.rgb(225, 230, 239) else muted
+        // The palette card follows the selected appearance mode. Black & Silver
+        // only uses a dark card in dark mode; its swatch remains black/silver in both.
+        val paletteCardInk = if (selectedAccentId == "black_silver" && dark) Color.WHITE else ink
+        val paletteCardMuted = if (selectedAccentId == "black_silver" && dark) Color.rgb(225, 230, 239) else muted
         colorCard.addView(TextView(activity).apply {
             text = translate("اللون الرئيسي")
             textSize = 16f
