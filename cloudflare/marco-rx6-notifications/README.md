@@ -5,7 +5,7 @@ A clean Cloudflare Worker for scheduled Blogger discovery and Firebase Cloud Mes
 ## Deployment
 
 - Worker name: `marco-rx6-notifications`
-- Build directory: `cloudflare/marco-rx6-push`
+- Build directory: `cloudflare/marco-rx6-notifications`
 - Deploy command: `npx wrangler deploy`
 - Cron: `*/1 * * * *`
 - Required encrypted secret: `FCM_SERVICE_ACCOUNT_JSON`
