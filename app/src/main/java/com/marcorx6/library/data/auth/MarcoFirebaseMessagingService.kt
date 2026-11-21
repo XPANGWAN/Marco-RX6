@@ -128,47 +128,72 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
     private val notificationLock = Any()
 
     private fun downloadNotificationImage(imageUrl: String): Bitmap? {
-        if (!imageUrl.startsWith("https://", ignoreCase = true)) return null
+        if (!imageUrl.startsWith("https://", ignoreCase = true)) {
+            android.util.Log.w("MarcoFCM", "Big-picture skipped: image URL is not HTTPS")
+            return null
+        }
         var connection: HttpURLConnection? = null
         return try {
             connection = (URL(imageUrl).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 4500
-                readTimeout = 4500
+                connectTimeout = 5000
+                readTimeout = 5000
                 instanceFollowRedirects = true
                 requestMethod = "GET"
-                setRequestProperty("Accept", "image/*")
+                setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
+                setRequestProperty("User-Agent", "MARCO-Android-Notification/1.0")
             }
             connection.connect()
-            if (connection.responseCode !in 200..299) return null
-            val length = connection.contentLength
-            if (length > 4 * 1024 * 1024) return null
+            val status = connection.responseCode
+            val contentType = connection.contentType.orEmpty().substringBefore(";").trim().lowercase()
+            if (status !in 200..299 || !contentType.startsWith("image/")) {
+                android.util.Log.w("MarcoFCM", "Big-picture download rejected: http=$status contentType=$contentType")
+                return null
+            }
+            val length = connection.contentLengthLong
+            if (length > MAX_NOTIFICATION_IMAGE_BYTES) {
+                android.util.Log.w("MarcoFCM", "Big-picture skipped: image exceeds size limit")
+                return null
+            }
             val output = ByteArrayOutputStream()
             connection.inputStream.use { input ->
                 val buffer = ByteArray(8192)
-                var total = 0
+                var total = 0L
                 while (true) {
                     val count = input.read(buffer)
                     if (count < 0) break
                     total += count
-                    if (total > 4 * 1024 * 1024) return null
+                    if (total > MAX_NOTIFICATION_IMAGE_BYTES) {
+                        android.util.Log.w("MarcoFCM", "Big-picture skipped: streamed image exceeds size limit")
+                        return null
+                    }
                     output.write(buffer, 0, count)
                 }
             }
             val bytes = output.toByteArray()
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                android.util.Log.w("MarcoFCM", "Big-picture response is not a decodable bitmap")
+                return null
+            }
             var sample = 1
             while (bounds.outWidth / sample > 1200 || bounds.outHeight / sample > 1200) sample *= 2
-            BitmapFactory.decodeByteArray(
+            val bitmap = BitmapFactory.decodeByteArray(
                 bytes, 0, bytes.size,
                 BitmapFactory.Options().apply { inSampleSize = sample }
             )
-        } catch (_: Exception) {
+            android.util.Log.i("MarcoFCM", "Big-picture loaded: " + bounds.outWidth + "x" + bounds.outHeight + ", bytes=" + bytes.size)
+            bitmap
+        } catch (error: Exception) {
+            android.util.Log.w("MarcoFCM", "Big-picture download failed: " + error.javaClass.simpleName)
             null
         } finally {
             connection?.disconnect()
         }
+    }
+
+    private companion object {
+        const val MAX_NOTIFICATION_IMAGE_BYTES = 4L * 1024L * 1024L
     }
 
     private fun ensureChannel(channelId: String) {
