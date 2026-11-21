@@ -14,7 +14,7 @@ android {
         buildConfig = true
     }
 
-    // Produce device-specific APKs so each phone downloads only its own native libraries.
+    // MARCO 8.34: produce device-specific APKs so each phone downloads only its own native libraries.
     // Keep a Universal APK as a compatibility fallback.
     splits {
         abi {
