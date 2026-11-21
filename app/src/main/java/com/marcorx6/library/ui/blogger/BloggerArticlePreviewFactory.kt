@@ -53,7 +53,14 @@ internal class BloggerArticlePreviewFactory(
 
         return WebView(activity).apply {
             setBackgroundColor(backgroundColor())
-            settings.javaScriptEnabled = false
+            // YouTube's embedded player requires JavaScript. Enable it only in this
+            // isolated preview WebView; no JavaScript bridge is exposed to page content.
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.javaScriptCanOpenWindowsAutomatically = false
+            settings.allowFileAccess = false
+            settings.allowContentAccess = false
+            settings.mediaPlaybackRequiresUserGesture = true
             webViewClient = object : WebViewClient() {
                 override fun onRenderProcessGone(
                     view: WebView,
