@@ -15,6 +15,11 @@ internal class BlogNotificationScheduler(context: Context) {
     private val preferences = appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
     private val workManager = WorkManager.getInstance(appContext)
 
+    init {
+        // Remove any periodic Blogger poll left by an older app installation.
+        workManager.cancelUniqueWork(BlogNotificationWorker.WORK_NAME)
+    }
+
     fun isEnabled(): Boolean = preferences.getBoolean(KEY_ENABLED, false)
 
     fun setEnabled(enabled: Boolean) {
