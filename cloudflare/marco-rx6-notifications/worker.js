@@ -190,18 +190,26 @@ async function pollBlogger(env) {
     await saveBlogCursor(env, newest.id);
     return { queued: 0, baseline: true };
   }
-  const fresh = [];
-  for (const post of entries) {
-    if (post.id === previous) break;
-    fresh.push(post);
+  const previousIndex = entries.findIndex(post => post.id === previous);
+  if (previousIndex < 0) {
+    // The saved cursor fell outside the latest 50 feed entries. Do not treat
+    // the whole feed as new: that would resend old games after a feed gap.
+    // Move the cursor to the newest visible post and safely resume from here.
+    await saveBlogCursor(env, newest.id);
+    console.warn("MARCO Blogger cursor gap; skipped old feed window", JSON.stringify({
+      visiblePosts: entries.length,
+      cursorFound: false
+    }));
+    return { queued: 0, baseline: false, cursorGap: true, skippedOldWindow: entries.length };
   }
-  if (!fresh.length) return { queued: 0, baseline: false };
+  if (previousIndex === 0) return { queued: 0, baseline: false };
+  const fresh = entries.slice(0, previousIndex);
   const users = await optedInUsers(env);
   for (const post of fresh.reverse()) {
     for (const userId of users) await queueBlogPost(env, userId, post);
   }
   await saveBlogCursor(env, newest.id);
-  return { queued: fresh.length * users.length, baseline: false };
+  return { queued: fresh.length * users.length, baseline: false, cursorGap: false };
 }
 async function listDevices(env, userId, blogOnly) {
   const token = await accessToken(env);
