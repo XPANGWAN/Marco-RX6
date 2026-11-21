@@ -76,7 +76,7 @@ function notificationData(document, recipientUid) {
     type: stringField(f, "type", "general"),
     recipientUid
   };
-  for (const key of ["actorUid", "conversationId", "messageId", "gameName", "platform", "coverUrl"]) {
+  for (const key of ["actorUid", "conversationId", "messageId", "gameName", "platform", "coverUrl", "postUrl"]) {
     const value = stringField(f, key);
     if (value) data[key] = value;
   }
@@ -123,7 +123,10 @@ async function processNotification(document, projectId, token) {
     "/databases/(default)/documents/users/" + encodeURIComponent(recipientUid) +
     "/devices?pageSize=100";
   const devicesResult = await googleFetch(devicesUrl, token);
-  const devices = devicesResult.documents || [];
+  let devices = devicesResult.documents || [];
+  if (stringField(document.fields, "type") === "blog_game") {
+    devices = devices.filter(device => device.fields?.blogNotificationsEnabled?.booleanValue === true);
+  }
   if (devices.length === 0) {
     await setPushStatus(document.name, token, "skipped_no_devices");
     return;
@@ -149,6 +152,130 @@ async function processNotification(document, projectId, token) {
     await setPushStatus(document.name, token, "pending");
   }
 }
+
+const BLOG_FEED_URL = "https://marcorx6app.dpdns.org/api/games?alt=json&max-results=50";
+const BLOG_CURSOR_PATH = "notificationControl/blogger";
+function firestoreValue(value) {
+  if (typeof value === "boolean") return { booleanValue: value };
+  return { stringValue: String(value ?? "") };
+}
+async function readBlogCursor(projectId, token) {
+  const url = "https://firestore.googleapis.com/v1/projects/" + projectId +
+    "/databases/(default)/documents/" + BLOG_CURSOR_PATH;
+  const response = await fetch(url, { headers: { authorization: "Bearer " + token } });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error("Unable to read Blogger cursor: " + response.status);
+  const doc = await response.json();
+  return doc.fields?.lastPostId?.stringValue || null;
+}
+async function writeBlogCursor(projectId, token, postId, create = false) {
+  const base = "https://firestore.googleapis.com/v1/projects/" + projectId +
+    "/databases/(default)/documents/";
+  const url = create
+    ? base + "notificationControl?documentId=blogger"
+    : base + BLOG_CURSOR_PATH + "?updateMask.fieldPaths=lastPostId&updateMask.fieldPaths=updatedAt";
+  await googleFetch(url, token, {
+    method: create ? "POST" : "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ fields: {
+      lastPostId: firestoreValue(postId),
+      updatedAt: { timestampValue: new Date().toISOString() }
+    } })
+  });
+}
+async function listBlogNotificationUsers(projectId, token) {
+  const url = "https://firestore.googleapis.com/v1/projects/" + projectId +
+    "/databases/(default)/documents:runQuery";
+  const query = {
+    structuredQuery: {
+      from: [{ collectionId: "devices", allDescendants: true }],
+      where: { fieldFilter: {
+        field: { fieldPath: "blogNotificationsEnabled" },
+        op: "EQUAL",
+        value: { booleanValue: true }
+      } },
+      limit: 1000
+    }
+  };
+  const rows = await googleFetch(url, token, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(query)
+  });
+  const users = new Set();
+  for (const row of rows || []) {
+    const name = row.document?.name || "";
+    const parts = name.split("/");
+    const index = parts.indexOf("users");
+    if (index >= 0 && parts[index + 1] && parts[index + 2] === "devices") users.add(parts[index + 1]);
+  }
+  return [...users];
+}
+async function createBlogNotification(projectId, token, uid, entry) {
+  const postId = entry.id?.$t || "";
+  const title = (entry.title?.$t || "").trim().slice(0, 120);
+  if (!postId || !title) return;
+  const links = Array.isArray(entry.link) ? entry.link : [];
+  const postUrl = links.find(link => link.rel === "alternate" && String(link.href || "").startsWith("https://"))?.href || "";
+  const categories = Array.isArray(entry.category) ? entry.category : [];
+  const platform = String(categories[0]?.term || "MARCO RX6").slice(0, 30);
+  const hashInput = new TextEncoder().encode(uid + "|" + postId);
+  const digest = await crypto.subtle.digest("SHA-256", hashInput);
+  const documentId = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
+  const url = "https://firestore.googleapis.com/v1/projects/" + projectId +
+    "/databases/(default)/documents/users/" + encodeURIComponent(uid) +
+    "/notifications?documentId=" + documentId;
+  const fields = {
+    type: firestoreValue("blog_game"),
+    actorUid: firestoreValue("marco-cloudflare"),
+    gameName: firestoreValue(title),
+    platform: firestoreValue(platform),
+    postUrl: firestoreValue(postUrl),
+    title: firestoreValue("لعبة جديدة في المكتبة"),
+    body: firestoreValue(title),
+    createdAt: { timestampValue: new Date().toISOString() },
+    read: { booleanValue: false },
+    pushStatus: firestoreValue("pending")
+  };
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { authorization: "Bearer " + token, "content-type": "application/json" },
+    body: JSON.stringify({ fields })
+  });
+  if (response.status === 409) return; // deterministic ID prevents duplicate post alerts
+  if (!response.ok) throw new Error("Unable to queue Blogger notification: " + response.status + " " + (await response.text()).slice(0, 400));
+}
+async function pollBlogger(env, projectId, token) {
+  const response = await fetch(env.BLOG_FEED_URL || BLOG_FEED_URL, {
+    headers: { accept: "application/json" }
+  });
+  if (!response.ok) throw new Error("Blogger feed failed: " + response.status);
+  const payload = await response.json();
+  const entries = payload.feed?.entry || [];
+  if (!entries.length) return;
+  const newestId = entries[0]?.id?.$t;
+  if (!newestId) return;
+  const previousId = await readBlogCursor(projectId, token);
+  if (previousId === null) {
+    await writeBlogCursor(projectId, token, newestId, true);
+    console.log("Blogger cursor initialized");
+    return;
+  }
+  if (newestId === previousId) return;
+  const newEntries = [];
+  for (const entry of entries) {
+    const id = entry?.id?.$t;
+    if (!id || id === previousId) break;
+    newEntries.push(entry);
+  }
+  const users = await listBlogNotificationUsers(projectId, token);
+  for (const entry of newEntries.reverse()) {
+    for (const uid of users) await createBlogNotification(projectId, token, uid, entry);
+  }
+  await writeBlogCursor(projectId, token, newestId);
+  console.log("Blogger posts queued:", newEntries.length, "eligible users:", users.length);
+}
+
 async function runScheduled(env) {
   if (!env.FCM_SERVICE_ACCOUNT_JSON) throw new Error("Missing FCM_SERVICE_ACCOUNT_JSON secret");
   const serviceAccount = JSON.parse(env.FCM_SERVICE_ACCOUNT_JSON);
@@ -157,6 +284,8 @@ async function runScheduled(env) {
     throw new Error("Service account JSON is missing required fields");
   }
   const token = await getAccessToken(serviceAccount);
+  try { await pollBlogger(env, projectId, token); }
+  catch (error) { console.error("Blogger polling failed", error.message); }
   const queryUrl = "https://firestore.googleapis.com/v1/projects/" + projectId +
     "/databases/(default)/documents:runQuery";
   const query = {
@@ -183,6 +312,8 @@ async function runScheduled(env) {
       await processNotification(document, projectId, token);
     } catch (error) {
       console.error("Notification processing failed", document.name, error.message);
+      try { await setPushStatus(document.name, token, "pending"); }
+      catch (retryError) { console.error("Unable to requeue notification", document.name, retryError.message); }
     }
   }
   console.log("MARCO push sweep complete; queued:", documents.length);

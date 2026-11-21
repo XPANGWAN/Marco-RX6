@@ -1,8 +1,6 @@
-name: MARCO RX6 scheduled FCM notifications
+name: MARCO RX6 manual FCM test
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       recipient_uid:
@@ -19,7 +17,7 @@ concurrency:
 
 jobs:
   send-pending-notifications:
-    name: Send pending notifications through Firebase FCM
+    name: Send one manual test notification through Firebase FCM
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:

@@ -1,5 +1,6 @@
 package com.marcorx6.library.data.auth
 
+import android.content.Context
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -9,13 +10,13 @@ import java.security.MessageDigest
 
 /** Stores each registered user's FCM token in a private, per-account device document. */
 internal class FirebasePushTokenRepository(
+    private val context: Context,
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
     private val messaging: FirebaseMessaging = FirebaseMessaging.getInstance()
 ) {
     fun syncCurrentToken() {
         val user = auth.currentUser ?: return
-        if (user.isAnonymous) return
         messaging.token
             .addOnSuccessListener { token -> saveTokenForUser(token, user.uid) }
             .addOnFailureListener { error ->
@@ -43,6 +44,7 @@ internal class FirebasePushTokenRepository(
                 mapOf(
                     "token" to token,
                     "platform" to "android",
+                    "blogNotificationsEnabled" to context.getSharedPreferences("notification_settings", Context.MODE_PRIVATE).getBoolean("enabled", false),
                     "updatedAt" to FieldValue.serverTimestamp()
                 ),
                 SetOptions.merge()
