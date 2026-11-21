@@ -1195,10 +1195,13 @@ internal object LanguageTranslator {
      */
     fun translateViewTree(view: android.view.View, lang: String) {
         if (view is android.widget.TextView) {
-            val current = view.text?.toString()
-            if (!current.isNullOrEmpty()) {
-                val translated = translate(current, lang)
-                if (translated != current) view.text = translated
+            // Never rewrite text the user is actively editing; only localize its hint.
+            if (view !is android.widget.EditText) {
+                val current = view.text?.toString()
+                if (!current.isNullOrEmpty()) {
+                    val translated = translate(current, lang)
+                    if (translated != current) view.text = translated
+                }
             }
             val hint = view.hint?.toString()
             if (!hint.isNullOrEmpty()) {
