@@ -59,11 +59,10 @@ internal class GamePostLabelsController(
         fun reconcileSelectedLabels() {
             if (availableLabels.isEmpty()) return
             val availableByKey = availableLabels.associateBy(::labelKey)
-            val reconciled = selectedLabels.mapNotNull { selected ->
-                availableByKey[labelKey(selected)]
-            }.toCollection(linkedSetOf())
-            selectedLabels.clear()
-            selectedLabels.addAll(reconciled)
+            // Match aliases against Blogger's available terms, but never replace
+            // the user's original category name with a shortened alias (PS5, PS4, ...).
+            val availableKeys = availableByKey.keys
+            selectedLabels.retainAll { labelKey(it) in availableKeys }
         }
 
         button.setOnClickListener {
@@ -71,7 +70,10 @@ internal class GamePostLabelsController(
                 Toast.makeText(activity, translate("لم يتم تحميل تسميات المدونة بعد"), Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val checked = BooleanArray(availableLabels.size) { availableLabels[it] in selectedLabels }
+            val selectedKeys = selectedLabels.map(::labelKey).toSet()
+            val checked = BooleanArray(availableLabels.size) {
+                labelKey(availableLabels[it]) in selectedKeys
+            }
             AlertDialog.Builder(activity)
                 .setTitle(translate("اختر أقسام المقال من المدونة"))
                 .setMultiChoiceItems(availableLabels.toTypedArray(), checked) { _, which, isChecked ->
@@ -109,9 +111,6 @@ internal class GamePostLabelsController(
                     availableLabels.clear()
                     availableLabels.addAll(labels)
                     reconcileSelectedLabels()
-                    if (isNewPost && selectedLabels.isEmpty() && labels.isNotEmpty()) {
-                        selectedLabels.add(labels.first())
-                    }
                     refreshButton()
                     button.isEnabled = labels.isNotEmpty()
                     if (labels.isEmpty()) {
