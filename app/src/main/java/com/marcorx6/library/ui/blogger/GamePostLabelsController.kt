@@ -22,7 +22,7 @@ internal class GamePostLabelsController(
     private val styleAlertDialog: (AlertDialog) -> Unit,
     private val translate: (String) -> String
 ) {
-    fun create(initialLabel: String?, isNewPost: Boolean): GamePostLabelsUi {
+    fun create(initialLabels: List<String>, isNewPost: Boolean): GamePostLabelsUi {
         val button = Button(activity).apply {
             text = translate("تحميل تسميات المدونة...")
             setTextColor(white())
@@ -47,7 +47,23 @@ internal class GamePostLabelsController(
             }
         }
 
-        if (!initialLabel.isNullOrBlank()) selectedLabels.add(initialLabel)
+        fun labelKey(value: String): String =
+            BloggerFeedParser.normalizePlatform(value)?.lowercase()
+                ?: value.trim().lowercase()
+
+        // Keep the original Blogger category labels when editing; the normalized
+        // platform value (for example PS4) is only a fallback, not another label.
+        selectedLabels.addAll(initialLabels.filter { it.isNotBlank() })
+
+        fun reconcileSelectedLabels() {
+            if (availableLabels.isEmpty()) return
+            val availableByKey = availableLabels.associateBy(::labelKey)
+            val reconciled = selectedLabels.mapNotNull { selected ->
+                availableByKey[labelKey(selected)]
+            }.toCollection(linkedSetOf())
+            selectedLabels.clear()
+            selectedLabels.addAll(reconciled)
+        }
 
         button.setOnClickListener {
             if (availableLabels.isEmpty()) {
@@ -70,7 +86,7 @@ internal class GamePostLabelsController(
                             postToUi {
                                 availableLabels.clear()
                                 availableLabels.addAll(latest)
-                                selectedLabels.retainAll(availableLabels.toSet())
+                                reconcileSelectedLabels()
                                 refreshButton()
                                 Toast.makeText(activity, translate("تم تحديث التسميات من المدونة") + " (${latest.size})", Toast.LENGTH_SHORT).show()
                             }
@@ -91,6 +107,7 @@ internal class GamePostLabelsController(
                 postToUi {
                     availableLabels.clear()
                     availableLabels.addAll(labels)
+                    reconcileSelectedLabels()
                     if (isNewPost && selectedLabels.isEmpty() && labels.isNotEmpty()) {
                         selectedLabels.add(labels.first())
                     }
