@@ -148,17 +148,19 @@ async function queueBlogPost(env, userId, post) {
   const response = await fetch("https://firestore.googleapis.com/v1/projects/marco-rx6-v2/databases/(default)/documents/" + path, {
     method: "POST",
     headers: { authorization: "Bearer " + token, "content-type": "application/json" },
-    body: JSON.stringify({ fields: fields({
-      type: "blog_game",
-      actorUid: "system",
-      title: "لعبة جديدة في MARCO RX6",
-      body: post.title,
-      postUrl: post.link,
-      gameName: post.title,
-      createdAt: new Date().toISOString(),
-      read: false,
-      pushStatus: "pending"
-    }) })
+    body: JSON.stringify({ fields: {
+      ...fields({
+        type: "blog_game",
+        actorUid: "system",
+        title: "لعبة جديدة في MARCO RX6",
+        body: post.title,
+        postUrl: post.link,
+        gameName: post.title,
+        read: false,
+        pushStatus: "pending"
+      }),
+      createdAt: { timestampValue: new Date().toISOString() }
+    } })
   });
   if (!response.ok && response.status !== 409) {
     throw new Error("Unable to queue Blogger post (" + response.status + "): " + (await response.text()).slice(0, 300));
