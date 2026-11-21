@@ -48,16 +48,14 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
 
         val channelId = "marco_social_updates"
         ensureChannel(channelId)
-        val postUrl = data["postUrl"].orEmpty()
-        val openApp = if (data["type"] == "blog_game" && postUrl.startsWith("https://")) {
-            Intent(Intent.ACTION_VIEW, android.net.Uri.parse(postUrl)).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-        } else {
-            Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                data.forEach { (key, value) -> putExtra("push_$key", value) }
-            }
+        // Always open MARCO itself when a push is tapped. ACTION_VIEW previously
+        // handed Blogger URLs to the browser, so the app never opened from game alerts.
+        val openApp = Intent(this, MainActivity::class.java).apply {
+            action = "com.marcorx6.library.OPEN_PUSH_NOTIFICATION"
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+            data.forEach { (key, value) -> putExtra("push_$key", value) }
         }
         val pendingIntent = PendingIntent.getActivity(
             this,
