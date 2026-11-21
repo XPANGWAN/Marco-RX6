@@ -1,0 +1,33 @@
+name: Verify MARCO RX6 Cloudflare push worker
+
+on:
+  push:
+    branches:
+      - feature/notifications-rebuild
+    paths:
+      - "cloudflare/marco-rx6-push/**"
+      - ".github/workflows/verify-cloudflare-push.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Validate Worker JavaScript syntax
+        run: node --check cloudflare/marco-rx6-push/worker.js
+      - name: Verify deployment configuration
+        shell: bash
+        run: |
+          grep -q '^name = "marco-rx6-notifications"$' cloudflare/marco-rx6-push/wrangler.toml
+          grep -q '^main = "worker.js"$' cloudflare/marco-rx6-push/wrangler.toml
+          grep -q 'crons = \["\*/1 \* \* \* \*"\]' cloudflare/marco-rx6-push/wrangler.toml
+          grep -q 'FCM_SERVICE_ACCOUNT_JSON' cloudflare/marco-rx6-push/worker.js
