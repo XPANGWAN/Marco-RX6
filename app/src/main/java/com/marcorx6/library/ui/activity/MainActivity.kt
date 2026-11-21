@@ -671,7 +671,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         com.marcorx6.library.ui.UiDiagnosticsMonitor.logLifecycle(this, "onResume")
-        FirebasePushTokenRepository().syncCurrentToken()
+        FirebasePushTokenRepository(this).syncCurrentToken()
         firebaseSessionCoordinator.ensureGuestSession()
         lifecycleCoordinator.onResume()
         // Check for a new stable APK quietly after the main screen settles.
