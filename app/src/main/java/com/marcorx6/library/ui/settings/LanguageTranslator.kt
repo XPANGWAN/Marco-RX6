@@ -1051,6 +1051,20 @@ internal object LanguageTranslator {
 
     // Compile parameterized-message patterns once. Translation is called while building
     // every visible screen, so allocating Regex objects for each TextView is avoidable UI work.
+    /** Legacy colloquial source strings are normalized to formal Arabic in the UI. */
+    private val formalArabicAliases = mapOf(
+        "ما كايناش تنزيلات دابا" to "لا توجد تنزيلات حالياً.",
+        "اختار لعبة، ومن صفحة التفاصيل أضف رابط التحميل باش يبان هنا." to "اختر لعبة، ثم أضف رابط التنزيل من صفحة التفاصيل ليظهر هنا.",
+        "الصورة كبيرة بزاف، اختار صورة أصغر" to "الصورة كبيرة جداً. اختر صورة أصغر.",
+        "كلمة المرور خاصها تكون 6 أحرف على الأقل" to "يجب ألا تقل كلمة المرور عن 6 أحرف.",
+        "ما كاين حتى حساب لحذفه دابا" to "لا يوجد حساب لحذفه حالياً.",
+        "طريقة التحقق من هاد الحساب غير مدعومة حالياً. تواصل مع الدعم." to "طريقة التحقق من هذا الحساب غير مدعومة حالياً. يُرجى التواصل مع الدعم.",
+        "دخل كلمة المرور الحالية" to "أدخل كلمة المرور الحالية.",
+        "هاد العملية نهائية: غادي نحذف ملف الحساب والإعدادات المحفوظة فـ Firebase، ومن بعد حساب Firebase نفسه. مكتبة الألعاب والملفات المحلية فالتيليفون، وحساب Google المسؤول ومحتوى Blogger وDrive، ما غاديش نمسوهم." to "هذا الإجراء نهائي: سنحذف ملف الحساب والإعدادات المحفوظة في Firebase، ثم حساب Firebase نفسه. لن نحذف مكتبة الألعاب أو الملفات المحلية على الهاتف أو حساب Google المسؤول أو محتوى Blogger وDrive.",
+        "دخل كلمة المرور الحالية باش نتحققو من هويتك قبل الحذف." to "أدخل كلمة المرور الحالية للتحقق من هويتك قبل الحذف.",
+        "النبذة خاصها تكون أقل من 160 حرف" to "يجب ألا يتجاوز النبذة 160 حرفاً."
+    )
+
     private val serverHttpErrorPattern = Regex("^الخادم رفض رابط التنزيل \\(HTTP ([^)]+)\\)$")
     private val driveUploadErrorPattern = Regex("^فشل رفع الصورة إلى Google Drive \\(([^)]+)\\): (.*)$", RegexOption.DOT_MATCHES_ALL)
     private val imagePublicErrorPattern = Regex("^تم رفع الصورة لكن تعذر جعلها متاحة للموقع \\(([^)]+)\\): (.*)$", RegexOption.DOT_MATCHES_ALL)
@@ -1071,7 +1085,7 @@ internal object LanguageTranslator {
         translations.filterValues { values -> values.size != 3 || values.any { it.isBlank() } }.keys.toList()
 
     fun translate(ar: String, lang: String): String {
-        if (lang == "ar") return ar
+        if (lang == "ar") return formalArabicAliases[ar] ?: ar
         val index = when (lang) { "en" -> 0; "fr" -> 1; "es" -> 2; else -> return ar }
         fun localized(key: String): String? = translations[key]?.getOrNull(index)
 
@@ -1177,7 +1191,6 @@ internal object LanguageTranslator {
      * Dynamic game titles, filenames, URLs and user-authored content are left untouched.
      */
     fun translateViewTree(view: android.view.View, lang: String) {
-        if (lang == "ar") return
         if (view is android.widget.TextView) {
             val current = view.text?.toString()
             if (!current.isNullOrEmpty()) {
