@@ -123,9 +123,9 @@ function fullSizeBloggerImage(value) {
     const url = new URL(decoded);
     if (!/(^|\.)googleusercontent\.com$/i.test(url.hostname)) return decoded;
     // Blogger feed thumbnails commonly use /s72-c/; request a full-size cover.
-    url.pathname = url.pathname.replace(/\/s\d+(?:-[a-z0-9-]+)?\//i, "/s1200/");
-    url.pathname = url.pathname.replace(/\/w\d+-h\d+(?:-[a-z0-9-]+)?\//i, "/s1200/");
-    url.pathname = url.pathname.replace(/\/s\d+(?:-[a-z0-9-]+)?$/i, "/s1200");
+    url.pathname = url.pathname.replace(/\/s\d+(?:-[a-z0-9-]+)?\//i, "/s1600/");
+    url.pathname = url.pathname.replace(/\/w\d+-h\d+(?:-[a-z0-9-]+)?\//i, "/s1600/");
+    url.pathname = url.pathname.replace(/\/s\d+(?:-[a-z0-9-]+)?$/i, "/s1600");
     url.search = url.search.replace(/([?&])(?:w|h|s)=\d+/gi, "$1");
     url.hash = "";
     return url.toString();
