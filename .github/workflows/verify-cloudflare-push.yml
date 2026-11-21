@@ -5,7 +5,7 @@ on:
     branches:
       - feature/notifications-rebuild
     paths:
-      - "cloudflare/marco-rx6-push/**"
+      - "cloudflare/marco-rx6-notifications/**"
       - ".github/workflows/verify-cloudflare-push.yml"
   workflow_dispatch:
 
@@ -23,11 +23,11 @@ jobs:
         with:
           node-version: "24"
       - name: Validate Worker JavaScript syntax
-        run: node --check cloudflare/marco-rx6-push/worker.js
+        run: node --check cloudflare/marco-rx6-notifications/worker.js
       - name: Verify deployment configuration
         shell: bash
         run: |
-          grep -q '^name = "marco-rx6-notifications"$' cloudflare/marco-rx6-push/wrangler.toml
-          grep -q '^main = "worker.js"$' cloudflare/marco-rx6-push/wrangler.toml
-          grep -q 'crons = \["\*/1 \* \* \* \*"\]' cloudflare/marco-rx6-push/wrangler.toml
-          grep -q 'FCM_SERVICE_ACCOUNT_JSON' cloudflare/marco-rx6-push/worker.js
+          grep -q '^name = "marco-rx6-notifications"$' cloudflare/marco-rx6-notifications/wrangler.toml
+          grep -q '^main = "worker.js"$' cloudflare/marco-rx6-notifications/wrangler.toml
+          grep -q 'crons = \["\*/1 \* \* \* \*"\]' cloudflare/marco-rx6-notifications/wrangler.toml
+          grep -q 'FCM_SERVICE_ACCOUNT_JSON' cloudflare/marco-rx6-notifications/worker.js
