@@ -3,15 +3,11 @@ package com.marcorx6.library.notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import java.util.concurrent.TimeUnit
+import com.marcorx6.library.data.auth.FirebasePushTokenRepository
 
 /**
- * Owns notification preference storage, channel creation and periodic work scheduling.
+ * Stores the opt-in preference and syncs it to the Cloudflare push service.
  * Runtime permission prompts and settings UI remain in MainActivity.
  */
 internal class BlogNotificationScheduler(context: Context) {
@@ -23,6 +19,7 @@ internal class BlogNotificationScheduler(context: Context) {
 
     fun setEnabled(enabled: Boolean) {
         preferences.edit().putBoolean(KEY_ENABLED, enabled).apply()
+        FirebasePushTokenRepository(appContext).syncCurrentToken()
     }
 
     fun createNotificationChannel() {
@@ -38,22 +35,15 @@ internal class BlogNotificationScheduler(context: Context) {
         }
     }
 
+    // Cloudflare polls Blogger and delivers FCM; cancel the legacy on-device poller.
     fun schedule() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-        val request = PeriodicWorkRequestBuilder<BlogNotificationWorker>(15, TimeUnit.MINUTES)
-            .setConstraints(constraints)
-            .build()
-        workManager.enqueueUniquePeriodicWork(
-            BlogNotificationWorker.WORK_NAME,
-            ExistingPeriodicWorkPolicy.UPDATE,
-            request
-        )
+        workManager.cancelUniqueWork(BlogNotificationWorker.WORK_NAME)
+        FirebasePushTokenRepository(appContext).syncCurrentToken()
     }
 
     fun cancel() {
         workManager.cancelUniqueWork(BlogNotificationWorker.WORK_NAME)
+        FirebasePushTokenRepository(appContext).syncCurrentToken()
     }
 
     private companion object {
