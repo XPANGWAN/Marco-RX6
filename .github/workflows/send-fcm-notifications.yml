@@ -1,8 +1,6 @@
 name: MARCO RX6 scheduled FCM notifications
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       recipient_uid:
