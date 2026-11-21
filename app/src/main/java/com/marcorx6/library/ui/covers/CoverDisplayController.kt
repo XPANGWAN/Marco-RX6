@@ -42,7 +42,12 @@ internal class CoverDisplayController(
         image.scaleType = ImageView.ScaleType.CENTER_CROP
         image.setPadding(0, 0, 0, 0)
         image.imageTintList = null
-        image.setImageResource(android.R.drawable.ic_menu_gallery)
+        // Keep the currently displayed bitmap while the replacement is loading.
+        // Clearing it here causes a visible gallery-icon flash whenever the user
+        // swipes between images in the full-screen article viewer.
+        if (image.drawable == null) {
+            image.setImageResource(android.R.drawable.ic_menu_gallery)
+        }
         loadBitmap(localPath, resolvedImageUrl) { bitmap ->
             if (image.tag === state) {
                 if (bitmap != null) {
