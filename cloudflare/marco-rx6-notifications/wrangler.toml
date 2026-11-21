@@ -4,3 +4,21 @@ compatibility_date = "2026-11-21"
 
 [triggers]
 crons = ["*/1 * * * *"]
+
+[observability]
+enabled = true
+head_sampling_rate = 1.0
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1.0
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1.0
+persist = true
+
+[observability.issue_detection]
+enabled = true
