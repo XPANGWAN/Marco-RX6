@@ -17,7 +17,6 @@ internal class FirebasePushTokenRepository(
 ) {
     fun syncCurrentToken() {
         val user = auth.currentUser ?: return
-        if (user.isAnonymous) return
         messaging.token
             .addOnSuccessListener { token -> saveTokenForUser(token, user.uid) }
             .addOnFailureListener { error ->
