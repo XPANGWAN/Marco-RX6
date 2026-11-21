@@ -115,7 +115,12 @@ function parsePost(entry) {
   const title = entry?.title?.$t || "";
   const links = Array.isArray(entry?.link) ? entry.link : [];
   const link = links.find(item => item.rel === "alternate" && String(item.href || "").startsWith("https://"))?.href || "";
-  return id && title ? { id, title: title.slice(0, 120), link } : null;
+  const thumbnail = entry?.["media$thumbnail"]?.url || "";
+  const html = entry?.content?.$t || entry?.summary?.$t || "";
+  const embedded = html.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1] || "";
+  const candidate = String(thumbnail || embedded).replace(/&amp;/g, "&");
+  const imageUrl = candidate.startsWith("https://") ? candidate : "";
+  return id && title ? { id, title: title.slice(0, 120), link, imageUrl } : null;
 }
 async function getBlogCursor(env) {
   const result = await google(env, "notificationControl/blogger");
@@ -160,6 +165,7 @@ async function queueBlogPost(env, userId, post) {
         body: post.title,
         postUrl: post.link,
         gameName: post.title,
+        imageUrl: post.imageUrl || "",
         read: false,
         pushStatus: "pending"
       }),
@@ -232,7 +238,7 @@ async function sendOne(env, notification) {
   const userId = userIndex >= 0 ? parts[userIndex + 1] : "";
   if (!userId) throw new Error("Notification path does not contain a user ID");
   const data = {};
-  for (const key of ["title", "body", "type", "postUrl", "gameName", "platform", "actorUid", "conversationId", "messageId"]) {
+  for (const key of ["title", "body", "type", "postUrl", "gameName", "platform", "actorUid", "conversationId", "messageId", "imageUrl"]) {
     const value = readString(notification, key);
     if (value) data[key] = value;
   }
