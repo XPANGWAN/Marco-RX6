@@ -36,8 +36,12 @@ function readString(document, key, fallback = "") {
 async function accessToken(env) {
   if (tokenCache.value && Date.now() < tokenCache.expiresAt - 60000) return tokenCache.value;
   const account = JSON.parse(env.FCM_SERVICE_ACCOUNT_JSON || "");
-  if (account.project_id !== "marco-rx6-v2" || !account.client_email || !account.private_key) {
-    throw new Error("FCM service account does not match marco-rx6-v2 or is incomplete");
+  if (
+    account.project_id !== "marco-rx6-v2" ||
+    account.client_email !== "marco-rx6-notifications@marco-rx6-v2.iam.gserviceaccount.com" ||
+    !account.private_key
+  ) {
+    throw new Error("FCM_SERVICE_ACCOUNT_JSON must belong to the dedicated MARCO notifications service account");
   }
   const now = Math.floor(Date.now() / 1000);
   const header = encodeJson({ alg: "RS256", typ: "JWT" });
