@@ -144,12 +144,28 @@ async function saveBlogCursor(env, postId) {
   if (!response.ok) throw new Error("Unable to save Blogger cursor: " + response.status + " " + (await response.text()).slice(0, 300));
 }
 async function optedInUsers(env) {
-  const devices = await queryGroup(env, "devices", "blogNotificationsEnabled", "EQUAL", { booleanValue: true }, 500);
+  // Read Android device documents first so logs distinguish missing registration
+  // from a device that exists but has notifications switched off.
+  const devices = await queryGroup(env, "devices", "platform", "EQUAL", { stringValue: "android" }, 500);
   const users = new Set();
+  let devicesWithToken = 0;
+  let enabledDevices = 0;
   for (const device of devices) {
-    const match = device.name?.match(/documents\/users\/([^/]+)\/devices\//);
-    if (match) users.add(match[1]);
+    const hasToken = Boolean(readString(device, "token"));
+    const enabled = device.fields?.blogNotificationsEnabled?.booleanValue === true;
+    if (hasToken) devicesWithToken++;
+    if (hasToken && enabled) {
+      enabledDevices++;
+      const match = device.name?.match(/documents\/users\/([^/]+)\/devices\//);
+      if (match) users.add(match[1]);
+    }
   }
+  console.log("MARCO device registration diagnostic", JSON.stringify({
+    androidDeviceDocs: devices.length,
+    devicesWithToken,
+    enabledDevices,
+    optedInUsers: users.size
+  }));
   return [...users];
 }
 async function queueBlogPost(env, userId, post) {
