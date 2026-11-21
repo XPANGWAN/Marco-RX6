@@ -125,13 +125,13 @@ internal class GameArticleMediaViewFactory(
         val container = FrameLayout(activity).apply { setBackgroundColor(Color.BLACK) }
         val image = ImageView(activity).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
-            contentDescription = "\${gameName} - \${currentIndex + 1}"
+            contentDescription = "${gameName} - ${currentIndex + 1}"
             setBackgroundColor(Color.BLACK)
         }
         container.addView(image, FrameLayout.LayoutParams(-1, -1))
 
         val counter = TextView(activity).apply {
-            text = "\${currentIndex + 1} / \${images.size}"
+            text = "${currentIndex + 1} / ${images.size}"
             textSize = 14f
             setTextColor(Color.WHITE)
             gravity = android.view.Gravity.CENTER
@@ -168,9 +168,9 @@ internal class GameArticleMediaViewFactory(
             matrixReady = false
             image.scaleType = ImageView.ScaleType.FIT_CENTER
             image.imageMatrix = android.graphics.Matrix()
-            image.contentDescription = "\${gameName} - \${currentIndex + 1}"
+            image.contentDescription = "${gameName} - ${currentIndex + 1}"
             loadCover(image, "", images[currentIndex])
-            counter.text = "\${currentIndex + 1} / \${images.size}"
+            counter.text = "${currentIndex + 1} / ${images.size}"
         }
 
         fun prepareMatrix(): Boolean {
@@ -243,7 +243,7 @@ internal class GameArticleMediaViewFactory(
                 ): Boolean {
                     if (zoomScale > 1f || first == null) return false
                     val dx = last.x - first.x
-                    if (kotlin.math.abs(dx) < dp(55) || kotlin.math.abs(velocityX) < dp(250)) return false
+                    if (kotlin.math.abs(dx) < dp(45) || kotlin.math.abs(velocityX) < dp(180)) return false
                     if (dx < 0 && currentIndex < images.lastIndex) {
                         currentIndex++
                         showCurrentImage()
@@ -259,8 +259,11 @@ internal class GameArticleMediaViewFactory(
             })
 
         image.setOnTouchListener { _, event ->
+            // Keep pinch zoom separate from one-finger panning and image paging.
             scaleDetector.onTouchEvent(event)
-            gestureDetector.onTouchEvent(event)
+            if (event.pointerCount == 1 && !scaleDetector.isInProgress) {
+                gestureDetector.onTouchEvent(event)
+            }
             true
         }
         showCurrentImage()
