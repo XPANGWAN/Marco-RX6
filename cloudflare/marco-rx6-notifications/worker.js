@@ -168,12 +168,14 @@ async function readBlogCursor(projectId, token) {
   const doc = await response.json();
   return doc.fields?.lastPostId?.stringValue || null;
 }
-async function writeBlogCursor(projectId, token, postId) {
-  const url = "https://firestore.googleapis.com/v1/projects/" + projectId +
-    "/databases/(default)/documents/" + BLOG_CURSOR_PATH +
-    "?updateMask.fieldPaths=lastPostId&updateMask.fieldPaths=updatedAt";
+async function writeBlogCursor(projectId, token, postId, create = false) {
+  const base = "https://firestore.googleapis.com/v1/projects/" + projectId +
+    "/databases/(default)/documents/";
+  const url = create
+    ? base + "notificationControl?documentId=blogger"
+    : base + BLOG_CURSOR_PATH + "?updateMask.fieldPaths=lastPostId&updateMask.fieldPaths=updatedAt";
   await googleFetch(url, token, {
-    method: "PATCH",
+    method: create ? "POST" : "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ fields: {
       lastPostId: firestoreValue(postId),
@@ -255,7 +257,7 @@ async function pollBlogger(env, projectId, token) {
   if (!newestId) return;
   const previousId = await readBlogCursor(projectId, token);
   if (previousId === null) {
-    await writeBlogCursor(projectId, token, newestId);
+    await writeBlogCursor(projectId, token, newestId, true);
     console.log("Blogger cursor initialized");
     return;
   }
