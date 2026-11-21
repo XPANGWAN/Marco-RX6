@@ -603,7 +603,7 @@ class MainActivity : ComponentActivity() {
             applySystemBarAppearance = activityServicesRuntimeFeature::applySystemBarAppearance,
             createNotificationChannel = activityServicesRuntimeFeature::createNotificationChannel,
             loadGames = gameDataRuntimeFeature::loadGames,
-            restoreAdminSession = { googleAccountRuntimeFeature.isAdminSession = false; bloggerRuntimeFeature.refreshAccess() },
+            restoreAdminSession = { bloggerRuntimeFeature.refreshAccess() },
             createInterface = ::createInterface,
             showStartupExperience = { onStartupFinished ->
                 if (!startupExperienceShown) {
