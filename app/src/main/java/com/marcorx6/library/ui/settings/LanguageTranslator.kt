@@ -1100,6 +1100,8 @@ internal object LanguageTranslator {
             "محاكيات" to listOf("Emulators", "Émulateurs", "Emuladores"),
             "افتارات" to listOf("Avatars", "Avatars", "Avatares"),
             "ثيمات" to listOf("Themes", "Thèmes", "Temas"),
+            "صور رمزية" to listOf("Avatars", "Avatars", "Avatares"),
+            "السمات" to listOf("Themes", "Thèmes", "Temas"),
         )
 
     // Compile parameterized-message patterns once. Translation is called while building
@@ -1118,7 +1120,7 @@ internal object LanguageTranslator {
         "النبذة خاصها تكون أقل من 160 حرف" to "يجب ألا تتجاوز النبذة 160 حرفاً.",
         "إلا كان الحساب موجود، غادي توصلك رسالة استرجاع كلمة المرور" to "إذا كان الحساب موجوداً، فستصلك رسالة لإعادة تعيين كلمة المرور.",
         "الاسم ضروري وخاصو يكون أقل من 40 حرف" to "الاسم مطلوب، ويجب ألا يتجاوز 40 حرفاً.",
-        "كنحمّلو معلومات الملف الشخصي، عاود المحاولة بعد لحظة" to "جارٍ تحميل معلومات الملف الشخصي؛ يُرجى إعادة المحاولة بعد لحظة."
+        "كنحمّلو معلومات الملف الشخصي، عاود المحاولة بعد لحظة" to "جارٍ تحميل معلومات الملف الشخصي؛ يُرجى إعادة المحاولة بعد لحظة.",
         "العاب" to "الألعاب",
         "العاب عربية" to "الألعاب العربية",
         "التطبيقات والادوات" to "التطبيقات والأدوات",
