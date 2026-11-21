@@ -4,7 +4,7 @@
  * This worker polls the public Blogger feed, queues opted-in blog alerts,
  * and delivers pending Firestore notifications through FCM HTTP v1.
  */
-const FEED_URL = "https://marcorx6app.dpdns.org/api/games?alt=json&max-results=50";
+const FEED_URL = "https://marcorx6.blogspot.com/feeds/posts/default?alt=json&max-results=50";
 const MAX_PENDING_PER_RUN = 25;
 let tokenCache = { value: "", expiresAt: 0 };
 
@@ -186,6 +186,7 @@ async function pollBlogger(env) {
   if (!entries.length) return { queued: 0, baseline: false };
   const newest = entries[0];
   const previous = await getBlogCursor(env);
+  console.log("MARCO Blogger feed diagnostic", JSON.stringify({ entries: entries.length, newestPostId: newest.id, newestHasImage: Boolean(newest.imageUrl), cursorPresent: Boolean(previous) }));
   if (!previous) {
     await saveBlogCursor(env, newest.id);
     return { queued: 0, baseline: true };
@@ -205,6 +206,10 @@ async function pollBlogger(env) {
   if (previousIndex === 0) return { queued: 0, baseline: false };
   const fresh = entries.slice(0, previousIndex);
   const users = await optedInUsers(env);
+  console.log("MARCO Blogger delivery diagnostic", JSON.stringify({ freshPosts: fresh.length, optedInUsers: users.length, freshPostsWithImages: fresh.filter(post => Boolean(post.imageUrl)).length }));
+  // Never advance the cursor while there are no opted-in devices. Retrying
+  // on the next cron cycle prevents silently losing a newly published post.
+  if (users.length === 0) return { queued: 0, baseline: false, awaitingOptedInUsers: true };
   for (const post of fresh.reverse()) {
     for (const userId of users) await queueBlogPost(env, userId, post);
   }
