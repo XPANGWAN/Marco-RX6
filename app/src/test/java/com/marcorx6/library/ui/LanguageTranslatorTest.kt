@@ -149,6 +149,28 @@ class LanguageTranslatorTest {
 
 
     @Test
+    fun normalizesLegacyColloquialArabicToFormalArabicAcrossTheApp() {
+        val cases = mapOf(
+            "ما كايناش تنزيلات دابا" to "لا توجد تنزيلات حالياً.",
+            "اختار لعبة، ومن صفحة التفاصيل أضف رابط التحميل باش يبان هنا." to "اختر لعبة، ثم أضف رابط التنزيل من صفحة التفاصيل ليظهر هنا.",
+            "الصورة كبيرة بزاف، اختار صورة أصغر" to "الصورة كبيرة جداً. اختر صورة أصغر.",
+            "كلمة المرور خاصها تكون 6 أحرف على الأقل" to "يجب ألا تقل كلمة المرور عن 6 أحرف.",
+            "ما كاين حتى حساب لحذفه دابا" to "لا يوجد حساب لحذفه حالياً.",
+            "طريقة التحقق من هاد الحساب غير مدعومة حالياً. تواصل مع الدعم." to "طريقة التحقق من هذا الحساب غير مدعومة حالياً. يُرجى التواصل مع الدعم.",
+            "دخل كلمة المرور الحالية" to "أدخل كلمة المرور الحالية.",
+            "هاد العملية نهائية: غادي نحذف ملف الحساب والإعدادات المحفوظة فـ Firebase، ومن بعد حساب Firebase نفسه. مكتبة الألعاب والملفات المحلية فالتيليفون، وحساب Google المسؤول ومحتوى Blogger وDrive، ما غاديش نمسوهم." to "هذا الإجراء نهائي: سنحذف ملف الحساب والإعدادات المحفوظة في Firebase، ثم حساب Firebase نفسه. لن نحذف مكتبة الألعاب أو الملفات المحلية على الهاتف أو حساب Google المسؤول أو محتوى Blogger وDrive.",
+            "دخل كلمة المرور الحالية باش نتحققو من هويتك قبل الحذف." to "أدخل كلمة المرور الحالية للتحقق من هويتك قبل الحذف.",
+            "النبذة خاصها تكون أقل من 160 حرف" to "يجب ألا يتجاوز النبذة 160 حرفاً."
+        )
+        cases.forEach { (legacy, formal) ->
+            assertEquals(formal, LanguageTranslator.translate(legacy, "ar"))
+            assertTrue(LanguageTranslator.translate(legacy, "en") != legacy)
+            assertTrue(LanguageTranslator.translate(legacy, "fr") != legacy)
+            assertTrue(LanguageTranslator.translate(legacy, "es") != legacy)
+        }
+    }
+
+    @Test
     fun preservesUnknownTextAndUnsupportedLanguageCodes() {
         val source = "نص جديد غير موجود في القاموس"
         assertEquals(source, LanguageTranslator.translate(source, "en"))
