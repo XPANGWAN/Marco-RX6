@@ -1,6 +1,6 @@
 # MARCO RX6 Cloudflare push sender
 
-This Worker polls Firestore notification documents every minute and sends Firebase Cloud Messaging (FCM HTTP v1) data messages to the recipient's registered Android devices.
+This Worker runs every minute. It polls the Blogger JSON feed, queues each newly published game for accounts with at least one device opted into Blogger alerts, and sends all queued app notifications (messages, follows, and game alerts) through Firebase Cloud Messaging (FCM HTTP v1).
 
 ## Required configuration
 
@@ -14,11 +14,13 @@ This Worker polls Firestore notification documents every minute and sends Fireba
 
 ## Firestore queue contract
 
-The app writes each new notification with `pushStatus: "pending"`. The Worker queries the `notifications` collection group, reads `users/{uid}/devices`, sends a data-only FCM message, then changes `pushStatus` to `sent`. If there are no registered devices it records `skipped_no_devices`. Temporary delivery failures are returned to `pending` for retry. Invalid FCM device tokens are removed.
+The app writes social notifications with `pushStatus: "pending"`. The Worker queries the `notifications` collection group, reads `users/{uid}/devices`, sends a data-only FCM message, then changes `pushStatus` to `sent`. Blogger posts are detected server-side from the feed URL used by the app and queued once per user/post using a deterministic Firestore document ID. The first run creates `notificationControl/blogger.lastPostId` as a baseline and does not send old posts. Blogger alerts are sent only to devices whose `blogNotificationsEnabled` field is `true`; message and follow alerts continue to use all registered devices. If there are no eligible devices it records `skipped_no_devices`. Temporary delivery failures are returned to `pending` for retry. Invalid FCM device tokens are removed.
 
 ## Important
 
-- Deploy the updated Firestore rules from the repository after the matching app build is available.
+- Deploy the updated `firestore.rules` from the repository so each signed-in or guest device can store its `blogNotificationsEnabled` opt-in flag.
+- Install the matching app build and enable Blogger notifications once on each device. The app cancels its old on-device WorkManager Blogger poller and syncs the preference with its FCM device record.
+- The Blogger poll runs on the one-minute Cron Trigger, so delivery is normally within about one minute of the next scheduled poll, plus FCM/network latency; it is not instantaneous.
 - Push delivery is at-least-once: if a Worker stops after FCM accepts a message but before Firestore records `sent`, a duplicate may be delivered on a later run.
 - Android 13+ users must grant notification permission. The app already checks that permission before displaying notifications.
 - Cloudflare Cron Triggers and Worker usage are subject to the current Free plan limits.
