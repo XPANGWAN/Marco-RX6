@@ -13,6 +13,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationManagerCompat
+import com.marcorx6.library.ui.LanguageTranslator
 import com.marcorx6.library.ui.activity.MainActivity
 import com.marcorx6.library.R
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -36,6 +37,10 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
         val body = data["body"]?.take(180)
             ?: message.notification?.body?.take(180)
             ?: return
+        val language = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            .getString("language", "ar") ?: "ar"
+        val localizedTitle = LanguageTranslator.translate(title, language)
+        val localizedBody = LanguageTranslator.translate(body, language)
 
         val channelId = "marco_social_updates"
         ensureChannel(channelId)
@@ -53,8 +58,8 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
         val builder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_notification_marco)
             .setLargeIcon(appIcon)
-            .setContentTitle(title)
-            .setContentText(body)
+            .setContentTitle(localizedTitle)
+            .setContentText(localizedBody)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -65,10 +70,10 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
             builder.setStyle(
                     NotificationCompat.BigPictureStyle()
                         .bigPicture(cover)
-                        .setSummaryText(body)
+                        .setSummaryText(localizedBody)
                 )
         } else {
-            builder.setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            builder.setStyle(NotificationCompat.BigTextStyle().bigText(localizedBody))
         }
         val notification = builder.build()
         // Android 13+ can revoke notification permission at runtime.
@@ -116,9 +121,17 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "إشعارات MARCO",
+                LanguageTranslator.translate(
+                    "إشعارات MARCO",
+                    getSharedPreferences("app_settings", Context.MODE_PRIVATE).getString("language", "ar") ?: "ar"
+                ),
                 NotificationManager.IMPORTANCE_HIGH
-            ).apply { description = "رسائل ومتابعون وتحديثات الألعاب" }
+            ).apply {
+                description = LanguageTranslator.translate(
+                    "رسائل ومتابعون وتحديثات الألعاب",
+                    getSharedPreferences("app_settings", Context.MODE_PRIVATE).getString("language", "ar") ?: "ar"
+                )
+            }
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
