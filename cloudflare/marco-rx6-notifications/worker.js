@@ -5,6 +5,8 @@
  * and delivers pending Firestore notifications through FCM HTTP v1.
  */
 const FEED_URL = "https://marcorx6.blogspot.com/feeds/posts/default?alt=json&max-results=50";
+const FEED_PAGE_SIZE = 50;
+const MAX_FEED_PAGES_PER_RUN = 20;
 const MAX_PENDING_PER_RUN = 25;
 let tokenCache = { value: "", expiresAt: 0 };
 
@@ -229,46 +231,72 @@ async function queueBlogPost(env, userId, post) {
     } })
   });
   if (!response.ok && response.status !== 409) {
-    throw new Error("Unable to queue Blogger post (" + response.status + "): " + (await response.text()).slice(0, 300));
-  }
-}
-async function pollBlogger(env) {
-  const response = await fetch(FEED_URL, { headers: { accept: "application/json" } });
+    throw new Error("Unable to queue Blogger post (" + response.sasync function fetchBloggerPage(startIndex) {
+  const url = new URL(FEED_URL);
+  url.searchParams.set("start-index", String(startIndex));
+  const response = await fetch(url.toString(), { headers: { accept: "application/json" } });
   if (!response.ok) throw new Error("Blogger feed returned HTTP " + response.status);
   const feed = await response.json();
-  const entries = (feed?.feed?.entry || []).map(parsePost).filter(Boolean);
-  if (!entries.length) return { queued: 0, baseline: false };
-  const newest = entries[0];
+  return (feed?.feed?.entry || []).map(parsePost).filter(Boolean);
+}
+async function pollBlogger(env) {
+  const firstPage = await fetchBloggerPage(1);
+  if (!firstPage.length) return { queued: 0, baseline: false };
+  const newest = firstPage[0];
   const previous = await getBlogCursor(env);
-  console.log("MARCO Blogger feed diagnostic", JSON.stringify({ entries: entries.length, newestPostId: newest.id, newestHasImage: Boolean(newest.imageUrl), cursorPresent: Boolean(previous) }));
+  console.log("MARCO Blogger feed diagnostic", JSON.stringify({
+    entries: firstPage.length,
+    newestPostId: newest.id,
+    newestHasImage: Boolean(newest.imageUrl),
+    cursorPresent: Boolean(previous)
+  }));
   if (!previous) {
     await saveBlogCursor(env, newest.id);
     return { queued: 0, baseline: true };
   }
-  const previousIndex = entries.findIndex(post => post.id === previous);
-  if (previousIndex < 0) {
-    // The saved cursor fell outside the latest 50 feed entries. Do not treat
-    // the whole feed as new: that would resend old games after a feed gap.
-    // Move the cursor to the newest visible post and safely resume from here.
-    await saveBlogCursor(env, newest.id);
-    console.warn("MARCO Blogger cursor gap; skipped old feed window", JSON.stringify({
-      visiblePosts: entries.length,
-      cursorFound: false
-    }));
-    return { queued: 0, baseline: false, cursorGap: true, skippedOldWindow: entries.length };
+
+  // Walk older Blogger pages until the saved cursor is found.
+  const scanned = [...firstPage];
+  let previousIndex = scanned.findIndex(post => post.id === previous);
+  let pagesFetched = 1;
+  while (previousIndex < 0 && firstPage.length === FEED_PAGE_SIZE &&
+         pagesFetched < MAX_FEED_PAGES_PER_RUN) {
+    const nextPage = await fetchBloggerPage(pagesFetched * FEED_PAGE_SIZE + 1);
+    pagesFetched++;
+    if (!nextPage.length) break;
+    scanned.push(...nextPage);
+    previousIndex = scanned.findIndex(post => post.id === previous);
+    if (nextPage.length < FEED_PAGE_SIZE) break;
   }
-  if (previousIndex === 0) return { queued: 0, baseline: false };
-  const fresh = entries.slice(0, previousIndex);
+
+  if (previousIndex < 0) {
+    // Do not advance the cursor: that would silently lose unseen posts.
+    console.warn("MARCO Blogger cursor not found after paginated scan; preserving cursor", JSON.stringify({
+      visiblePosts: scanned.length,
+      pagesFetched,
+      cursorPreserved: true
+    }));
+    return { queued: 0, baseline: false, cursorGap: true, scannedPosts: scanned.length, pagesFetched, cursorPreserved: true };
+  }
+  if (previousIndex === 0) return { queued: 0, baseline: false, pagesFetched };
+
+  const fresh = scanned.slice(0, previousIndex);
   const users = await optedInUsers(env);
-  console.log("MARCO Blogger delivery diagnostic", JSON.stringify({ freshPosts: fresh.length, optedInUsers: users.length, freshPostsWithImages: fresh.filter(post => Boolean(post.imageUrl)).length }));
-  // Never advance the cursor while there are no opted-in devices. Retrying
-  // on the next cron cycle prevents silently losing a newly published post.
-  if (users.length === 0) return { queued: 0, baseline: false, awaitingOptedInUsers: true };
+  console.log("MARCO Blogger delivery diagnostic", JSON.stringify({
+    freshPosts: fresh.length,
+    optedInUsers: users.length,
+    freshPostsWithImages: fresh.filter(post => Boolean(post.imageUrl)).length,
+    pagesFetched
+  }));
+  if (users.length === 0) return {
+    queued: 0, baseline: false, awaitingOptedInUsers: true, freshPosts: fresh.length, pagesFetched
+  };
   for (const post of fresh.reverse()) {
     for (const userId of users) await queueBlogPost(env, userId, post);
   }
   await saveBlogCursor(env, newest.id);
-  return { queued: fresh.length * users.length, baseline: false, cursorGap: false };
+  return { queued: fresh.length * users.length, baseline: false, cursorGap: false, pagesFetched };
+}.length * users.length, baseline: false, cursorGap: false };
 }
 async function listDevices(env, userId, blogOnly) {
   const token = await accessToken(env);
