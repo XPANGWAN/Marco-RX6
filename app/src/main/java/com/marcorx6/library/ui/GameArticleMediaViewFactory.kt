@@ -177,6 +177,9 @@ internal class GameArticleMediaViewFactory(
             image.imageMatrix = android.graphics.Matrix()
             image.contentDescription = "${gameName} - ${translate("صورة")} ${currentIndex + 1}"
             loadCover(image, "", images[currentIndex])
+            // CoverDisplayController defaults thumbnails to CENTER_CROP. The full-screen
+            // viewer must override that default so the complete source image is visible.
+            image.scaleType = ImageView.ScaleType.FIT_CENTER
             counter.text = "${currentIndex + 1} / ${images.size}"
         }
 
