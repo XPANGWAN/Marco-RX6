@@ -110,18 +110,56 @@ async function sha256(value) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
 }
+function decodeHtml(value) {
+  return String(value || "")
+    .replace(/&amp;/gi, "&").replace(/&#38;/g, "&")
+    .replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#x2F;/gi, "/");
+}
+function fullSizeBloggerImage(value) {
+  const decoded = decodeHtml(value).trim().replace(/^["']|["']$/g, "");
+  if (!/^https:\/\//i.test(decoded)) return "";
+  try {
+    const url = new URL(decoded);
+    if (!/(^|\.)googleusercontent\.com$/i.test(url.hostname)) return decoded;
+    // Blogger feed thumbnails commonly use /s72-c/; request a full-size cover.
+    url.pathname = url.pathname.replace(/\/s\d+(?:-[a-z0-9-]+)?\//i, "/s1200/");
+    url.pathname = url.pathname.replace(/\/w\d+-h\d+(?:-[a-z0-9-]+)?\//i, "/s1200/");
+    url.pathname = url.pathname.replace(/\/s\d+(?:-[a-z0-9-]+)?$/i, "/s1200");
+    url.search = url.search.replace(/([?&])(?:w|h|s)=\d+/gi, "$1");
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+function extractPostImage(entry, html) {
+  const mediaContent = Array.isArray(entry?.["media$content"]) ? entry["media$content"] : [];
+  const candidates = [...mediaContent.map(item => item?.url), entry?.["media$thumbnail"]?.url];
+  for (const tag of String(html || "").match(/<img\b[^>]*>/gi) || []) {
+    for (const attr of ["src", "data-src", "data-original", "data-lazy-src"]) {
+      const match = tag.match(new RegExp("\\b" + attr + "\\s*=\\s*[\"']([^\"']+)[\"']", "i"));
+      if (match?.[1]) candidates.push(match[1]);
+    }
+    const srcset = tag.match(/\bsrcset\s*=\s*["']([^"']+)["']/i)?.[1];
+    if (srcset) {
+      const largest = srcset.split(",").map(part => part.trim().split(/\s+/)[0]).filter(Boolean).pop();
+      if (largest) candidates.push(largest);
+    }
+  }
+  for (const candidate of candidates) {
+    const image = fullSizeBloggerImage(candidate);
+    if (image) return image;
+  }
+  return "";
+}
 function parsePost(entry) {
   const id = entry?.id?.$t || "";
   const title = entry?.title?.$t || "";
   const links = Array.isArray(entry?.link) ? entry.link : [];
   const link = links.find(item => item.rel === "alternate" && String(item.href || "").startsWith("https://"))?.href || "";
-  const thumbnail = entry?.["media$thumbnail"]?.url || "";
   const html = entry?.content?.$t || entry?.summary?.$t || "";
-  const embedded = html.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1] || "";
-  // Prefer the full-size image embedded in the post; Blogger media$thumbnail is usually only 72px.
-  const imageUrl = String(embedded || thumbnail).replace(/&amp;/g, "&").startsWith("https://")
-    ? String(embedded || thumbnail).replace(/&amp;/g, "&")
-    : "";
+  const imageUrl = extractPostImage(entry, html);
   return id && title ? { id, title: title.slice(0, 120), link, imageUrl } : null;
 }
 async function getBlogCursor(env) {
@@ -269,10 +307,12 @@ async function sendOne(env, notification) {
   const userId = userIndex >= 0 ? parts[userIndex + 1] : "";
   if (!userId) throw new Error("Notification path does not contain a user ID");
   const data = {};
-  for (const key of ["title", "body", "type", "postUrl", "gameName", "platform", "actorUid", "conversationId", "messageId", "imageUrl"]) {
+  for (const key of ["title", "body", "type", "postUrl", "gameName", "platform", "actorUid", "conversationId", "messageId"]) {
     const value = readString(notification, key);
     if (value) data[key] = value;
   }
+  const safeImageUrl = fullSizeBloggerImage(readString(notification, "imageUrl"));
+  if (safeImageUrl) data.imageUrl = safeImageUrl;
   data.notificationId = parts[parts.length - 1];
   const devices = await listDevices(env, userId, data.type === "blog_game");
   let imageHost = "";
