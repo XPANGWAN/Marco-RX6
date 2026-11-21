@@ -119,8 +119,9 @@ function parsePost(entry) {
   const html = entry?.content?.$t || entry?.summary?.$t || "";
   const embedded = html.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1] || "";
   // Prefer the full-size image embedded in the post; Blogger media$thumbnail is usually only 72px.
-  const candidate = String(embedded || thumbnail).replace(/&amp;/g, "&");
-  const imageUrl = candidate.startsWith("https://") ? candidate : "";
+  const imageUrl = String(embedded || thumbnail).replace(/&amp;/g, "&").startsWith("https://")
+    ? String(embedded || thumbnail).replace(/&amp;/g, "&")
+    : "";
   return id && title ? { id, title: title.slice(0, 120), link, imageUrl } : null;
 }
 async function getBlogCursor(env) {
