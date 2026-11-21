@@ -78,6 +78,9 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
         val imageUrl = data["imageUrl"].orEmpty()
         val cover = downloadNotificationImage(imageUrl)
         if (cover != null) {
+            // Keep a compact thumbnail visible beside the text while collapsed;
+            // BigPictureStyle expands to the full cover when the user opens the shade.
+            builder.setLargeIcon(cover)
             builder.setStyle(
                 NotificationCompat.BigPictureStyle()
                     .bigPicture(cover)
