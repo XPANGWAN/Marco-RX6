@@ -28,6 +28,11 @@ internal class CoverSelectionController(
     private val styleDialog: (AlertDialog) -> Unit,
     private val translate: (String) -> String
 ) {
+    fun uploadGalleryImages(
+        uris: List<Uri>,
+        onComplete: (List<String>, String?) -> Unit
+    ) = uploadController.uploadGalleryImages(uris, onComplete)
+
     fun handle(uri: Uri) {
         state.beginSelection()
         coverUrlField()?.setText("")

@@ -20,10 +20,10 @@ internal object LibrarySectionCatalog {
             section("games", "الألعاب", "العاب", "Games", "Game"),
             section("arabic", "الألعاب العربية", "العاب عربية", "Arabic Games", "PS4 Arabic Games"),
             section("dlc", "DLC", "Add-ons", "Downloadable Content"),
-            section("avatars", "افتارات", "Avatars", "Profile Pictures"),
+            section("avatars", "صور رمزية", "افتارات", "Avatars", "Profile Pictures"),
             section("ps2", "PS2 on PS4", "PS2 PS4", "PS2-PS4"),
             section("ps1", "PS1 on PS4", "PS1 PS4", "PS1-PS4"),
-            section("themes", "ثيمات", "Themes"),
+            section("themes", "السمات", "ثيمات", "Themes"),
             section("apps", "التطبيقات والأدوات", "التطبيقات والادوات", "Apps & Tools", "Applications", "Tools"),
             section("emulators", "محاكيات", "Emulators")
         )),
@@ -31,10 +31,10 @@ internal object LibrarySectionCatalog {
             section("games", "الألعاب", "العاب", "Games", "Game"),
             section("arabic", "الألعاب العربية", "العاب عربية", "Arabic Games", "PS3 Arabic Games", "PS3 Arabic"),
             section("dlc", "DLC", "Add-ons", "Downloadable Content"),
-            section("avatars", "افتارات", "Avatars", "Profile Pictures"),
+            section("avatars", "صور رمزية", "افتارات", "Avatars", "Profile Pictures"),
             section("ps2", "PS2 on PS3", "PS2 PS3", "PS2-PS3"),
             section("ps1", "PS1 on PS3", "PS1 PS3", "PS1-PS3"),
-            section("themes", "ثيمات", "Themes"),
+            section("themes", "السمات", "ثيمات", "Themes"),
             section("apps", "التطبيقات والأدوات", "التطبيقات والادوات", "Apps & Tools", "Applications", "Tools"),
             section("emulators", "محاكيات", "Emulators")
         ))

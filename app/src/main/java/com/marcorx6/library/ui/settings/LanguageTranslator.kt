@@ -39,11 +39,6 @@ internal object LanguageTranslator {
             "MARCO  /  البحث الذكي" to listOf("MARCO  /  SMART SEARCH", "MARCO  /  RECHERCHE INTELLIGENTE", "MARCO  /  BÚSQUEDA INTELIGENTE"),
             "MARCO  /  مركز الألعاب الرسمي" to listOf("MARCO  /  OFFICIAL GAME HUB", "MARCO  /  CENTRE DE JEUX OFFICIEL", "MARCO  /  CENTRO OFICIAL DE JUEGOS"),
             "MARCO  /  الألعاب" to listOf("MARCO  /  GAMES", "MARCO  /  JEUX", "MARCO  /  JUEGOS"),
-            "تحميل نموذج الترجمة" to listOf("Download translation model", "Télécharger le modèle de traduction", "Descargar el modelo de traducción"),
-            "العربية لا تحتاج إلى نموذج ترجمة" to listOf("Arabic does not need a translation model", "L’arabe n’a pas besoin d’un modèle de traduction", "El árabe no necesita un modelo de traducción"),
-            "جارٍ تحميل نموذج الترجمة" to listOf("Downloading translation model", "Téléchargement du modèle de traduction", "Descargando el modelo de traducción"),
-            "نموذج الترجمة جاهز" to listOf("Translation model is ready", "Le modèle de traduction est prêt", "El modelo de traducción está listo"),
-            "تعذر تحميل نموذج الترجمة" to listOf("Could not download translation model", "Impossible de télécharger le modèle de traduction", "No se pudo descargar el modelo de traducción"),
             "مرحباً بك في MARCO" to listOf("Welcome to MARCO", "Bienvenue sur MARCO", "Bienvenido a MARCO"),
             "تابع قنواتنا الرسمية لتصلك أخبار التطبيق والتحديثات الجديدة." to listOf("Follow our official channels for app news and updates.", "Suivez nos chaînes officielles pour les actualités et mises à jour.", "Sigue nuestros canales oficiales para recibir noticias y actualizaciones."),
             "متابعة إلى التطبيق" to listOf("Continue to the app", "Continuer vers l’application", "Continuar a la aplicación"),
@@ -281,6 +276,10 @@ internal object LanguageTranslator {
             "أضف رابط تحميل واحداً على الأقل قبل النشر" to listOf("Add at least one download link before publishing", "Ajoutez au moins un lien de téléchargement avant la publication", "Añade al menos un enlace de descarga antes de publicar"),
             "ضع رابط تحميل هنا" to listOf("Paste a download link here", "Collez un lien de téléchargement ici", "Pega aquí un enlace de descarga"),
             "إغلاق تفاصيل اللعبة" to listOf("Close game details", "Fermer les détails du jeu", "Cerrar detalles del juego"),
+            "صور من اللعبة" to listOf("Game screenshots", "Captures d’écran du jeu", "Imágenes del juego"),
+            "فيديو اللعبة" to listOf("Game video", "Vidéo du jeu", "Vídeo del juego"),
+            "صورة" to listOf("Image", "Image", "Imagen"),
+            "من" to listOf("of", "sur", "de"),
             "ضع رابط" to listOf("Enter link", "Saisir le lien", "Introduce el enlace"),
             "ضع الرابط" to listOf("Enter the link", "Saisissez le lien", "Introduce el enlace"),
             "تأكيد التنزيل" to listOf("Confirm download", "Confirmer le téléchargement", "Confirmar descarga"),
@@ -705,6 +704,22 @@ internal object LanguageTranslator {
             "إضافة رابط جديد" to listOf("Add another link", "Ajouter un autre lien", "Añadir otro enlace"),
             "الرجوع من استوديو النشر" to listOf("Back from the publishing studio", "Retourner depuis le studio de publication", "Volver desde el estudio de publicación"),
             "استوديو النشر" to listOf("Publishing studio", "Studio de publication", "Estudio de publicación"),
+            "معرض صور اللعبة (اختياري)" to listOf("Game image gallery (optional)", "Galerie d’images du jeu (facultatif)", "Galería de imágenes del juego (opcional)"),
+            "لم تتم إضافة صور إضافية بعد. يمكنك نشر اللعبة بالغلاف فقط." to listOf("No additional images have been added yet. You can publish the game with its cover only.", "Aucune image supplémentaire n’a encore été ajoutée. Vous pouvez publier le jeu avec sa seule couverture.", "Aún no se han añadido imágenes adicionales. Puedes publicar el juego solo con su portada."),
+            "نقل الصورة للأعلى" to listOf("Move image up", "Déplacer l’image vers le haut", "Mover imagen hacia arriba"),
+            "نقل الصورة للأسفل" to listOf("Move image down", "Déplacer l’image vers le bas", "Mover imagen hacia abajo"),
+            "إزالة صورة المعرض" to listOf("Remove gallery image", "Supprimer l’image de la galerie", "Eliminar imagen de la galería"),
+            "إضافة صور من الهاتف" to listOf("Add images from phone", "Ajouter des images depuis le téléphone", "Añadir imágenes desde el teléfono"),
+            "يمكن إضافة 12 صورة كحد أقصى إلى المعرض" to listOf("You can add up to 12 images to the gallery", "Vous pouvez ajouter jusqu’à 12 images à la galerie", "Puedes añadir hasta 12 imágenes a la galería"),
+            "جارٍ رفع صور المعرض إلى Google Drive..." to listOf("Uploading gallery images to Google Drive...", "Envoi des images de la galerie vers Google Drive...", "Subiendo imágenes de la galería a Google Drive..."),
+            "تم رفع بعض الصور، وتعذر رفع الباقي: " to listOf("Some images were uploaded, but the remaining images could not be uploaded: ", "Certaines images ont été envoyées, mais les autres n’ont pas pu l’être : ", "Se subieron algunas imágenes, pero no se pudieron subir las demás: "),
+            "تعذر رفع صور المعرض: " to listOf("Could not upload gallery images: ", "Impossible d’envoyer les images de la galerie : ", "No se pudieron subir las imágenes de la galería: "),
+            "تم رفع " to listOf("Uploaded ", "Images envoyées : ", "Subidas "),
+            " صورة وإضافتها إلى المعرض" to listOf(" image(s) and added them to the gallery", " image(s) ajoutée(s) à la galerie", " imagen(es) y añadida(s) a la galería"),
+            "لم يتم رفع صور" to listOf("No images were uploaded", "Aucune image n’a été envoyée", "No se subieron imágenes"),
+            "فيديو YouTube (اختياري)" to listOf("YouTube video (optional)", "Vidéo YouTube (facultatif)", "Vídeo de YouTube (opcional)"),
+            "أدخل رابط YouTube صالحاً من youtube.com أو youtu.be" to listOf("Enter a valid YouTube link from youtube.com or youtu.be", "Saisissez un lien YouTube valide depuis youtube.com ou youtu.be", "Introduce un enlace válido de YouTube de youtube.com o youtu.be"),
+            "رابط فيديو YouTube (اختياري)" to listOf("YouTube video URL (optional)", "Lien vidéo YouTube (facultatif)", "URL del vídeo de YouTube (opcional)"),
             "تحرير المقال" to listOf("Edit post", "Modifier l’article", "Editar publicación"),
             "يجب أن يبدأ الرابط بـ HTTPS" to listOf("The link must start with HTTPS", "Le lien doit commencer par HTTPS", "El enlace debe comenzar por HTTPS"),
             "خطوة" to listOf("Step", "Étape", "Paso"),
@@ -1032,10 +1047,87 @@ internal object LanguageTranslator {
             "افتح الموقع الرسمي لـ MARCO RX6 لمشاهدة أحدث إصدار وتحميله" to listOf("Visit the official MARCO RX6 website to see and download the latest release", "Visitez le site officiel de MARCO RX6 pour voir et télécharger la dernière version", "Visita el sitio oficial de MARCO RX6 para ver y descargar la última versión"),
             "فتح المجلد" to listOf("Open folder", "Ouvrir le dossier", "Abrir carpeta"),
             "تعذر فتح مجلد التنزيلات؛ افتح Download/MARCO RX6 من مدير الملفات" to listOf("Could not open the downloads folder; open Download/MARCO RX6 in your file manager", "Impossible d’ouvrir le dossier des téléchargements ; ouvrez Download/MARCO RX6 dans votre gestionnaire de fichiers", "No se pudo abrir la carpeta de descargas; abre Download/MARCO RX6 en tu gestor de archivos"),
+            "لا توجد جلسة مستخدم" to listOf("No active user session", "Aucune session utilisateur active", "No hay una sesión de usuario activa"),
+            "سجّل الدخول أولاً" to listOf("Sign in first", "Connectez-vous d’abord", "Inicia sesión primero"),
+            "التقييم متاح للمستخدمين المسجلين فقط" to listOf("Ratings are available to registered users only", "Les évaluations sont réservées aux utilisateurs inscrits", "Las valoraciones están disponibles solo para usuarios registrados"),
+            "التقييم يجب أن يكون بين نجمة و5 نجوم" to listOf("The rating must be between 1 and 5 stars", "La note doit être comprise entre 1 et 5 étoiles", "La valoración debe estar entre 1 y 5 estrellas"),
+            "تعذر التحقق من المتابعة المتبادلة" to listOf("Could not verify mutual following", "Impossible de vérifier le suivi mutuel", "No se pudo verificar el seguimiento mutuo"),
+            "معرّف المستخدم غير صالح" to listOf("Invalid user ID", "Identifiant utilisateur invalide", "ID de usuario no válido"),
+            "تعذر التحقق من صلاحية المراسلة" to listOf("Could not verify messaging permission", "Impossible de vérifier l’autorisation de messagerie", "No se pudo verificar el permiso de mensajería"),
+            "يمكنك المراسلة فقط عندما يتابع كل منكما الآخر" to listOf("You can message only when you follow each other", "Vous pouvez échanger des messages uniquement si vous vous suivez mutuellement", "Solo pueden enviarse mensajes cuando se siguen mutuamente"),
+            "بيانات المشاركين في المحادثة غير صالحة" to listOf("Conversation participant data is invalid", "Les données des participants à la conversation sont invalides", "Los datos de los participantes de la conversación no son válidos"),
+            "تعذر إنشاء المحادثة" to listOf("Could not create the conversation", "Impossible de créer la conversation", "No se pudo crear la conversación"),
+            "الرسالة غير صالحة أو تتجاوز الحد المسموح" to listOf("The message is invalid or exceeds the allowed limit", "Le message est invalide ou dépasse la limite autorisée", "El mensaje no es válido o supera el límite permitido"),
+            "تعذر تحميل بيانات المحادثة والمرسل" to listOf("Could not load conversation and sender data", "Impossible de charger les données de la conversation et de l’expéditeur", "No se pudieron cargar los datos de la conversación y del remitente"),
+            "معرّف المحادثة غير صالح" to listOf("Invalid conversation ID", "Identifiant de conversation invalide", "ID de conversación no válido"),
+            "الرسالة غير صالحة" to listOf("Invalid message", "Message invalide", "Mensaje no válido"),
+            "تعذر تحميل الرسالة" to listOf("Could not load the message", "Impossible de charger le message", "No se pudo cargar el mensaje"),
+            "تعذر تحميل المحادثة" to listOf("Could not load the conversation", "Impossible de charger la conversation", "No se pudo cargar la conversación"),
+            "تم حذف رسالة" to listOf("A message was deleted", "Un message a été supprimé", "Se eliminó un mensaje"),
+            "معرّف الحساب غير صالح" to listOf("Invalid account ID", "Identifiant de compte invalide", "ID de cuenta no válido"),
+            "إشعار غير صالح" to listOf("Invalid notification", "Notification invalide", "Notificación no válida"),
+            "تعذر تحميل الإشعارات" to listOf("Could not load notifications", "Impossible de charger les notifications", "No se pudieron cargar las notificaciones"),
+            "الصورة العامة كبيرة جداً؛ اختر صورة أصغر." to listOf("The public profile image is too large; choose a smaller image.", "L’image du profil public est trop volumineuse ; choisissez une image plus petite.", "La imagen del perfil público es demasiado grande; elige una imagen más pequeña."),
+            "تعذر البحث عن اسم المستخدم" to listOf("Could not look up the username", "Impossible de rechercher le nom d’utilisateur", "No se pudo buscar el nombre de usuario"),
+            "اسم المستخدم يجب أن يتكون من 3 إلى 20 حرفاً إنجليزياً أو رقماً أو _" to listOf("The username must contain 3–20 English letters, digits, or underscores", "Le nom d’utilisateur doit contenir de 3 à 20 lettres anglaises, chiffres ou tirets bas", "El nombre de usuario debe contener entre 3 y 20 letras inglesas, números o guiones bajos"),
+            "اسم المستخدم مستخدم بالفعل. اختر اسماً آخر." to listOf("This username is already taken. Choose another.", "Ce nom d’utilisateur est déjà utilisé. Choisissez-en un autre.", "Este nombre de usuario ya está en uso. Elige otro."),
+            "تعذر حجز اسم المستخدم" to listOf("Could not reserve the username", "Impossible de réserver le nom d’utilisateur", "No se pudo reservar el nombre de usuario"),
+            "معرّف المتابعة غير صالح" to listOf("Invalid follow ID", "Identifiant d’abonnement invalide", "ID de seguimiento no válido"),
+            "متابع جديد" to listOf("New follower", "Nouvel abonné", "Nuevo seguidor"),
+            "بدأ هذا المستخدم بمتابعتك" to listOf("This user started following you", "Cet utilisateur a commencé à vous suivre", "Este usuario ha empezado a seguirte"),
+            "تعذر تحميل إحصائيات المتابعة" to listOf("Could not load follow statistics", "Impossible de charger les statistiques de suivi", "No se pudieron cargar las estadísticas de seguimiento"),
+            "تعذر قراءة إعدادات الملف" to listOf("Could not read profile settings", "Impossible de lire les paramètres du profil", "No se pudieron leer los ajustes del perfil"),
+            "تعذر تحديث إحصائيات المتابعة" to listOf("Could not update follow statistics", "Impossible de mettre à jour les statistiques de suivi", "No se pudieron actualizar las estadísticas de seguimiento"),
+            "تعذر قراءة الملف العام" to listOf("Could not read the public profile", "Impossible de lire le profil public", "No se pudo leer el perfil público"),
+            "تعذر تحميل المتابعين" to listOf("Could not load followers", "Impossible de charger les abonnés", "No se pudieron cargar los seguidores"),
+            "تعذر تحميل قائمة المتابعة" to listOf("Could not load the following list", "Impossible de charger la liste des abonnements", "No se pudo cargar la lista de seguidos"),
+            "تعذر تحميل علاقات المتابعة" to listOf("Could not load follow relationships", "Impossible de charger les relations de suivi", "No se pudieron cargar las relaciones de seguimiento"),
+            "تعذر حذف علاقات المتابعة" to listOf("Could not delete follow relationships", "Impossible de supprimer les relations de suivi", "No se pudieron eliminar las relaciones de seguimiento"),
+            "تعذر تحميل تقييمات الحساب" to listOf("Could not load account ratings", "Impossible de charger les évaluations du compte", "No se pudieron cargar las valoraciones de la cuenta"),
+            "تعذر حذف تقييمات الحساب" to listOf("Could not delete account ratings", "Impossible de supprimer les évaluations du compte", "No se pudieron eliminar las valoraciones de la cuenta"),
+            "تعذر حذف الملف العام" to listOf("Could not delete the public profile", "Impossible de supprimer le profil public", "No se pudo eliminar el perfil público"),
+            "تعذر حذف الحساب واسم المستخدم" to listOf("Could not delete the account and username", "Impossible de supprimer le compte et le nom d’utilisateur", "No se pudo eliminar la cuenta y el nombre de usuario"),
+            "إشعارات MARCO" to listOf("MARCO notifications", "Notifications MARCO", "Notificaciones de MARCO"),
+            "رسائل ومتابعون وتحديثات الألعاب" to listOf("Messages, followers and game updates", "Messages, abonnés et mises à jour des jeux", "Mensajes, seguidores y actualizaciones de juegos"),
+            "مجتمع MARCO" to listOf("MARCO Community", "Communauté MARCO", "Comunidad MARCO"),
+            "أنت تتابع هذا المستخدم. اضغط لإلغاء المتابعة" to listOf("You follow this user. Tap to unfollow.", "Vous suivez cet utilisateur. Touchez pour vous désabonner.", "Sigues a este usuario. Toca para dejar de seguirlo."),
+            "اضغط لمتابعة هذا المستخدم" to listOf("Tap to follow this user", "Touchez pour suivre cet utilisateur", "Toca para seguir a este usuario"),
+            "فشل رفع إحدى صور المعرض" to listOf("One of the gallery images could not be uploaded", "L’envoi de l’une des images de la galerie a échoué", "No se pudo subir una de las imágenes de la galería"),
+            "الألعاب العربية" to listOf("Arabic games", "Jeux en arabe", "Juegos en árabe"),
+            "العاب عربية" to listOf("Arabic games", "Jeux en arabe", "Juegos en árabe"),
+            "العاب" to listOf("Games", "Jeux", "Juegos"),
+            "التطبيقات والادوات" to listOf("Apps & Tools", "Applications et outils", "Aplicaciones y herramientas"),
+            "محاكيات" to listOf("Emulators", "Émulateurs", "Emuladores"),
+            "افتارات" to listOf("Avatars", "Avatars", "Avatares"),
+            "ثيمات" to listOf("Themes", "Thèmes", "Temas"),
+            "صور رمزية" to listOf("Avatars", "Avatars", "Avatares"),
+            "السمات" to listOf("Themes", "Thèmes", "Temas"),
         )
 
     // Compile parameterized-message patterns once. Translation is called while building
     // every visible screen, so allocating Regex objects for each TextView is avoidable UI work.
+    /** Legacy colloquial source strings are normalized to formal Arabic in the UI. */
+    private val formalArabicAliases = mapOf(
+        "ما كايناش تنزيلات دابا" to "لا توجد تنزيلات حالياً.",
+        "اختار لعبة، ومن صفحة التفاصيل أضف رابط التحميل باش يبان هنا." to "اختر لعبة، ثم أضف رابط التنزيل من صفحة التفاصيل ليظهر هنا.",
+        "الصورة كبيرة بزاف، اختار صورة أصغر" to "الصورة كبيرة جداً. اختر صورة أصغر.",
+        "كلمة المرور خاصها تكون 6 أحرف على الأقل" to "يجب ألا تقل كلمة المرور عن 6 أحرف.",
+        "ما كاين حتى حساب لحذفه دابا" to "لا يوجد حساب لحذفه حالياً.",
+        "طريقة التحقق من هاد الحساب غير مدعومة حالياً. تواصل مع الدعم." to "طريقة التحقق من هذا الحساب غير مدعومة حالياً. يُرجى التواصل مع الدعم.",
+        "دخل كلمة المرور الحالية" to "أدخل كلمة المرور الحالية.",
+        "هاد العملية نهائية: غادي نحذف ملف الحساب والإعدادات المحفوظة فـ Firebase، ومن بعد حساب Firebase نفسه. مكتبة الألعاب والملفات المحلية فالتيليفون، وحساب Google المسؤول ومحتوى Blogger وDrive، ما غاديش نمسوهم." to "هذا الإجراء نهائي: سنحذف ملف الحساب والإعدادات المحفوظة في Firebase، ثم حساب Firebase نفسه. لن نحذف مكتبة الألعاب أو الملفات المحلية على الهاتف أو حساب Google المسؤول أو محتوى Blogger وDrive.",
+        "دخل كلمة المرور الحالية باش نتحققو من هويتك قبل الحذف." to "أدخل كلمة المرور الحالية للتحقق من هويتك قبل الحذف.",
+        "النبذة خاصها تكون أقل من 160 حرف" to "يجب ألا تتجاوز النبذة 160 حرفاً.",
+        "إلا كان الحساب موجود، غادي توصلك رسالة استرجاع كلمة المرور" to "إذا كان الحساب موجوداً، فستصلك رسالة لإعادة تعيين كلمة المرور.",
+        "الاسم ضروري وخاصو يكون أقل من 40 حرف" to "الاسم مطلوب، ويجب ألا يتجاوز 40 حرفاً.",
+        "كنحمّلو معلومات الملف الشخصي، عاود المحاولة بعد لحظة" to "جارٍ تحميل معلومات الملف الشخصي؛ يُرجى إعادة المحاولة بعد لحظة.",
+        "العاب" to "الألعاب",
+        "العاب عربية" to "الألعاب العربية",
+        "التطبيقات والادوات" to "التطبيقات والأدوات",
+        "افتارات" to "صور رمزية",
+        "ثيمات" to "السمات",
+    )
+
     private val serverHttpErrorPattern = Regex("^الخادم رفض رابط التنزيل \\(HTTP ([^)]+)\\)$")
     private val driveUploadErrorPattern = Regex("^فشل رفع الصورة إلى Google Drive \\(([^)]+)\\): (.*)$", RegexOption.DOT_MATCHES_ALL)
     private val imagePublicErrorPattern = Regex("^تم رفع الصورة لكن تعذر جعلها متاحة للموقع \\(([^)]+)\\): (.*)$", RegexOption.DOT_MATCHES_ALL)
@@ -1056,7 +1148,7 @@ internal object LanguageTranslator {
         translations.filterValues { values -> values.size != 3 || values.any { it.isBlank() } }.keys.toList()
 
     fun translate(ar: String, lang: String): String {
-        if (lang == "ar") return ar
+        if (lang == "ar") return formalArabicAliases[ar] ?: ar
         val index = when (lang) { "en" -> 0; "fr" -> 1; "es" -> 2; else -> return ar }
         fun localized(key: String): String? = translations[key]?.getOrNull(index)
 
@@ -1162,12 +1254,14 @@ internal object LanguageTranslator {
      * Dynamic game titles, filenames, URLs and user-authored content are left untouched.
      */
     fun translateViewTree(view: android.view.View, lang: String) {
-        if (lang == "ar") return
         if (view is android.widget.TextView) {
-            val current = view.text?.toString()
-            if (!current.isNullOrEmpty()) {
-                val translated = translate(current, lang)
-                if (translated != current) view.text = translated
+            // Never rewrite text the user is actively editing; only localize its hint.
+            if (view !is android.widget.EditText) {
+                val current = view.text?.toString()
+                if (!current.isNullOrEmpty()) {
+                    val translated = translate(current, lang)
+                    if (translated != current) view.text = translated
+                }
             }
             val hint = view.hint?.toString()
             if (!hint.isNullOrEmpty()) {

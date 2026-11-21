@@ -8,9 +8,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.marcorx6.library.data.Game
-import com.marcorx6.library.ui.settings.LocalContentTranslator
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
 
 internal class GameDetailsIdentityViewFactory(
     private val activity: Activity,
@@ -24,17 +21,6 @@ internal class GameDetailsIdentityViewFactory(
     private val targetLanguage: () -> String,
     private val favoriteToggleFactory: GameFavoriteToggleFactory
 ) {
-    private val contentTranslatorDelegate = lazy { LocalContentTranslator(activity) }
-    private val contentTranslator by contentTranslatorDelegate
-
-    init {
-        (activity as? LifecycleOwner)?.lifecycle?.addObserver(object : DefaultLifecycleObserver {
-            override fun onDestroy(owner: LifecycleOwner) {
-                if (contentTranslatorDelegate.isInitialized()) contentTranslator.close()
-                owner.lifecycle.removeObserver(this)
-            }
-        })
-    }
 
     fun create(game: Game): LinearLayout {
         val dark = isDarkMode()
@@ -206,28 +192,6 @@ internal class GameDetailsIdentityViewFactory(
                     setHorizontallyScrolling(false)
                 }
                 cell.addView(valueView, LinearLayout.LayoutParams(-1, -2))
-
-                // Translate only the displayed copy. The Game object and Blogger HTML
-                // remain untouched, so uploads, edits and stored metadata keep originals.
-                val target = targetLanguage()
-                if (shouldTranslateDetailValue(item.first, item.second) &&
-                    target in setOf("ar", "en", "fr", "es")
-                ) {
-                    contentTranslator.translateAutomatically(
-                        text = item.second,
-                        targetLanguage = target,
-                        onTranslated = { translated ->
-                            activity.runOnUiThread {
-                                if (!activity.isFinishing && !activity.isDestroyed &&
-                                    valueView.isAttachedToWindow && translated.isNotBlank()
-                                ) {
-                                    valueView.text = translated
-                                }
-                            }
-                        },
-                        onError = { /* Keep the original value when detection or translation fails. */ }
-                    )
-                }
                 infoCard.addView(cell, LinearLayout.LayoutParams(-1, -2).apply {
                     bottomMargin = dp(8)
                 })

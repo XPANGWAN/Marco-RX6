@@ -3,6 +3,7 @@ package com.marcorx6.library.ui
 import com.marcorx6.library.network.BloggerArticleBuilder
 import com.marcorx6.library.network.BloggerFeedParser
 import com.marcorx6.library.data.Game
+import com.marcorx6.library.ui.details.GameArticleMediaExtractor
 
 internal class BloggerGamePostFactory {
     fun create(
@@ -22,7 +23,13 @@ internal class BloggerGamePostFactory {
         language: String = "الإنجليزية",
         password: String = "",
         rights: String = "",
-        downloadLinksJson: String = ""
+        downloadLinksJson: String = "",
+        galleryImageUrls: List<String> = existing?.let {
+            GameArticleMediaExtractor.extract(it.bloggerHtml, it.coverUrl).images
+        }.orEmpty(),
+        youtubeVideoId: String? = existing?.let {
+            GameArticleMediaExtractor.extract(it.bloggerHtml, it.coverUrl).youtubeVideoId
+        }
     ): Game {
         val publishedCoverLink = BloggerFeedParser.normalizeBloggerImageUrl(coverLink)
         val normalizedGenre = genre.trim()
@@ -50,7 +57,9 @@ internal class BloggerGamePostFactory {
             language = language.trim(),
             password = password.trim(),
             rights = rights.trim(),
-            downloadLinksJson = links
+            downloadLinksJson = links,
+            galleryImageUrls = galleryImageUrls,
+            youtubeVideoId = youtubeVideoId
         )
         return Game(
             name = title,

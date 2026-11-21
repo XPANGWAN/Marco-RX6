@@ -12,6 +12,7 @@ on:
       - feature/next-development
       - feature/blogger-proxy-integration
       - feature/download-engine-v2
+      - feature/marco-rx6-updates
 
 permissions:
   contents: write

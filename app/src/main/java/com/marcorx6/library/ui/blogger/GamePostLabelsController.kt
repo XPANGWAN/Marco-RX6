@@ -5,6 +5,7 @@ import android.graphics.drawable.Drawable
 import android.widget.Button
 import android.widget.Toast
 import android.app.AlertDialog
+import com.marcorx6.library.network.BloggerFeedParser
 
 internal data class GamePostLabelsUi(
     val button: Button,
@@ -22,7 +23,7 @@ internal class GamePostLabelsController(
     private val styleAlertDialog: (AlertDialog) -> Unit,
     private val translate: (String) -> String
 ) {
-    fun create(initialLabel: String?, isNewPost: Boolean): GamePostLabelsUi {
+    fun create(initialLabels: List<String>, isNewPost: Boolean): GamePostLabelsUi {
         val button = Button(activity).apply {
             text = translate("تحميل تسميات المدونة...")
             setTextColor(white())
@@ -47,14 +48,32 @@ internal class GamePostLabelsController(
             }
         }
 
-        if (!initialLabel.isNullOrBlank()) selectedLabels.add(initialLabel)
+        fun labelKey(value: String): String =
+            BloggerFeedParser.normalizePlatform(value)?.lowercase()
+                ?: value.trim().lowercase()
+
+        // Keep the original Blogger category labels when editing; the normalized
+        // platform value (for example PS4) is only a fallback, not another label.
+        selectedLabels.addAll(initialLabels.filter { it.isNotBlank() })
+
+        fun reconcileSelectedLabels() {
+            if (availableLabels.isEmpty()) return
+            val availableByKey = availableLabels.associateBy(::labelKey)
+            // Match aliases against Blogger's available terms, but never replace
+            // the user's original category name with a shortened alias (PS5, PS4, ...).
+            val availableKeys = availableByKey.keys
+            selectedLabels.retainAll { labelKey(it) in availableKeys }
+        }
 
         button.setOnClickListener {
             if (availableLabels.isEmpty()) {
                 Toast.makeText(activity, translate("لم يتم تحميل تسميات المدونة بعد"), Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val checked = BooleanArray(availableLabels.size) { availableLabels[it] in selectedLabels }
+            val selectedKeys = selectedLabels.map(::labelKey).toSet()
+            val checked = BooleanArray(availableLabels.size) {
+                labelKey(availableLabels[it]) in selectedKeys
+            }
             AlertDialog.Builder(activity)
                 .setTitle(translate("اختر أقسام المقال من المدونة"))
                 .setMultiChoiceItems(availableLabels.toTypedArray(), checked) { _, which, isChecked ->
@@ -70,7 +89,7 @@ internal class GamePostLabelsController(
                             postToUi {
                                 availableLabels.clear()
                                 availableLabels.addAll(latest)
-                                selectedLabels.retainAll(availableLabels.toSet())
+                                reconcileSelectedLabels()
                                 refreshButton()
                                 Toast.makeText(activity, translate("تم تحديث التسميات من المدونة") + " (${latest.size})", Toast.LENGTH_SHORT).show()
                             }
@@ -91,9 +110,7 @@ internal class GamePostLabelsController(
                 postToUi {
                     availableLabels.clear()
                     availableLabels.addAll(labels)
-                    if (isNewPost && selectedLabels.isEmpty() && labels.isNotEmpty()) {
-                        selectedLabels.add(labels.first())
-                    }
+                    reconcileSelectedLabels()
                     refreshButton()
                     button.isEnabled = labels.isNotEmpty()
                     if (labels.isEmpty()) {
