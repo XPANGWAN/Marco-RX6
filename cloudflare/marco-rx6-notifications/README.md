@@ -1,24 +1,36 @@
-# MARCO RX6 Cloudflare push sender
+# MARCO RX6 Push Service
 
-This Worker polls Firestore notification documents every minute and sends Firebase Cloud Messaging (FCM HTTP v1) data messages to the recipient's registered Android devices.
+A clean Cloudflare Worker for scheduled Blogger discovery and Firebase Cloud Messaging delivery.
 
-## Required configuration
+## Deployment
 
-1. Create/keep the Worker named `marco-rx6-notifications`.
-2. Set the encrypted Worker secret `FCM_SERVICE_ACCOUNT_JSON` to the service-account JSON already created for Firebase project `marco-rx6-v2`. Never commit this JSON or paste it into chat.
-3. In Google Cloud IAM, grant that service account:
-   - Firebase Cloud Messaging API Admin
-   - Cloud Datastore User (`roles/datastore.user`) so it can query notifications, read device tokens, and update delivery status.
-4. Add the Cron Trigger `*/1 * * * *` (once per minute).
-5. Deploy the contents of `worker.js`. The `/health` route only confirms that the Worker is running; it does not send a test push.
+- Worker name: `marco-rx6-notifications`
+- Build directory: `cloudflare/marco-rx6-notifications`
+- Deploy command: `npx wrangler deploy`
+- Cron: `*/1 * * * *`
+- Required encrypted secret: `FCM_SERVICE_ACCOUNT_JSON`
 
-## Firestore queue contract
+The JSON secret must belong to the dedicated service account
+`marco-rx6-notifications@marco-rx6-v2.iam.gserviceaccount.com`
+in project `marco-rx6-v2`. Never commit the JSON or share its private key.
 
-The app writes each new notification with `pushStatus: "pending"`. The Worker queries the `notifications` collection group, reads `users/{uid}/devices`, sends a data-only FCM message, then changes `pushStatus` to `sent`. If there are no registered devices it records `skipped_no_devices`. Temporary delivery failures are returned to `pending` for retry. Invalid FCM device tokens are removed.
+## Behavior
 
-## Important
+1. Polls the MARCO Blogger proxy feed every minute.
+2. On the first successful run, stores the newest post as a baseline and sends no historical alerts.
+3. Queues deterministic per-user notifications only for users with a device whose `blogNotificationsEnabled` flag is true.
+4. Sends pending Firestore notification documents through FCM HTTP v1.
+5. Blog notifications go only to opted-in devices; other app notifications go to all registered devices for that user.
+6. Updates delivery state to `sent` or `skipped_no_devices`; temporary failures remain pending for retry.
 
-- Deploy the updated Firestore rules from the repository after the matching app build is available.
-- Push delivery is at-least-once: if a Worker stops after FCM accepts a message but before Firestore records `sent`, a duplicate may be delivered on a later run.
-- Android 13+ users must grant notification permission. The app already checks that permission before displaying notifications.
-- Cloudflare Cron Triggers and Worker usage are subject to the current Free plan limits.
+## Endpoints
+
+- `/` returns `Use the scheduled trigger.`
+- `/health` returns a small readiness response. It does not validate Firebase credentials or send a push.
+
+## Required Google Cloud roles
+
+- Firebase Cloud Messaging API Admin
+- Cloud Datastore User (`roles/datastore.user`)
+
+Enable Firebase Cloud Messaging API and Cloud Firestore API in project `marco-rx6-v2`.

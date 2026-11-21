@@ -26,9 +26,9 @@ internal class FirebaseNotificationRepository(
         }
         return firestore.collection("users").document(uid)
             .collection("notifications")
-            // Do not orderBy createdAt on the server: legacy or externally-created
-            // notifications without that field are otherwise silently omitted.
-            .limit(100)
+            // Read the complete inbox before sorting locally. A server-side limit
+            // makes older documents enter the result whenever the user deletes one
+            // of the newest items, which looks like deleted notifications returning.
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     onError(error)

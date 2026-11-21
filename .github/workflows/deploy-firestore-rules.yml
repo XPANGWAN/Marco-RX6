@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/next-development
+      - feature/notifications-rebuild
     paths:
       - "firestore.rules"
       - "firebase.json"

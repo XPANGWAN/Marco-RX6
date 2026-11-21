@@ -298,7 +298,13 @@ class MainActivity : ComponentActivity() {
     private val gameEngagementRepository by lazy { GameEngagementRepository() }
 
     private val firebaseSessionCoordinator: FirebaseSessionCoordinator by lazy {
-        FirebaseSessionCoordinator()
+        FirebaseSessionCoordinator(
+            onAuthenticatedUser = {
+                // Re-register the FCM device after Firebase restores or changes
+                // the signed-in account, even if the first Activity sync ran too early.
+                FirebasePushTokenRepository(this).syncCurrentToken()
+            }
+        )
     }
     private val firebaseAuthRepository: FirebaseAuthRepository by lazy {
         FirebaseAuthRepository()
@@ -328,7 +334,7 @@ class MainActivity : ComponentActivity() {
                 createInterface()
             },
             onSignedIn = {
-                FirebasePushTokenRepository().syncCurrentToken()
+                FirebasePushTokenRepository(this).syncCurrentToken()
         com.marcorx6.library.ui.AppUpdateChecker.resumePendingUpdate(this)
                 // After authentication, open the editable account profile directly.
                 showFirebaseAccount()
@@ -597,7 +603,7 @@ class MainActivity : ComponentActivity() {
             applySystemBarAppearance = activityServicesRuntimeFeature::applySystemBarAppearance,
             createNotificationChannel = activityServicesRuntimeFeature::createNotificationChannel,
             loadGames = gameDataRuntimeFeature::loadGames,
-            restoreAdminSession = { googleAccountRuntimeFeature.isAdminSession = false; bloggerRuntimeFeature.refreshAccess() },
+            restoreAdminSession = { bloggerRuntimeFeature.refreshAccess() },
             createInterface = ::createInterface,
             showStartupExperience = { onStartupFinished ->
                 if (!startupExperienceShown) {
@@ -671,7 +677,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         com.marcorx6.library.ui.UiDiagnosticsMonitor.logLifecycle(this, "onResume")
-        FirebasePushTokenRepository().syncCurrentToken()
+        FirebasePushTokenRepository(this).syncCurrentToken()
         firebaseSessionCoordinator.ensureGuestSession()
         lifecycleCoordinator.onResume()
         // Check for a new stable APK quietly after the main screen settles.

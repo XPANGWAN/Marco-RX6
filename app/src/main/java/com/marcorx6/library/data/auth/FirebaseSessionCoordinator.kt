@@ -9,7 +9,8 @@ import com.google.firebase.auth.FirebaseAuth
  */
 internal class FirebaseSessionCoordinator(
     private val authRepository: FirebaseAuthRepository = FirebaseAuthRepository(),
-    private val userDocuments: FirebaseUserDocumentRepository = FirebaseUserDocumentRepository()
+    private val userDocuments: FirebaseUserDocumentRepository = FirebaseUserDocumentRepository(),
+    private val onAuthenticatedUser: () -> Unit = {}
 ) {
     private var authListener: FirebaseAuth.AuthStateListener? = null
     private var guestSignInInProgress = false
@@ -17,7 +18,10 @@ internal class FirebaseSessionCoordinator(
     fun start() {
         if (authListener == null) {
             val listener = FirebaseAuth.AuthStateListener { auth ->
-                auth.currentUser?.let(::syncUserDocument)
+                auth.currentUser?.let { user ->
+                    syncUserDocument(user)
+                    if (!user.isAnonymous) onAuthenticatedUser()
+                }
             }
             authListener = listener
             authRepository.addAuthStateListener(listener)
