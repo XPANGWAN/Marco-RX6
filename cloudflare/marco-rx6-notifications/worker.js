@@ -231,7 +231,10 @@ async function queueBlogPost(env, userId, post) {
     } })
   });
   if (!response.ok && response.status !== 409) {
-    throw new Error("Unable to queue Blogger post (" + response.sasync function fetchBloggerPage(startIndex) {
+    throw new Error("Unable to queue Blogger post (" + response.status + "): " + (await response.text()).slice(0, 300));
+  }
+}
+async function fetchBloggerPage(startIndex) {
   const url = new URL(FEED_URL);
   url.searchParams.set("start-index", String(startIndex));
   const response = await fetch(url.toString(), { headers: { accept: "application/json" } });
@@ -255,7 +258,6 @@ async function pollBlogger(env) {
     return { queued: 0, baseline: true };
   }
 
-  // Walk older Blogger pages until the saved cursor is found.
   const scanned = [...firstPage];
   let previousIndex = scanned.findIndex(post => post.id === previous);
   let pagesFetched = 1;
@@ -270,13 +272,15 @@ async function pollBlogger(env) {
   }
 
   if (previousIndex < 0) {
-    // Do not advance the cursor: that would silently lose unseen posts.
     console.warn("MARCO Blogger cursor not found after paginated scan; preserving cursor", JSON.stringify({
       visiblePosts: scanned.length,
       pagesFetched,
       cursorPreserved: true
     }));
-    return { queued: 0, baseline: false, cursorGap: true, scannedPosts: scanned.length, pagesFetched, cursorPreserved: true };
+    return {
+      queued: 0, baseline: false, cursorGap: true,
+      scannedPosts: scanned.length, pagesFetched, cursorPreserved: true
+    };
   }
   if (previousIndex === 0) return { queued: 0, baseline: false, pagesFetched };
 
@@ -289,14 +293,14 @@ async function pollBlogger(env) {
     pagesFetched
   }));
   if (users.length === 0) return {
-    queued: 0, baseline: false, awaitingOptedInUsers: true, freshPosts: fresh.length, pagesFetched
+    queued: 0, baseline: false, awaitingOptedInUsers: true,
+    freshPosts: fresh.length, pagesFetched
   };
   for (const post of fresh.reverse()) {
     for (const userId of users) await queueBlogPost(env, userId, post);
   }
   await saveBlogCursor(env, newest.id);
   return { queued: fresh.length * users.length, baseline: false, cursorGap: false, pagesFetched };
-}.length * users.length, baseline: false, cursorGap: false };
 }
 async function listDevices(env, userId, blogOnly) {
   const token = await accessToken(env);
