@@ -246,6 +246,8 @@ class LanguageTranslatorTest {
         assertEquals("التطبيقات والأدوات", LanguageTranslator.translate("التطبيقات والادوات", "ar"))
         assertEquals("صور رمزية", LanguageTranslator.translate("افتارات", "ar"))
         assertEquals("السمات", LanguageTranslator.translate("ثيمات", "ar"))
+        assertEquals("Avatars", LanguageTranslator.translate("صور رمزية", "en"))
+        assertEquals("Thèmes", LanguageTranslator.translate("السمات", "fr"))
     }
 
     @Test
