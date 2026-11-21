@@ -205,7 +205,7 @@ class LanguageTranslatorTest {
             "معرّف المتابعة غير صالح" to listOf("Invalid follow ID", "Identifiant d’abonnement invalide", "ID de seguimiento no válido"),
             "متابع جديد" to listOf("New follower", "Nouvel abonné", "Nuevo seguidor"),
             "بدأ هذا المستخدم بمتابعتك" to listOf("This user started following you", "Cet utilisateur a commencé à vous suivre", "Este usuario ha empezado a seguirte"),
-            "تعذر تحميل حالة المتابعة" to listOf("Could not load follow status", "Impossible de charger le statut de suivi", "No se pudo cargar el estado de seguimiento"),
+            "تعذر تحميل حالة المتابعة" to listOf("Could not load follow status", "Impossible de charger le statut du suivi", "No se pudo cargar el estado del seguimiento"),
             "تعذر تحميل إحصائيات المتابعة" to listOf("Could not load follow statistics", "Impossible de charger les statistiques de suivi", "No se pudieron cargar las estadísticas de seguimiento"),
             "تعذر قراءة إعدادات الملف" to listOf("Could not read profile settings", "Impossible de lire les paramètres du profil", "No se pudieron leer los ajustes del perfil"),
             "تعذر تحديث إحصائيات المتابعة" to listOf("Could not update follow statistics", "Impossible de mettre à jour les statistiques de suivi", "No se pudieron actualizar las estadísticas de seguimiento"),
