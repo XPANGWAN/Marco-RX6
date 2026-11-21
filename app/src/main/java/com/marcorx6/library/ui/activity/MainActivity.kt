@@ -116,8 +116,10 @@ class MainActivity : ComponentActivity() {
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         val screenHost = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(if (isDarkMode()) android.graphics.Color.rgb(8, 9, 12)
-                else android.graphics.Color.rgb(245, 247, 250))
+            // Use the exact same computed surface as the rest of the app. This keeps
+            // the page host, system-bar backing and cards visually coherent for every
+            // selected accent instead of leaving a fixed neutral strip behind pages.
+            setBackgroundColor(bg)
         }
         screenHost.addView(createApplicationTopBar())
 
@@ -182,12 +184,14 @@ class MainActivity : ComponentActivity() {
         val surfaceBase = if (dark) android.graphics.Color.rgb(8, 9, 12)
             else android.graphics.Color.rgb(245, 247, 250)
         // The top bar is a visible primary-brand surface, not a neutral strip.
-        val surface = com.marcorx6.library.ui.AccentPalette.surface(surfaceBase, red, 0.32f)
+        val accentId = appearancePaletteFeature.accentId()
+        val surface = com.marcorx6.library.ui.AccentPalette.surface(surfaceBase, red, 0.32f, accentId)
         val foreground = if (dark) android.graphics.Color.rgb(238, 241, 246)
             else android.graphics.Color.rgb(25, 29, 36)
         val silver = red
-        val stroke = if (dark) android.graphics.Color.rgb(105, 113, 126)
+        val strokeBase = if (dark) android.graphics.Color.rgb(105, 113, 126)
             else android.graphics.Color.rgb(174, 181, 191)
+        val stroke = com.marcorx6.library.ui.AccentPalette.surface(strokeBase, red, 0.28f, accentId)
 
         val topBar = LinearLayout(this).apply {
             tag = "marco_primary_topbar"
@@ -221,7 +225,7 @@ class MainActivity : ComponentActivity() {
                 background = android.graphics.drawable.GradientDrawable().apply {
                     val actionBase = if (dark) android.graphics.Color.rgb(25, 28, 34)
                         else android.graphics.Color.rgb(232, 235, 240)
-                    setColor(com.marcorx6.library.ui.AccentPalette.surface(actionBase, red, 0.30f))
+                    setColor(com.marcorx6.library.ui.AccentPalette.surface(actionBase, red, 0.30f, accentId))
                     cornerRadius = dp(13).toFloat()
                     setStroke(dp(1), android.graphics.Color.argb(190,
                         android.graphics.Color.red(red), android.graphics.Color.green(red), android.graphics.Color.blue(red)))
@@ -241,7 +245,7 @@ class MainActivity : ComponentActivity() {
                         android.graphics.drawable.GradientDrawable().apply {
                             val actionBase = if (dark) android.graphics.Color.rgb(25, 28, 34)
                                 else android.graphics.Color.rgb(232, 235, 240)
-                            setColor(com.marcorx6.library.ui.AccentPalette.surface(actionBase, red, 0.30f))
+                            setColor(com.marcorx6.library.ui.AccentPalette.surface(actionBase, red, 0.30f, accentId))
                             cornerRadius = dp(13).toFloat()
                             setStroke(dp(1), stroke)
                         },
