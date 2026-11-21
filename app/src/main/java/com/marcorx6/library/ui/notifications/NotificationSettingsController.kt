@@ -28,9 +28,9 @@ internal class NotificationSettingsController(
                 if (enabled && !systemPermissionEnabled)
                     translate("جدولة الإشعارات مفعّلة، لكن إشعارات التطبيق محظورة من إعدادات Android. اسمح بها من إعدادات التطبيق لتصلك التنبيهات.")
                 else if (enabled)
-                    translate("الإشعارات مفعّلة. يتحقق تطبيق MARCO من مدونتك دورياً وينبهك عند نشر مقال جديد.")
+                    translate("الإشعارات مفعّلة. يراقب خادم MARCO المدونة ويرسل إليك تنبيهاً عند نشر لعبة جديدة.")
                 else
-                    translate("الإشعارات متوقفة. فعّلها ليصلك تنبيه عند نشر مقال جديد.")
+                    translate("الإشعارات متوقفة. فعّلها ليصلك تنبيه عند نشر لعبة جديدة.")
             )
             .setPositiveButton(translate(when {
                 enabled && !systemPermissionEnabled -> "فتح إعدادات الإشعارات"
