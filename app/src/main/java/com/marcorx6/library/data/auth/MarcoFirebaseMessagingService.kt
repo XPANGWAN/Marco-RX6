@@ -180,7 +180,7 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
                 return null
             }
             var sample = 1
-            while (bounds.outWidth / sample > 1200 || bounds.outHeight / sample > 1200) sample *= 2
+            while (bounds.outWidth / sample > 1600 || bounds.outHeight / sample > 1600) sample *= 2
             val bitmap = BitmapFactory.decodeByteArray(
                 bytes, 0, bytes.size,
                 BitmapFactory.Options().apply { inSampleSize = sample }
@@ -196,7 +196,7 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     private companion object {
-        const val MAX_NOTIFICATION_IMAGE_BYTES = 4L * 1024L * 1024L
+        const val MAX_NOTIFICATION_IMAGE_BYTES = 6L * 1024L * 1024L
     }
 
     private fun ensureChannel(channelId: String) {
