@@ -64,6 +64,14 @@ internal class BloggerRuntimeFeature(
 ) {
     private var syncing = false
 
+    // Refresh the public Blogger feed when users return to MARCO, but avoid
+    // repeatedly requesting the paginated feed during rapid screen/app switches.
+    private val autoSyncPreferences = activity.getSharedPreferences(
+        "blogger_sync_state",
+        android.content.Context.MODE_PRIVATE
+    )
+    private val autoSyncIntervalMillis = 15L * 60L * 1000L
+
     val isSyncing: Boolean get() = syncing
 
     private val bloggerAccessFeature by lazy {
@@ -160,7 +168,25 @@ internal class BloggerRuntimeFeature(
     }
 
     fun refreshAccess() = bloggerAccessFeature.refresh()
-    fun sync(showResult: Boolean) = blogSyncFeature.sync(showResult)
+
+    fun sync(showResult: Boolean) {
+        if (!syncing) {
+            autoSyncPreferences.edit()
+                .putLong("last_sync_attempt", System.currentTimeMillis())
+                .apply()
+        }
+        blogSyncFeature.sync(showResult)
+    }
+
+    /** Runs a quiet feed refresh only when the previous attempt is at least 15 minutes old. */
+    fun syncIfStale() {
+        if (syncing) return
+        val lastAttempt = autoSyncPreferences.getLong("last_sync_attempt", 0L)
+        val now = System.currentTimeMillis()
+        if (lastAttempt == 0L || now - lastAttempt >= autoSyncIntervalMillis) {
+            sync(showResult = false)
+        }
+    }
     fun showComposer(existing: Game? = null) = bloggerPostFeature.showComposer(existing)
     fun delete(game: Game) = bloggerPostFeature.delete(game)
 }
