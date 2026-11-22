@@ -36,8 +36,8 @@ internal class GameLibraryRenderer(
         val colors: List<Int>,
         val darkMode: Boolean,
         val gameLabel: String,
-        // Compact fingerprint detects in-place metadata edits without allocating
-        // several temporary lists and joined strings for every game on each render.
+        // Game records are immutable; this fingerprint only tracks the potentially
+        // mutable Blogger labels collection without hashing large article bodies.
         val filterDataFingerprint: Long
     )
 
