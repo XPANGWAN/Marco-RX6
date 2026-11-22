@@ -188,15 +188,15 @@ internal class GameDetailsIdentityViewFactory(
                         }
                     }
                     val iconResource = when (item.first) {
-                        "الحجم" -> android.R.drawable.ic_menu_manage
-                        "النسخة" -> android.R.drawable.ic_menu_info_details
-                        "الصيغة" -> android.R.drawable.ic_menu_save
-                        "اللغة" -> android.R.drawable.ic_menu_set_as
-                        "كلمة السر" -> android.R.drawable.ic_lock_lock
-                        "الحقوق" -> android.R.drawable.ic_menu_myplaces
-                        "النوع" -> android.R.drawable.ic_menu_sort_by_size
-                        "سنة الإصدار" -> android.R.drawable.ic_menu_recent_history
-                        else -> android.R.drawable.ic_menu_info_details
+                        "الحجم" -> com.marcorx6.library.R.drawable.ic_game_info_size
+                        "النسخة" -> com.marcorx6.library.R.drawable.ic_game_info_version
+                        "الصيغة" -> com.marcorx6.library.R.drawable.ic_game_info_format
+                        "اللغة" -> com.marcorx6.library.R.drawable.ic_game_info_language
+                        "كلمة السر" -> com.marcorx6.library.R.drawable.ic_game_info_password
+                        "الحقوق" -> com.marcorx6.library.R.drawable.ic_game_info_credits
+                        "النوع" -> com.marcorx6.library.R.drawable.ic_game_info_genre
+                        "سنة الإصدار" -> com.marcorx6.library.R.drawable.ic_game_info_release_year
+                        else -> com.marcorx6.library.R.drawable.ic_game_info_format
                     }
                     val icon = ImageView(activity).apply {
                         setImageResource(iconResource)
