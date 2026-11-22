@@ -263,6 +263,20 @@ class MainActivity : ComponentActivity() {
         ) { firebaseAccountController.openNotificationsFromLibrary() },
             LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginStart = dp(6) })
         row.addView(action(
+            R.drawable.ic_action_community, tr("قنوات المجتمع")
+        ) {
+            com.marcorx6.library.ui.CommunityChannelsController(
+                activity = this,
+                dp = ::dp,
+                makeText = ::makeText,
+                translate = ::tr,
+                isDarkMode = ::isDarkMode,
+                red = { red },
+                showRootScreen = ::showRootScreen,
+                onBack = ::createInterface
+            ).showDirectory()
+        }, LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginStart = dp(6) })
+        row.addView(action(
             R.drawable.ic_action_settings, tr("الإعدادات")
         ) { appearanceRuntimeFeature.showAppearanceSettings() },
             LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginStart = dp(6) })
