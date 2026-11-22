@@ -34,3 +34,13 @@ in project `marco-rx6-v2`. Never commit the JSON or share its private key.
 - Cloud Datastore User (`roles/datastore.user`)
 
 Enable Firebase Cloud Messaging API and Cloud Firestore API in project `marco-rx6-v2`.
+
+
+## App update notifications
+
+- Every scheduled cycle checks the public GitHub latest stable release for `XPANGWAN/Marco-RX6`.
+- The first cycle stores the current release as a baseline and deliberately sends no historical update alert.
+- When a new stable release tag appears, one deterministic notification is queued per user with at least one Android device opted into notifications.
+- App update alerts are delivered only to opted-in Android devices and include the trusted GitHub Release page URL.
+- Tapping an app update alert opens that release page; Blogger and other notifications continue to open MARCO.
+- No extra webhook secret or manual release action is required. The existing Firebase service-account secret and one-minute Worker cron are reused.
