@@ -174,7 +174,7 @@ internal class CommunityChannelsController(
             orientation = LinearLayout.VERTICAL
             setPadding(0, dp(2), 0, dp(16))
         }
-        scroll.addView(content, android.widget.ScrollView.LayoutParams(-1, -2))
+        scroll.addView(content, FrameLayout.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val thanks = LinearLayout(activity).apply {
