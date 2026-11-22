@@ -3,6 +3,17 @@ package com.marcorx6.library.ui
 /** Centralized static translations for the app interface. */
 internal object LanguageTranslator {
     private val translations = mapOf(
+            "قنوات المجتمع" to listOf("Community channels", "Chaînes de la communauté", "Canales de la comunidad"),
+            "شكراً لأنك جزء من مجتمع MARCO" to listOf("Thank you for being part of the MARCO community", "Merci de faire partie de la communauté MARCO", "Gracias por formar parte de la comunidad MARCO"),
+            "وجودك ودعمك يعنيان لنا الكثير. أنشأنا هذه المساحة لتبقى قريباً من مجتمعنا وتتابع كل جديد. شكراً لثقتك بنا." to listOf("Your presence and support mean a lot to us. We created this space to keep you close to our community and up to date. Thank you for trusting us.", "Votre présence et votre soutien comptent beaucoup pour nous. Nous avons créé cet espace pour vous rapprocher de notre communauté et vous tenir au courant. Merci de votre confiance.", "Tu presencia y tu apoyo significan mucho para nosotros. Creamos este espacio para mantenerte cerca de nuestra comunidad y al día. Gracias por confiar en nosotros."),
+            "قنواتنا الرسمية" to listOf("Our official channels", "Nos chaînes officielles", "Nuestros canales oficiales"),
+            "قناة أخبار ومحتوى PlayStation 3" to listOf("PlayStation 3 news and content channel", "Chaîne d’actualités et de contenu PlayStation 3", "Canal de noticias y contenido de PlayStation 3"),
+            "قناة أخبار ومحتوى PlayStation 4" to listOf("PlayStation 4 news and content channel", "Chaîne d’actualités et de contenu PlayStation 4", "Canal de noticias y contenido de PlayStation 4"),
+            "قناة أخبار ومحتوى PlayStation 5" to listOf("PlayStation 5 news and content channel", "Chaîne d’actualités et de contenu PlayStation 5", "Canal de noticias y contenido de PlayStation 5"),
+            "مساحة مجتمع MARCO والنقاشات" to listOf("MARCO community and discussions", "Communauté MARCO et discussions", "Comunidad MARCO y debates"),
+            "فيديوهات وشروحات MARCO" to listOf("MARCO videos and tutorials", "Vidéos et tutoriels MARCO", "Vídeos y tutoriales de MARCO"),
+            "شكراً لوجودك معنا. مجتمع MARCO يكبر بدعمك." to listOf("Thank you for being with us. The MARCO community grows with your support.", "Merci d’être parmi nous. La communauté MARCO grandit grâce à votre soutien.", "Gracias por acompañarnos. La comunidad MARCO crece con tu apoyo."),
+            "جارٍ الاتصال بمدونة MARCO RX6..." to listOf("Connecting to the MARCO RX6 blog…", "Connexion au blog MARCO RX6…", "Conectando con el blog MARCO RX6…"),
             "نسخة الجهاز" to listOf("Device variant", "Version de l’appareil", "Versión del dispositivo"),
             "سيتم تنزيل النسخة المناسبة مباشرة داخل التطبيق" to listOf("The matching APK will download directly inside the app", "La version adaptée sera téléchargée directement dans l’application", "La versión compatible se descargará directamente en la aplicación"),
             "جارٍ تنزيل تحديث التطبيق" to listOf("Downloading app update", "Téléchargement de la mise à jour", "Descargando actualización de la aplicación"),
