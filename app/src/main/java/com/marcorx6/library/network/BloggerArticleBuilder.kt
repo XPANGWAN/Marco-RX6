@@ -57,6 +57,10 @@ internal object BloggerArticleBuilder {
             """<p><a href=""" + "\"" + escape(item.second) + "\" target=\"_blank\">" +
                 escape(item.first) + "</a></p>"
         }
+        val linksSection = if (links.isNotEmpty()) {
+            """<h3 style="color: #8b5cf6;">روابط التحميل المباشرة:</h3>
+              $linksHtml"""
+        } else ""
 
         val coverUrlSafe = safeImageUrl(coverUrl)
         val coverHtml = if (coverUrlSafe.isNotBlank()) {
@@ -100,8 +104,7 @@ internal object BloggerArticleBuilder {
               </ul>
               $galleryHtml
               $youtubeHtml
-              ${if (links.isNotEmpty()) """<h3 style="color: #8b5cf6;">روابط التحميل المباشرة:</h3>
-              $linksHtml""" else ""}
+              $linksSection
             </div>
         """.trimIndent()
     }
