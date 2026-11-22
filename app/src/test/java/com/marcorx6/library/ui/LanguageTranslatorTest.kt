@@ -630,4 +630,24 @@ class LanguageTranslatorTest {
             assertEquals(source, LanguageTranslator.translate(source, "ar"))
         }
     }
+
+    @Test
+    fun translatesCommunityDirectoryIntoAllSupportedLanguages() {
+        val cases = listOf(
+            "قنوات المجتمع" to listOf("Community channels", "Chaînes de la communauté", "Canales de la comunidad"),
+            "شكراً لأنك جزء من مجتمع MARCO" to listOf("Thank you for being part of the MARCO community", "Merci de faire partie de la communauté MARCO", "Gracias por formar parte de la comunidad MARCO"),
+            "قنواتنا الرسمية" to listOf("Our official channels", "Nos chaînes officielles", "Nuestros canales oficiales"),
+            "قناة أخبار ومحتوى PlayStation 3" to listOf("PlayStation 3 news and content channel", "Chaîne d’actualités et de contenu PlayStation 3", "Canal de noticias y contenido de PlayStation 3"),
+            "قناة أخبار ومحتوى PlayStation 4" to listOf("PlayStation 4 news and content channel", "Chaîne d’actualités et de contenu PlayStation 4", "Canal de noticias y contenido de PlayStation 4"),
+            "قناة أخبار ومحتوى PlayStation 5" to listOf("PlayStation 5 news and content channel", "Chaîne d’actualités et de contenu PlayStation 5", "Canal de noticias y contenido de PlayStation 5"),
+            "مساحة مجتمع MARCO والنقاشات" to listOf("MARCO community and discussions", "Communauté MARCO et discussions", "Comunidad MARCO y debates"),
+            "فيديوهات وشروحات MARCO" to listOf("MARCO videos and tutorials", "Vidéos et tutoriels MARCO", "Vídeos y tutoriales de MARCO")
+        )
+        cases.forEach { (source, expected) ->
+            assertEquals(expected[0], LanguageTranslator.translate(source, "en"))
+            assertEquals(expected[1], LanguageTranslator.translate(source, "fr"))
+            assertEquals(expected[2], LanguageTranslator.translate(source, "es"))
+            assertEquals(source, LanguageTranslator.translate(source, "ar"))
+        }
+    }
 }
