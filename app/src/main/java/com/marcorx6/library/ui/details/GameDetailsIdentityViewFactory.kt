@@ -7,6 +7,7 @@ import android.text.Html
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.view.View
 import com.marcorx6.library.data.Game
 
 internal class GameDetailsIdentityViewFactory(
