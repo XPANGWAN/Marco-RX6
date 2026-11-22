@@ -47,12 +47,32 @@ internal class GameLibraryRenderer(
             hash = (hash xor value.toLong()) * 0x100000001b3L
         }
         games.forEach { game ->
+            // Include every field that can affect the visible card or its details.
+            // Blogger can update an existing post's cover, links, or metadata while
+            // callers retain the same list/object references; a partial fingerprint
+            // would incorrectly skip the redraw and leave stale content on screen.
             mix(game.name.hashCode())
             mix(game.platform.hashCode())
+            mix(game.description.hashCode())
+            mix(game.url.hashCode())
+            mix(game.coverUrl.hashCode())
+            mix(game.coverLocalPath.hashCode())
+            mix(game.sourcePostUrl.hashCode())
+            mix(game.downloadLinks.hashCode())
+            mix(game.bloggerPostId.hashCode())
+            mix(game.bloggerHtml.hashCode())
             mix(game.genre.hashCode())
             mix(game.releaseYear.hashCode())
+            mix(game.packageSize.hashCode())
+            mix(game.version.hashCode())
+            mix(game.fileFormat.hashCode())
+            mix(game.language.hashCode())
+            mix(game.password.hashCode())
+            mix(game.rights.hashCode())
+            game.bloggerLabels.forEach { mix(it.hashCode()) }
             mix(if (game.isFavorite) 1 else 0)
             mix(if (game.blogImported) 1 else 0)
+            mix(if (game.platformManuallyCorrected) 1 else 0)
         }
         return hash
     }
