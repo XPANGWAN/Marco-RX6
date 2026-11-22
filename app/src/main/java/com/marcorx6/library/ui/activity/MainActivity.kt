@@ -694,6 +694,11 @@ class MainActivity : ComponentActivity() {
         FirebasePushTokenRepository(this).syncCurrentToken()
         firebaseSessionCoordinator.ensureGuestSession()
         lifecycleCoordinator.onResume()
+        // Refresh edited Blogger posts when the user returns after the sync cooldown.
+        // The existing Blogger proxy endpoint and its cache configuration are untouched.
+        if (userExperienceRuntimeFeature.isSetupCompleted()) {
+            bloggerRuntimeFeature.syncIfStale()
+        }
         // Check for a new stable APK quietly after the main screen settles.
         // The checker itself limits successful automatic checks to once every 15 minutes.
         automaticUpdateCheckHandler.removeCallbacks(automaticUpdateCheckRunnable)
