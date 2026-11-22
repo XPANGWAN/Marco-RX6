@@ -392,17 +392,21 @@ async function sendOne(env, notification) {
   return delivered ? "sent" : "skipped";
 }
 async function getLatestRelease() {
-  const response = await fetch("https://api.github.com/repos/XPANGWAN/Marco-RX6/releases/latest", {
-    headers: { accept: "application/vnd.github+json", "user-agent": "MARCO-RX6-Notifications" }
+  // GitHub's public Atom feed avoids unauthenticated REST API rate limits
+  // while this Worker checks once per minute.
+  const response = await fetch("https://github.com/XPANGWAN/Marco-RX6/releases.atom", {
+    headers: { accept: "application/atom+xml", "user-agent": "MARCO-RX6-Notifications" }
   });
-  if (!response.ok) throw new Error("GitHub latest release returned HTTP " + response.status);
-  const release = await response.json();
-  const tag = String(release.tag_name || "").trim();
-  const url = String(release.html_url || "").trim();
-  if (!tag || !/^https:\/\/github\.com\/XPANGWAN\/Marco-RX6\/releases\//i.test(url)) {
-    throw new Error("GitHub latest release metadata is incomplete or has an unexpected URL");
+  if (!response.ok) throw new Error("GitHub releases feed returned HTTP " + response.status);
+  const xml = await response.text();
+  const entry = xml.match(/<entry\\b[^>]*>([\\s\\S]*?)<\\/entry>/i)?.[1] || "";
+  const url = entry.match(/<link\\b[^>]*href=["']([^"']+)["'][^>]*>/i)?.[1] || "";
+  const title = decodeHtml(entry.match(/<title(?:\\s+type=["'][^"']+["'])?>([\\s\\S]*?)<\\/title>/i)?.[1] || "").trim();
+  const tag = url.match(/\\/releases\\/tag\\/([^/?#]+)/i)?.[1] || "";
+  if (!tag || !/^https:\\/\\/github\\.com\\/XPANGWAN\\/Marco-RX6\\/releases\\/tag\\//i.test(url)) {
+    throw new Error("GitHub releases feed has no valid latest release entry");
   }
-  return { tag, name: String(release.name || tag).slice(0, 100), url };
+  return { tag: decodeURIComponent(tag), name: (title || decodeURIComponent(tag)).slice(0, 100), url };
 }
 async function getAppUpdateCursor(env) {
   const result = await google(env, "notificationControl/appUpdates");
