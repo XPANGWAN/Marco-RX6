@@ -100,8 +100,8 @@ internal object BloggerArticleBuilder {
               </ul>
               $galleryHtml
               $youtubeHtml
-              <h3 style="color: #8b5cf6;">روابط التحميل المباشرة:</h3>
-              $linksHtml
+              ${if (links.isNotEmpty()) """<h3 style="color: #8b5cf6;">روابط التحميل المباشرة:</h3>
+              $linksHtml""" else ""}
             </div>
         """.trimIndent()
     }
