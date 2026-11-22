@@ -399,11 +399,11 @@ async function getLatestRelease() {
   });
   if (!response.ok) throw new Error("GitHub releases feed returned HTTP " + response.status);
   const xml = await response.text();
-  const entry = xml.match(/<entry\\b[^>]*>([\\s\\S]*?)<\\/entry>/i)?.[1] || "";
-  const url = entry.match(/<link\\b[^>]*href=["']([^"']+)["'][^>]*>/i)?.[1] || "";
-  const title = decodeHtml(entry.match(/<title(?:\\s+type=["'][^"']+["'])?>([\\s\\S]*?)<\\/title>/i)?.[1] || "").trim();
-  const tag = url.match(/\\/releases\\/tag\\/([^/?#]+)/i)?.[1] || "";
-  if (!tag || !/^https:\\/\\/github\\.com\\/XPANGWAN\\/Marco-RX6\\/releases\\/tag\\//i.test(url)) {
+  const entry = xml.match(/<entry\b[^>]*>([\s\S]*?)<\/entry>/i)?.[1] || "";
+  const url = entry.match(/<link\b[^>]*href=["']([^"']+)["'][^>]*>/i)?.[1] || "";
+  const title = decodeHtml(entry.match(/<title(?:\s+type=["'][^"']+["'])?>([\s\S]*?)<\/title>/i)?.[1] || "").trim();
+  const tag = url.match(/\/releases\/tag\/([^/?#]+)/i)?.[1] || "";
+  if (!tag || !/^https:\/\/github\.com\/XPANGWAN\/Marco-RX6\/releases\/tag\//i.test(url)) {
     throw new Error("GitHub releases feed has no valid latest release entry");
   }
   return { tag: decodeURIComponent(tag), name: (title || decodeURIComponent(tag)).slice(0, 100), url };
