@@ -474,10 +474,6 @@ internal class BloggerPostComposerController(
                     if (youtubeVideo.text.toString().isNotBlank() && youtubeId == null) return@setOnClickListener
                     val linksJson = collectLinks() ?: return@setOnClickListener
                     val firstUrl = try { JSONArray(linksJson).optJSONObject(0)?.optString("url").orEmpty() } catch (_: Exception) { "" }
-                    if (firstUrl.isBlank()) {
-                        Toast.makeText(activity, translate("أضف رابط تحميل واحداً على الأقل قبل المعاينة"), Toast.LENGTH_LONG).show()
-                        return@setOnClickListener
-                    }
                     val web = previewFactory.create(
                         title = title.text.toString(),
                         labels = selectedLabels.joinToString("، "),
@@ -515,10 +511,6 @@ internal class BloggerPostComposerController(
                     val coverLink = coverUrl.text.toString().trim()
                     val linksJson = collectLinks() ?: return@setOnClickListener
                     val firstUrl = try { JSONArray(linksJson).optJSONObject(0)?.optString("url").orEmpty() } catch (_: Exception) { "" }
-                    if (firstUrl.isBlank()) {
-                        Toast.makeText(activity, translate("أضف رابط تحميل واحداً على الأقل قبل النشر"), Toast.LENGTH_LONG).show()
-                        return@setOnClickListener
-                    }
                     val pendingLocalPath = pendingCoverLocalPath()
                     val validationFailure = BloggerPostInputValidator.validate(
                         coverUploadInProgress = coverUploadInProgress(),
