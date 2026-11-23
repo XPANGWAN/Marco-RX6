@@ -7,6 +7,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -55,22 +56,30 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
 
         val channelId = "marco_social_updates"
         ensureChannel(channelId)
-        // Route every push tap through MainActivity. It opens the official
-        // download page for app updates and safely handles other notification types.
-        val openApp = Intent(this, MainActivity::class.java).apply {
-            action = "com.marcorx6.library.OPEN_PUSH_NOTIFICATION"
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP
-            data.forEach { (key, value) -> putExtra("push_$key", value) }
-            if (data["type"] == "app_update") {
-                putExtra("push_releaseUrl", "https://marcorx6app.dpdns.org/#download")
+        // App-update notifications open the official download page directly.
+        // Other notification types continue to open MARCO as before.
+        val isAppUpdate = data["type"] == "app_update"
+        val notificationIntent = if (isAppUpdate) {
+            Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse(OFFICIAL_DOWNLOAD_URL)
+            ).apply {
+                addCategory(Intent.CATEGORY_BROWSABLE)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+        } else {
+            Intent(this, MainActivity::class.java).apply {
+                action = "com.marcorx6.library.OPEN_PUSH_NOTIFICATION"
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+                data.forEach { (key, value) -> putExtra("push_$key", value) }
             }
         }
         val pendingIntent = PendingIntent.getActivity(
             this,
             (System.currentTimeMillis() % Int.MAX_VALUE).toInt(),
-            openApp,
+            notificationIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val builder = NotificationCompat.Builder(this, channelId)
@@ -205,6 +214,7 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
 
     private companion object {
         const val MAX_NOTIFICATION_IMAGE_BYTES = 8L * 1024L * 1024L
+        const val OFFICIAL_DOWNLOAD_URL = "https://marcorx6app.dpdns.org/#download"
     }
 
     private fun ensureChannel(channelId: String) {

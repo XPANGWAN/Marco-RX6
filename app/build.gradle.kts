@@ -12,7 +12,7 @@ android {
 
     buildFeatures { buildConfig = true }
 
-    // MARCO 8.42: verify app-update notification tap navigation to the official download page.
+    // MARCO 8.43: open app-update notification links directly in the browser.
     splits {
         abi {
             isEnable = true
@@ -27,8 +27,8 @@ android {
         applicationId = "com.marcorx6.library"
         minSdk = 26
         targetSdk = 36
-        versionCode = 59
-        versionName = "8.42"
+        versionCode = 60
+        versionName = "8.43"
         ndk { abiFilters += setOf("arm64-v8a", "armeabi-v7a") }
     }
 

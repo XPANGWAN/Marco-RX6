@@ -138,8 +138,8 @@ When reporting a problem, include your app version, Android version, device mode
 | Application name | MARCO RX6 |
 | Android application ID | `com.marcorx6.library` |
 | Latest app version | [See the latest GitHub release](https://github.com/XPANGWAN/Marco-RX6/releases/latest) |
-| Version configured in the current source | 8.42 (version code 59) |
-| Version code | 59 |
+| Version configured in the current source | 8.43 (version code 60) |
+| Version code | 60 |
 | Minimum Android | 8.0 (API 26) |
 | Compile / target SDK | 36 |
 | Main development language | Kotlin |
@@ -289,8 +289,8 @@ The project integrates Android platform components and services including Fireba
 |---|---|
 | اسم التطبيق | MARCO RX6 |
 | معرّف تطبيق Android | `com.marcorx6.library` |
-| إصدار المصدر الحالي | 8.42 |
-| رمز الإصدار | 59 |
+| إصدار المصدر الحالي | 8.43 |
+| رمز الإصدار | 60 |
 | الحد الأدنى لـ Android | 8.0 (API 26) |
 | Compile / Target SDK | 36 |
 | لغة التطوير الأساسية | Kotlin |
