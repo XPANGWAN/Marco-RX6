@@ -33,9 +33,16 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
         val data = message.data
-        val notificationKey = data["notificationId"]?.takeIf { it.isNotBlank() }
+        val rawNotificationKey = data["notificationId"]?.takeIf { it.isNotBlank() }
             ?: message.messageId?.takeIf { it.isNotBlank() }
             ?: "${data["type"].orEmpty()}:${data["title"].orEmpty()}:${data["body"].orEmpty()}"
+        // A release can reach the same installation through more than one
+        // registered FCM token or a retried server delivery. Collapse every
+        // app-update push for the same version into one durable local key.
+        val notificationKey = if (data["type"] == "app_update") {
+            val version = data["version"]?.takeIf { it.isNotBlank() }
+            if (version != null) "app_update:$version" else rawNotificationKey
+        } else rawNotificationKey
         val title = data["title"]?.take(80)
             ?: message.notification?.title?.take(80)
             ?: "MARCO"
