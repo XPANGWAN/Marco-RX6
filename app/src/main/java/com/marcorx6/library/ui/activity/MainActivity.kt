@@ -707,6 +707,28 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleDownloadNotificationIntent() {
+        if (intent.getStringExtra("push_type") == "app_update") {
+            val releaseUrl = intent.getStringExtra("push_releaseUrl")
+                ?: "https://marcorx6app.dpdns.org/#download"
+            // Consume the extras first to prevent reopening the browser on return.
+            intent.removeExtra("push_type")
+            intent.removeExtra("push_releaseUrl")
+            val uri = android.net.Uri.parse(releaseUrl)
+            if (uri.scheme == "https" && uri.host == "marcorx6app.dpdns.org") {
+                window.decorView.post {
+                    if (!isFinishing && !isDestroyed) {
+                        try {
+                            startActivity(android.content.Intent(
+                                android.content.Intent.ACTION_VIEW, uri
+                            ))
+                        } catch (error: android.content.ActivityNotFoundException) {
+                            android.util.Log.e("MarcoPush", "No browser can open the official update page", error)
+                        }
+                    }
+                }
+            }
+            return
+        }
         if (!intent.getBooleanExtra("open_download_manager", false)) return
         intent.removeExtra("open_download_manager")
         intent.removeExtra("download_id")
