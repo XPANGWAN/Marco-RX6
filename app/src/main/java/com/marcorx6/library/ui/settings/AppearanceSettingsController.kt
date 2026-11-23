@@ -385,7 +385,7 @@ internal class AppearanceSettingsController(
                 .show()
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
         root.addView(sectionLabel("إشعارات التطبيق"), LinearLayout.LayoutParams(-1, -2))
-        root.addView(settingRow(translate("الإشعارات"), translate("التحكم في تنبيهات المقالات الجديدة"), showNotificationSettings),
+        root.addView(settingRow(translate("الإشعارات"), translate("التحكم في إشعارات تحديثات التطبيق والألعاب الجديدة"), showNotificationSettings),
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
         root.addView(sectionLabel("الحساب والصلاحيات"), LinearLayout.LayoutParams(-1, -2))
         root.addView(settingRow(

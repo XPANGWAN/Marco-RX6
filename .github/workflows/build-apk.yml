@@ -140,7 +140,7 @@ jobs:
           retention-days: 3
 
       - name: Read release version
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message || '', '[skip-release]')
         id: release_version
         shell: bash
         run: |
@@ -152,7 +152,7 @@ jobs:
           echo "notes=$NOTES_FILE" >> "$GITHUB_OUTPUT"
 
       - name: Publish stable GitHub Release with all three APK variants
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message || '', '[skip-release]')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash

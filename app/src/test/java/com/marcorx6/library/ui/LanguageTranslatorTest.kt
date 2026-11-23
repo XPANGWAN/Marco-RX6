@@ -666,4 +666,19 @@ class LanguageTranslatorTest {
         assertEquals(disabled, LanguageTranslator.translate(disabled, "ar"))
     }
 
+    @Test
+    fun translatesIndependentPushNotificationSettingsIntoAllSupportedLanguages() {
+        val appUpdates = "إشعارات تحديثات التطبيق"
+        assertEquals("App update notifications", LanguageTranslator.translate(appUpdates, "en"))
+        assertEquals("Notifications des mises à jour de l’application", LanguageTranslator.translate(appUpdates, "fr"))
+        assertEquals("Notificaciones de actualizaciones de la aplicación", LanguageTranslator.translate(appUpdates, "es"))
+        assertEquals(appUpdates, LanguageTranslator.translate(appUpdates, "ar"))
+
+        val newGames = "إشعارات الألعاب الجديدة"
+        assertEquals("New game notifications", LanguageTranslator.translate(newGames, "en"))
+        assertEquals("Notifications des nouveaux jeux", LanguageTranslator.translate(newGames, "fr"))
+        assertEquals("Notificaciones de juegos nuevos", LanguageTranslator.translate(newGames, "es"))
+        assertEquals(newGames, LanguageTranslator.translate(newGames, "ar"))
+    }
+
 }

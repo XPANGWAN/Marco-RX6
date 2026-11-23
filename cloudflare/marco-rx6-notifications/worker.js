@@ -183,16 +183,18 @@ async function saveBlogCursor(env, postId) {
   );
   if (!response.ok) throw new Error("Unable to save Blogger cursor: " + response.status + " " + (await response.text()).slice(0, 300));
 }
-async function optedInUsers(env) {
-  // Read Android device documents first so logs distinguish missing registration
-  // from a device that exists but has notifications switched off.
+async function optedInUsers(env, notificationType) {
+  // App updates and Blogger alerts use separate opt-in preferences.
+  // Missing appUpdateNotificationsEnabled keeps legacy devices opted in by default.
   const devices = await queryGroup(env, "devices", "platform", "EQUAL", { stringValue: "android" }, 500);
   const users = new Set();
   let devicesWithToken = 0;
   let enabledDevices = 0;
   for (const device of devices) {
     const hasToken = Boolean(readString(device, "token"));
-    const enabled = device.fields?.blogNotificationsEnabled?.booleanValue === true;
+    const enabled = notificationType === "app_update"
+      ? device.fields?.appUpdateNotificationsEnabled?.booleanValue !== false
+      : device.fields?.blogNotificationsEnabled?.booleanValue === true;
     if (hasToken) devicesWithToken++;
     if (hasToken && enabled) {
       enabledDevices++;
@@ -201,6 +203,7 @@ async function optedInUsers(env) {
     }
   }
   console.log("MARCO device registration diagnostic", JSON.stringify({
+    notificationType,
     androidDeviceDocs: devices.length,
     devicesWithToken,
     enabledDevices,
@@ -285,7 +288,7 @@ async function pollBlogger(env) {
   if (previousIndex === 0) return { queued: 0, baseline: false, pagesFetched };
 
   const fresh = scanned.slice(0, previousIndex);
-  const users = await optedInUsers(env);
+  const users = await optedInUsers(env, "blog_game");
   console.log("MARCO Blogger delivery diagnostic", JSON.stringify({
     freshPosts: fresh.length,
     optedInUsers: users.length,
@@ -302,7 +305,7 @@ async function pollBlogger(env) {
   await saveBlogCursor(env, newest.id);
   return { queued: fresh.length * users.length, baseline: false, cursorGap: false, pagesFetched };
 }
-async function listDevices(env, userId, blogOnly) {
+async function listDevices(env, userId, notificationType) {
   const token = await accessToken(env);
   const response = await fetch(
     "https://firestore.googleapis.com/v1/projects/marco-rx6-v2/databases/(default)/documents/users/" + encodeURIComponent(userId) + "/devices",
@@ -311,9 +314,13 @@ async function listDevices(env, userId, blogOnly) {
   if (!response.ok) throw new Error("Unable to read devices for user " + userId + ": " + response.status);
   const body = await response.json();
   const eligible = (body.documents || []).filter(doc => {
-    const enabled = doc.fields?.blogNotificationsEnabled?.booleanValue === true;
     const tokenValue = doc.fields?.token?.stringValue;
-    return tokenValue && (!blogOnly || enabled);
+    const enabled = notificationType === "app_update"
+      ? doc.fields?.appUpdateNotificationsEnabled?.booleanValue !== false
+      : notificationType === "blog_game"
+        ? doc.fields?.blogNotificationsEnabled?.booleanValue === true
+        : true;
+    return Boolean(tokenValue) && enabled;
   });
   // A token can briefly exist in more than one device document during token refresh.
   // Send only once per distinct FCM token.
@@ -351,7 +358,7 @@ async function sendOne(env, notification) {
   const safeImageUrl = fullSizeBloggerImage(readString(notification, "imageUrl"));
   if (safeImageUrl) data.imageUrl = safeImageUrl;
   data.notificationId = parts[parts.length - 1];
-  const devices = await listDevices(env, userId, data.type === "blog_game" || data.type === "app_update");
+  const devices = await listDevices(env, userId, data.type);
   let imageHost = "";
   if (data.imageUrl) {
     try {
@@ -465,7 +472,7 @@ async function pollAppUpdate(env) {
     return { queued: 0, baseline: true, version: release.tag };
   }
   if (previous === release.tag) return { queued: 0, baseline: false, unchanged: true };
-  const users = await optedInUsers(env);
+  const users = await optedInUsers(env, "app_update");
   if (!users.length) return { queued: 0, baseline: false, awaitingOptedInUsers: true, version: release.tag };
   for (const userId of users) await queueAppUpdate(env, userId, release);
   await saveAppUpdateCursor(env, release.tag);
@@ -535,7 +542,7 @@ export default {
       return Response.json({
         service: "marco-rx6-notifications",
         status: "ready",
-        build: "notifications-deduplicated-push-2026-11-23"
+        build: "guest-device-push-2026-11-23"
       });
     }
     return new Response("Use the scheduled trigger.", { status: 200 });

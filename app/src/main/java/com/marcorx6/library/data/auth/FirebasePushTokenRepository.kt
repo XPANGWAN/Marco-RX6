@@ -21,10 +21,8 @@ internal class FirebasePushTokenRepository(
             android.util.Log.i("MarcoFCM", "Token sync deferred: Firebase user is not ready")
             return
         }
-        if (user.isAnonymous) {
-            android.util.Log.i("MarcoFCM", "Token sync deferred: waiting for a registered account")
-            return
-        }
+        // Anonymous Firebase sessions are valid device owners for push registration.
+        // Visitors can receive app updates without creating a MARCO account.
         messaging.token
             .addOnSuccessListener { token -> saveTokenForUser(token, user.uid) }
             .addOnFailureListener { error ->
@@ -35,7 +33,6 @@ internal class FirebasePushTokenRepository(
     fun saveToken(token: String) {
         if (token.isBlank()) return
         val user = auth.currentUser ?: return
-        if (user.isAnonymous) return
         saveTokenForUser(token, user.uid)
     }
 
@@ -53,14 +50,16 @@ internal class FirebasePushTokenRepository(
                     "token" to token,
                     "platform" to "android",
                     "blogNotificationsEnabled" to context.getSharedPreferences("notification_settings", Context.MODE_PRIVATE).getBoolean("enabled", false),
+                    "appUpdateNotificationsEnabled" to context.getSharedPreferences("notification_settings", Context.MODE_PRIVATE).getBoolean("app_updates_enabled", true),
                     "updatedAt" to FieldValue.serverTimestamp()
                 ),
                 SetOptions.merge()
             )
             .addOnSuccessListener {
-                val enabled = context.getSharedPreferences("notification_settings", Context.MODE_PRIVATE)
-                    .getBoolean("enabled", false)
-                android.util.Log.i("MarcoFCM", "FCM device registration saved; blogNotificationsEnabled=$enabled")
+                val preferences = context.getSharedPreferences("notification_settings", Context.MODE_PRIVATE)
+                val blogEnabled = preferences.getBoolean("enabled", false)
+                val appUpdatesEnabled = preferences.getBoolean("app_updates_enabled", true)
+                android.util.Log.i("MarcoFCM", "FCM device registration saved; blogNotificationsEnabled=$blogEnabled appUpdateNotificationsEnabled=$appUpdatesEnabled")
             }
             .addOnFailureListener { error ->
                 android.util.Log.w("MarcoFCM", "Unable to save FCM device token", error)

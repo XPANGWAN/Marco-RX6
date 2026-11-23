@@ -78,7 +78,7 @@ service cloud.firestore {
         // and the trusted push sender (which uses the Firebase Admin SDK).
         allow read: if signedInAs(userId) && !isAnonymous();
         allow create, update: if signedInAs(userId)
-          && request.resource.data.keys().hasOnly(['token', 'platform', 'blogNotificationsEnabled', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['token', 'platform', 'blogNotificationsEnabled', 'appUpdateNotificationsEnabled', 'updatedAt'])
           && request.resource.data.keys().hasAll(['token', 'platform', 'updatedAt'])
           && request.resource.data.token is string
           && request.resource.data.token.size() >= 20
@@ -86,6 +86,8 @@ service cloud.firestore {
           && request.resource.data.platform == 'android'
           && (!('blogNotificationsEnabled' in request.resource.data)
             || request.resource.data.blogNotificationsEnabled is bool)
+          && (!('appUpdateNotificationsEnabled' in request.resource.data)
+            || request.resource.data.appUpdateNotificationsEnabled is bool)
           && request.resource.data.updatedAt == request.time;
         allow delete: if signedInAs(userId);
       }

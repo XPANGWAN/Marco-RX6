@@ -22,8 +22,15 @@ internal class BlogNotificationScheduler(context: Context) {
 
     fun isEnabled(): Boolean = preferences.getBoolean(KEY_ENABLED, false)
 
+    fun isAppUpdateEnabled(): Boolean = preferences.getBoolean(KEY_APP_UPDATE_ENABLED, true)
+
     fun setEnabled(enabled: Boolean) {
         preferences.edit().putBoolean(KEY_ENABLED, enabled).apply()
+        FirebasePushTokenRepository(appContext).syncCurrentToken()
+    }
+
+    fun setAppUpdateEnabled(enabled: Boolean) {
+        preferences.edit().putBoolean(KEY_APP_UPDATE_ENABLED, enabled).apply()
         FirebasePushTokenRepository(appContext).syncCurrentToken()
     }
 
@@ -54,5 +61,6 @@ internal class BlogNotificationScheduler(context: Context) {
     private companion object {
         const val PREFERENCES_NAME = "notification_settings"
         const val KEY_ENABLED = "enabled"
+        const val KEY_APP_UPDATE_ENABLED = "app_updates_enabled"
     }
 }

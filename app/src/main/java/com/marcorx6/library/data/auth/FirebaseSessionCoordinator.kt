@@ -20,7 +20,8 @@ internal class FirebaseSessionCoordinator(
             val listener = FirebaseAuth.AuthStateListener { auth ->
                 auth.currentUser?.let { user ->
                     syncUserDocument(user)
-                    if (!user.isAnonymous) onAuthenticatedUser()
+                    // Register FCM tokens for guest and registered Firebase sessions.
+                    onAuthenticatedUser()
                 }
             }
             authListener = listener

@@ -89,6 +89,37 @@ describe("Firestore user isolation rules", () => {
     );
   });
 
+  it("allows guest devices to register FCM tokens with independent notification preferences", async () => {
+    const uid = "anonymous-push-guest";
+    const db = testEnv.authenticatedContext(uid, {
+      firebase: { sign_in_provider: "anonymous" },
+    }).firestore();
+    const device = doc(db, "users/" + uid + "/devices/device-token-hash");
+
+    await assertSucceeds(setDoc(device, {
+      token: "fcm-registration-token-value-long-enough",
+      platform: "android",
+      blogNotificationsEnabled: false,
+      appUpdateNotificationsEnabled: true,
+      updatedAt: serverTimestamp(),
+    }));
+    await assertSucceeds(updateDoc(device, {
+      appUpdateNotificationsEnabled: false,
+      updatedAt: serverTimestamp(),
+    }));
+    await assertFails(getDoc(device));
+    await assertFails(setDoc(doc(db, "users/another-guest/devices/device"), {
+      token: "fcm-registration-token-value-long-enough",
+      platform: "android",
+      appUpdateNotificationsEnabled: true,
+      updatedAt: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(device, {
+      appUpdateNotificationsEnabled: "yes",
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
   it("allows a guest to delete its own preferences and profile during account deletion", async () => {
     const uid = "anonymous-delete-uid";
     const db = testEnv.authenticatedContext(uid, {
