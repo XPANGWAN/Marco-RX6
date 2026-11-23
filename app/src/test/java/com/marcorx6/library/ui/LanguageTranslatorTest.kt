@@ -650,4 +650,20 @@ class LanguageTranslatorTest {
             assertEquals(source, LanguageTranslator.translate(source, "ar"))
         }
     }
+
+    @Test
+    fun translatesNotificationServerStatusIntoAllSupportedLanguages() {
+        val enabled = "الإشعارات مفعّلة. يراقب خادم MARCO المدونة ويرسل إليك تنبيهاً عند نشر لعبة جديدة."
+        assertEquals("Notifications are enabled. MARCO’s server monitors the blog and will alert you when a new game is published.", LanguageTranslator.translate(enabled, "en"))
+        assertEquals("Les notifications sont activées. Le serveur MARCO surveille le blog et vous avertira lorsqu’un nouveau jeu sera publié.", LanguageTranslator.translate(enabled, "fr"))
+        assertEquals("Las notificaciones están activadas. El servidor de MARCO supervisa el blog y te avisará cuando se publique un juego nuevo.", LanguageTranslator.translate(enabled, "es"))
+        assertEquals(enabled, LanguageTranslator.translate(enabled, "ar"))
+
+        val disabled = "الإشعارات متوقفة. فعّلها ليصلك تنبيه عند نشر لعبة جديدة."
+        assertEquals("Notifications are off. Enable them to receive an alert when a new game is published.", LanguageTranslator.translate(disabled, "en"))
+        assertEquals("Les notifications sont désactivées. Activez-les pour recevoir une alerte lorsqu’un nouveau jeu sera publié.", LanguageTranslator.translate(disabled, "fr"))
+        assertEquals("Las notificaciones están desactivadas. Actívalas para recibir un aviso cuando se publique un juego nuevo.", LanguageTranslator.translate(disabled, "es"))
+        assertEquals(disabled, LanguageTranslator.translate(disabled, "ar"))
+    }
+
 }
