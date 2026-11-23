@@ -44,7 +44,7 @@ jobs:
         run: |
           for attempt in {1..12}; do
             response="$(curl --fail --silent --show-error https://marco-rx6-notifications.xpangwan.workers.dev/health || true)"
-            if echo "$response" | grep -q '"build":"notifications-official-site-update-2026-11-23"'; then
+            if echo "$response" | grep -q '"build":"notifications-deduplicated-push-2026-11-23"'; then
               echo "$response"
               exit 0
             fi
