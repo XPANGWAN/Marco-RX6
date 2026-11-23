@@ -12,7 +12,7 @@ android {
 
     buildFeatures { buildConfig = true }
 
-    // MARCO 8.43: open app-update notification links directly in the browser.
+    // MARCO 8.44: verify direct browser opening from app-update notifications.
     splits {
         abi {
             isEnable = true
@@ -27,8 +27,8 @@ android {
         applicationId = "com.marcorx6.library"
         minSdk = 26
         targetSdk = 36
-        versionCode = 60
-        versionName = "8.43"
+        versionCode = 61
+        versionName = "8.44"
         ndk { abiFilters += setOf("arm64-v8a", "armeabi-v7a") }
     }
 
