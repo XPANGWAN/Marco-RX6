@@ -138,6 +138,7 @@ When reporting a problem, include your app version, Android version, device mode
 | Application name | MARCO RX6 |
 | Android application ID | `com.marcorx6.library` |
 | Latest app version | [See the latest GitHub release](https://github.com/XPANGWAN/Marco-RX6/releases/latest) |
+| Version configured in the current source | 8.42 (version code 59) |
 | Version code | 59 |
 | Minimum Android | 8.0 (API 26) |
 | Compile / target SDK | 36 |
