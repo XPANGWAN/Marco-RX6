@@ -12,7 +12,7 @@ android {
 
     buildFeatures { buildConfig = true }
 
-    // MARCO 8.39: remove the recurring download-folder marker file.
+    // MARCO 8.40: deduplicate release push notifications and localize push text.
     splits {
         abi {
             isEnable = true
@@ -27,8 +27,8 @@ android {
         applicationId = "com.marcorx6.library"
         minSdk = 26
         targetSdk = 36
-        versionCode = 56
-        versionName = "8.39"
+        versionCode = 57
+        versionName = "8.40"
         ndk { abiFilters += setOf("arm64-v8a", "armeabi-v7a") }
     }
 
