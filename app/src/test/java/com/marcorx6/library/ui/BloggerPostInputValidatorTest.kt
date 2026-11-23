@@ -50,6 +50,11 @@ class BloggerPostInputValidatorTest {
     }
 
     @Test
+    fun allowsPublishingWithoutAnyDownloadLink() {
+        assertNull(validate(relatedLink = ""))
+    }
+
+    @Test
     fun allowsStructuredPostWithoutFreeFormDescription() {
         assertNull(validate(body = " "))
     }

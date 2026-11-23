@@ -263,6 +263,20 @@ class MainActivity : ComponentActivity() {
         ) { firebaseAccountController.openNotificationsFromLibrary() },
             LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginStart = dp(6) })
         row.addView(action(
+            R.drawable.ic_action_community, tr("قنوات المجتمع")
+        ) {
+            com.marcorx6.library.ui.CommunityChannelsController(
+                activity = this,
+                dp = ::dp,
+                makeText = ::makeText,
+                translate = ::tr,
+                isDarkMode = ::isDarkMode,
+                red = { red },
+                showRootScreen = ::showRootScreen,
+                onBack = ::createInterface
+            ).showDirectory()
+        }, LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginStart = dp(6) })
+        row.addView(action(
             R.drawable.ic_action_settings, tr("الإعدادات")
         ) { appearanceRuntimeFeature.showAppearanceSettings() },
             LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginStart = dp(6) })
@@ -680,6 +694,11 @@ class MainActivity : ComponentActivity() {
         FirebasePushTokenRepository(this).syncCurrentToken()
         firebaseSessionCoordinator.ensureGuestSession()
         lifecycleCoordinator.onResume()
+        // Refresh edited Blogger posts when the user returns after the sync cooldown.
+        // The existing Blogger proxy endpoint and its cache configuration are untouched.
+        if (userExperienceRuntimeFeature.isSetupCompleted()) {
+            bloggerRuntimeFeature.syncIfStale()
+        }
         // Check for a new stable APK quietly after the main screen settles.
         // The checker itself limits successful automatic checks to once every 15 minutes.
         automaticUpdateCheckHandler.removeCallbacks(automaticUpdateCheckRunnable)

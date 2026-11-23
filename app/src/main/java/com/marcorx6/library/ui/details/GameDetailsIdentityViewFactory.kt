@@ -7,6 +7,7 @@ import android.text.Html
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.view.View
 import com.marcorx6.library.data.Game
 
 internal class GameDetailsIdentityViewFactory(
@@ -169,31 +170,70 @@ internal class GameDetailsIdentityViewFactory(
             infoCard.addView(makeText(translate("معلومات اللعبة"), 16f, primary, true).apply {
                 setPadding(0, 0, 0, dp(10))
             })
-            details.forEach { item ->
-                val cell = LinearLayout(activity).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setPadding(dp(12), dp(10), dp(12), dp(10))
-                    background = GradientDrawable().apply {
-                        setColor(if (dark) Color.rgb(43, 47, 55) else Color.WHITE)
-                        cornerRadius = dp(11).toFloat()
+            val detailRows = details.chunked(2)
+            detailRows.forEach { rowItems ->
+                val row = LinearLayout(activity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutDirection = android.view.View.LAYOUT_DIRECTION_LOCALE
+                }
+                rowItems.forEachIndexed { index, item ->
+                    val cell = LinearLayout(activity).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = android.view.Gravity.CENTER_VERTICAL
+                        layoutDirection = android.view.View.LAYOUT_DIRECTION_LOCALE
+                        setPadding(dp(9), dp(10), dp(9), dp(10))
+                        background = GradientDrawable().apply {
+                            setColor(if (dark) Color.rgb(43, 47, 55) else Color.WHITE)
+                            cornerRadius = dp(11).toFloat()
+                        }
                     }
+                    val iconResource = when (item.first) {
+                        "الحجم" -> com.marcorx6.library.R.drawable.ic_game_info_size
+                        "النسخة" -> com.marcorx6.library.R.drawable.ic_game_info_version
+                        "الصيغة" -> com.marcorx6.library.R.drawable.ic_game_info_format
+                        "اللغة" -> com.marcorx6.library.R.drawable.ic_game_info_language
+                        "كلمة السر" -> com.marcorx6.library.R.drawable.ic_game_info_password
+                        "الحقوق" -> com.marcorx6.library.R.drawable.ic_game_info_credits
+                        "النوع" -> com.marcorx6.library.R.drawable.ic_game_info_genre
+                        "سنة الإصدار" -> com.marcorx6.library.R.drawable.ic_game_info_release_year
+                        else -> com.marcorx6.library.R.drawable.ic_game_info_format
+                    }
+                    val icon = ImageView(activity).apply {
+                        setImageResource(iconResource)
+                        imageTintList = android.content.res.ColorStateList.valueOf(muted)
+                        contentDescription = null
+                    }
+                    cell.addView(icon, LinearLayout.LayoutParams(dp(20), dp(20)).apply {
+                        marginEnd = dp(7)
+                    })
+                    val textColumn = LinearLayout(activity).apply {
+                        orientation = LinearLayout.VERTICAL
+                        gravity = android.view.Gravity.CENTER_VERTICAL
+                    }
+                    textColumn.addView(makeText(translate(item.first), 11f, muted, false).apply {
+                        textDirection = android.view.View.TEXT_DIRECTION_FIRST_STRONG
+                        gravity = android.view.Gravity.START
+                        maxLines = 2
+                    }, LinearLayout.LayoutParams(-1, -2))
+                    textColumn.addView(makeText(item.second, 13f, primary, true).apply {
+                        textDirection = android.view.View.TEXT_DIRECTION_FIRST_STRONG
+                        gravity = android.view.Gravity.START
+                        textAlignment = android.view.View.TEXT_ALIGNMENT_VIEW_START
+                        setPadding(0, dp(3), 0, 0)
+                        maxLines = 4
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        setHorizontallyScrolling(false)
+                    }, LinearLayout.LayoutParams(-1, -2))
+                    cell.addView(textColumn, LinearLayout.LayoutParams(0, -2, 1f))
+                    row.addView(cell, LinearLayout.LayoutParams(0, -2, 1f).apply {
+                        if (index == 0 && rowItems.size == 2) marginEnd = dp(6)
+                    })
                 }
-                cell.addView(makeText(translate(item.first), 12f, muted, false).apply {
-                    textDirection = android.view.View.TEXT_DIRECTION_FIRST_STRONG
-                    gravity = android.view.Gravity.START
-                }, LinearLayout.LayoutParams(-1, -2))
-                val valueView = makeText(item.second, 15f, primary, true).apply {
-                    textDirection = android.view.View.TEXT_DIRECTION_FIRST_STRONG
-                    gravity = android.view.Gravity.START
-                    textAlignment = android.view.View.TEXT_ALIGNMENT_VIEW_START
-                    setPadding(0, dp(4), 0, 0)
-                    maxLines = Int.MAX_VALUE
-                    ellipsize = null
-                    setHorizontallyScrolling(false)
+                if (rowItems.size == 1) {
+                    row.addView(View(activity), LinearLayout.LayoutParams(0, 1, 1f))
                 }
-                cell.addView(valueView, LinearLayout.LayoutParams(-1, -2))
-                infoCard.addView(cell, LinearLayout.LayoutParams(-1, -2).apply {
-                    bottomMargin = dp(8)
+                infoCard.addView(row, LinearLayout.LayoutParams(-1, -2).apply {
+                    bottomMargin = dp(7)
                 })
             }
             root.addView(infoCard, LinearLayout.LayoutParams(-1, -2))

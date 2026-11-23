@@ -1,0 +1,54 @@
+name: Deploy MARCO RX6 notifications Worker
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/optional-blogger-download-link
+    paths:
+      - "cloudflare/marco-rx6-notifications/**"
+      - ".github/workflows/deploy-marco-notifications.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marco-rx6-notifications-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate Worker syntax
+        run: node --check cloudflare/marco-rx6-notifications/worker.js
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: cloudflare/marco-rx6-notifications
+          command: deploy
+
+      - name: Verify production health endpoint
+        shell: bash
+        run: |
+          for attempt in {1..12}; do
+            response="$(curl --fail --silent --show-error https://marco-rx6-notifications.xpangwan.workers.dev/health || true)"
+            if echo "$response" | grep -q '"build":"notifications-official-site-update-2026-11-23"'; then
+              echo "$response"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Production Worker health check did not report the expected build."
+          exit 1

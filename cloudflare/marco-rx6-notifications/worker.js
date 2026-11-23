@@ -339,14 +339,14 @@ async function sendOne(env, notification) {
   const userId = userIndex >= 0 ? parts[userIndex + 1] : "";
   if (!userId) throw new Error("Notification path does not contain a user ID");
   const data = {};
-  for (const key of ["title", "body", "type", "postUrl", "gameName", "platform", "actorUid", "conversationId", "messageId"]) {
+  for (const key of ["title", "body", "type", "postUrl", "gameName", "platform", "actorUid", "conversationId", "messageId", "releaseUrl", "version"]) {
     const value = readString(notification, key);
     if (value) data[key] = value;
   }
   const safeImageUrl = fullSizeBloggerImage(readString(notification, "imageUrl"));
   if (safeImageUrl) data.imageUrl = safeImageUrl;
   data.notificationId = parts[parts.length - 1];
-  const devices = await listDevices(env, userId, data.type === "blog_game");
+  const devices = await listDevices(env, userId, data.type === "blog_game" || data.type === "app_update");
   let imageHost = "";
   if (data.imageUrl) {
     try {
@@ -391,6 +391,81 @@ async function sendOne(env, notification) {
   await setPushStatus(env, notification.name, delivered ? "sent" : "skipped_no_devices");
   return delivered ? "sent" : "skipped";
 }
+async function getLatestRelease() {
+  // GitHub's public Atom feed avoids unauthenticated REST API rate limits
+  // while this Worker checks once per minute.
+  const response = await fetch("https://github.com/XPANGWAN/Marco-RX6/releases.atom", {
+    headers: { accept: "application/atom+xml", "user-agent": "MARCO-RX6-Notifications" }
+  });
+  if (!response.ok) throw new Error("GitHub releases feed returned HTTP " + response.status);
+  const xml = await response.text();
+  const entry = xml.match(/<entry\b[^>]*>([\s\S]*?)<\/entry>/i)?.[1] || "";
+  const url = entry.match(/<link\b[^>]*href=["']([^"']+)["'][^>]*>/i)?.[1] || "";
+  const title = decodeHtml(entry.match(/<title(?:\s+type=["'][^"']+["'])?>([\s\S]*?)<\/title>/i)?.[1] || "").trim();
+  const tag = url.match(/\/releases\/tag\/([^/?#]+)/i)?.[1] || "";
+  if (!tag || !/^https:\/\/github\.com\/XPANGWAN\/Marco-RX6\/releases\/tag\//i.test(url)) {
+    throw new Error("GitHub releases feed has no valid latest release entry");
+  }
+  return { tag: decodeURIComponent(tag), name: (title || decodeURIComponent(tag)).slice(0, 100), url: "https://marcorx6app.dpdns.org/#download" };
+}
+async function getAppUpdateCursor(env) {
+  const result = await google(env, "notificationControl/appUpdates");
+  return result.body?.fields?.lastReleaseTag?.stringValue || "";
+}
+async function saveAppUpdateCursor(env, tag) {
+  const token = await accessToken(env);
+  const response = await fetch(
+    "https://firestore.googleapis.com/v1/projects/marco-rx6-v2/databases/(default)/documents/notificationControl/appUpdates?updateMask.fieldPaths=lastReleaseTag&updateMask.fieldPaths=updatedAt",
+    {
+      method: "PATCH",
+      headers: { authorization: "Bearer " + token, "content-type": "application/json" },
+      body: JSON.stringify({ fields: {
+        lastReleaseTag: { stringValue: tag },
+        updatedAt: { timestampValue: new Date().toISOString() }
+      } })
+    }
+  );
+  if (!response.ok) throw new Error("Unable to save app update cursor: " + response.status);
+}
+async function queueAppUpdate(env, userId, release) {
+  const id = (await sha256("app-update:" + userId + ":" + release.tag)).slice(0, 40);
+  const token = await accessToken(env);
+  const path = "users/" + encodeURIComponent(userId) + "/notifications?documentId=" + id;
+  const response = await fetch("https://firestore.googleapis.com/v1/projects/marco-rx6-v2/databases/(default)/documents/" + path, {
+    method: "POST",
+    headers: { authorization: "Bearer " + token, "content-type": "application/json" },
+    body: JSON.stringify({ fields: {
+      ...fields({
+        type: "app_update",
+        actorUid: "system",
+        title: "تحديث جديد متاح لـ MARCO",
+        body: release.name,
+        version: release.tag,
+        releaseUrl: release.url,
+        read: false,
+        pushStatus: "pending"
+      }),
+      createdAt: { timestampValue: new Date().toISOString() }
+    } })
+  });
+  if (!response.ok && response.status !== 409) {
+    throw new Error("Unable to queue app update (" + response.status + "): " + (await response.text()).slice(0, 300));
+  }
+}
+async function pollAppUpdate(env) {
+  const release = await getLatestRelease();
+  const previous = await getAppUpdateCursor(env);
+  if (!previous) {
+    await saveAppUpdateCursor(env, release.tag);
+    return { queued: 0, baseline: true, version: release.tag };
+  }
+  if (previous === release.tag) return { queued: 0, baseline: false, unchanged: true };
+  const users = await optedInUsers(env);
+  if (!users.length) return { queued: 0, baseline: false, awaitingOptedInUsers: true, version: release.tag };
+  for (const userId of users) await queueAppUpdate(env, userId, release);
+  await saveAppUpdateCursor(env, release.tag);
+  return { queued: users.length, baseline: false, version: release.tag };
+}
 async function deliverPending(env) {
   const pending = await queryGroup(env, "notifications", "pushStatus", "EQUAL", { stringValue: "pending" }, MAX_PENDING_PER_RUN);
   let sent = 0, skipped = 0;
@@ -411,7 +486,7 @@ export default {
       return Response.json({
         service: "marco-rx6-notifications",
         status: "ready",
-        build: "notifications-rebuild-2026-11-21"
+        build: "notifications-official-site-update-2026-11-23"
       });
     }
     return new Response("Use the scheduled trigger.", { status: 200 });
@@ -420,8 +495,9 @@ export default {
     ctx.waitUntil((async () => {
       try {
         const blogger = await pollBlogger(env);
+        const appUpdate = await pollAppUpdate(env);
         const delivery = await deliverPending(env);
-        console.log("MARCO push cycle complete", JSON.stringify({ blogger, delivery }));
+        console.log("MARCO push cycle complete", JSON.stringify({ blogger, appUpdate, delivery }));
       } catch (error) {
         console.error("MARCO push cycle failed:", error.message);
       }

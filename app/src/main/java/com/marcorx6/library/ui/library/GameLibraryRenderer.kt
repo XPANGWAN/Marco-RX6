@@ -36,8 +36,8 @@ internal class GameLibraryRenderer(
         val colors: List<Int>,
         val darkMode: Boolean,
         val gameLabel: String,
-        // Compact fingerprint detects in-place metadata edits without allocating
-        // several temporary lists and joined strings for every game on each render.
+        // Game records are immutable; this fingerprint only tracks the potentially
+        // mutable Blogger labels collection without hashing large article bodies.
         val filterDataFingerprint: Long
     )
 
@@ -47,12 +47,11 @@ internal class GameLibraryRenderer(
             hash = (hash xor value.toLong()) * 0x100000001b3L
         }
         games.forEach { game ->
-            mix(game.name.hashCode())
-            mix(game.platform.hashCode())
-            mix(game.genre.hashCode())
-            mix(game.releaseYear.hashCode())
-            mix(if (game.isFavorite) 1 else 0)
-            mix(if (game.blogImported) 1 else 0)
+            // Game is immutable (all properties are vals). Object-identity checks
+            // below detect updated records without hashing large Blogger HTML bodies
+            // or download strings on the UI thread. The labels list may be backed by
+            // a mutable collection, so retain a lightweight fingerprint for it.
+            mix(game.bloggerLabels.hashCode())
         }
         return hash
     }
