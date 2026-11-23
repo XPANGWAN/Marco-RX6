@@ -12,7 +12,7 @@ android {
 
     buildFeatures { buildConfig = true }
 
-    // MARCO 8.38: guest push notification verification release.
+    // MARCO 8.39: remove the recurring download-folder marker file.
     splits {
         abi {
             isEnable = true
@@ -27,8 +27,8 @@ android {
         applicationId = "com.marcorx6.library"
         minSdk = 26
         targetSdk = 36
-        versionCode = 55
-        versionName = "8.38"
+        versionCode = 56
+        versionName = "8.39"
         ndk { abiFilters += setOf("arm64-v8a", "armeabi-v7a") }
     }
 

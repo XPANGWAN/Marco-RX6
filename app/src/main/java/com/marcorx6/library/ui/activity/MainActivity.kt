@@ -644,16 +644,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Create Download/MARCO RX6 on first launch, without replacing a folder
-        // the user may have selected later in Settings. Keep filesystem work off the UI thread.
-        if (downloadStoragePreferences.treeUri() == null) {
-            Thread({
-                val created = DownloadDestination.ensureDefaultFolder(applicationContext)
-                if (!created) com.marcorx6.library.AppDiagnostics.log(
-                    "WARN", "Downloads", "Could not pre-create the default download folder"
-                )
-            }, "marco-download-folder").start()
-        }
+        // Download/MARCO RX6 is created implicitly when the first download is saved.
+        // Do not create a marker text file or touch shared storage on every app launch.
         com.marcorx6.library.ui.UiDiagnosticsMonitor.install(this)
         com.marcorx6.library.AppDiagnostics.recordAction("MainActivity onCreate")
         com.marcorx6.library.ui.UiDiagnosticsMonitor.logLifecycle(this, "onCreate")

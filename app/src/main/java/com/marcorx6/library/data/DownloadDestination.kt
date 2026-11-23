@@ -19,55 +19,7 @@ import java.io.IOException
  */
 internal object DownloadDestination {
     private const val DEFAULT_FOLDER = "MARCO RX6"
-    private const val MARKER_NAME = "MARCO RX6 folder.txt"
     private fun ownerTag(id: Long): String = "MARCO_RX6_DOWNLOAD_ID:" + id
-
-    fun ensureDefaultFolder(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val resolver = context.applicationContext.contentResolver
-            val relativePath = "${Environment.DIRECTORY_DOWNLOADS}/$DEFAULT_FOLDER/"
-            val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            val existing = runCatching {
-                resolver.query(
-                    collection,
-                    arrayOf(MediaStore.MediaColumns._ID),
-                    "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?",
-                    arrayOf(MARKER_NAME, relativePath),
-                    null
-                )?.use { it.moveToFirst() } ?: false
-            }.getOrDefault(false)
-            if (existing) return true
-
-            val values = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, MARKER_NAME)
-                put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
-            }
-            val marker = resolver.insert(collection, values) ?: return false
-            return try {
-                resolver.openOutputStream(marker, "w")?.use { stream ->
-                    stream.write("This folder is used by MARCO RX6 for downloaded files.".toByteArray(Charsets.UTF_8))
-                } 
-                    ?: throw IOException("Could not create the default download folder marker")
-                val publish = ContentValues().apply {
-                    put(MediaStore.MediaColumns.IS_PENDING, 0)
-                }
-                resolver.update(marker, publish, null, null) > 0
-            } catch (error: Exception) {
-                runCatching { resolver.delete(marker, null, null) }
-                false
-            }
-        }
-
-        // Scoped storage is not available before Android 10. Keep the fallback
-        // inside the app-specific external Downloads directory.
-        val fallback = File(
-            context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir,
-            DEFAULT_FOLDER
-        )
-        return fallback.exists() || fallback.mkdirs()
-    }
 
     /**
      * Opens the actual final destination. SAF destinations are created immediately
