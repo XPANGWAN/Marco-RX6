@@ -14,7 +14,7 @@ android {
         buildConfig = true
     }
 
-    // MARCO 8.34: produce device-specific APKs so each phone downloads only its own native libraries.
+    // MARCO 8.36: produce device-specific APKs so each phone downloads only its own native libraries.
     // Keep a Universal APK as a compatibility fallback.
     splits {
         abi {
@@ -30,8 +30,8 @@ android {
         applicationId = "com.marcorx6.library"
         minSdk = 26
         targetSdk = 36
-        versionCode = 52
-        versionName = "8.35"
+        versionCode = 53
+        versionName = "8.36"
 
         // Phone APKs target ARM devices; omit x86 emulator/desktop native binaries.
         ndk {
