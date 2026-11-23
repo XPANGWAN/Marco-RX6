@@ -1321,7 +1321,7 @@ internal class FirebaseAccountController(
                     "game" -> item.getString("type") == "game"
                     "follow" -> item.getString("type") == "follow"
                     "message" -> item.getString("type") == "message"
-                    "system" -> item.getString("type") == "system"
+                    "system" -> item.getString("type") in setOf("system", "app_update")
                     else -> false
                 }
             }
@@ -1467,6 +1467,18 @@ internal class FirebaseAccountController(
                             "game" -> {
                                 if (linkedGame != null) openGameDetails(linkedGame)
                                 else toast("هذه اللعبة لم تعد متاحة في المكتبة.")
+                            }
+                            "app_update" -> {
+                                val releaseUrl = item.getString("releaseUrl").orEmpty()
+                                if (releaseUrl.startsWith("https://github.com/XPANGWAN/Marco-RX6/releases/")) {
+                                    try {
+                                        activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(releaseUrl)))
+                                    } catch (_: Exception) {
+                                        toast("تعذر فتح صفحة تحديث MARCO.")
+                                    }
+                                } else {
+                                    toast("رابط تحديث MARCO غير صالح.")
+                                }
                             }
                         }
                     }
