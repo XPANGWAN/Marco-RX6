@@ -3,6 +3,9 @@ package com.marcorx6.library.ui
 /** Centralized static translations for the app interface. */
 internal object LanguageTranslator {
     private val translations = mapOf(
+            "تحديث جديد متاح لـ MARCO" to listOf("A new MARCO update is available", "Une nouvelle mise à jour de MARCO est disponible", "Hay una nueva actualización de MARCO disponible"),
+            "إشعارات MARCO" to listOf("MARCO notifications", "Notifications MARCO", "Notificaciones de MARCO"),
+            "رسائل ومتابعون وتحديثات الألعاب" to listOf("Messages, followers and game updates", "Messages, abonnés et mises à jour des jeux", "Mensajes, seguidores y actualizaciones de juegos"),
             "قنوات المجتمع" to listOf("Community channels", "Chaînes de la communauté", "Canales de la comunidad"),
             "شكراً لأنك جزء من مجتمع MARCO" to listOf("Thank you for being part of the MARCO community", "Merci de faire partie de la communauté MARCO", "Gracias por formar parte de la comunidad MARCO"),
             "وجودك ودعمك يعنيان لنا الكثير. أنشأنا هذه المساحة لتبقى قريباً من مجتمعنا وتتابع كل جديد. شكراً لثقتك بنا." to listOf("Your presence and support mean a lot to us. We created this space to keep you close to our community and up to date. Thank you for trusting us.", "Votre présence et votre soutien comptent beaucoup pour nous. Nous avons créé cet espace pour vous rapprocher de notre communauté et vous tenir au courant. Merci de votre confiance.", "Tu presencia y tu apoyo significan mucho para nosotros. Creamos este espacio para mantenerte cerca de nuestra comunidad y al día. Gracias por confiar en nosotros."),
