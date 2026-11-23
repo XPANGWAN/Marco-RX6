@@ -30,8 +30,8 @@ android {
         applicationId = "com.marcorx6.library"
         minSdk = 26
         targetSdk = 36
-        versionCode = 51
-        versionName = "8.34"
+        versionCode = 52
+        versionName = "8.35"
 
         // Phone APKs target ARM devices; omit x86 emulator/desktop native binaries.
         ndk {
@@ -64,8 +64,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
             )
         }
     }
