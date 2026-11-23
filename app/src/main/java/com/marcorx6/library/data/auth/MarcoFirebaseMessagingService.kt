@@ -7,7 +7,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -56,22 +55,16 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
 
         val channelId = "marco_social_updates"
         ensureChannel(channelId)
-        // Always open MARCO itself when a push is tapped. ACTION_VIEW previously
-        // handed Blogger URLs to the browser, so the app never opened from game alerts.
-        val releaseUrl = data["releaseUrl"].orEmpty()
-        val isTrustedReleaseUrl = data["type"] == "app_update" &&
-            releaseUrl == "https://marcorx6app.dpdns.org/#download"
-        val openApp = if (isTrustedReleaseUrl) {
-            Intent(Intent.ACTION_VIEW, Uri.parse(releaseUrl)).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-        } else {
-            Intent(this, MainActivity::class.java).apply {
-                action = "com.marcorx6.library.OPEN_PUSH_NOTIFICATION"
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP
-                data.forEach { (key, value) -> putExtra("push_$key", value) }
+        // Route every push tap through MainActivity. It opens the official
+        // download page for app updates and safely handles other notification types.
+        val openApp = Intent(this, MainActivity::class.java).apply {
+            action = "com.marcorx6.library.OPEN_PUSH_NOTIFICATION"
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+            data.forEach { (key, value) -> putExtra("push_$key", value) }
+            if (data["type"] == "app_update") {
+                putExtra("push_releaseUrl", "https://marcorx6app.dpdns.org/#download")
             }
         }
         val pendingIntent = PendingIntent.getActivity(
