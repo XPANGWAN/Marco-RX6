@@ -310,11 +310,16 @@ async function listDevices(env, userId, blogOnly) {
   );
   if (!response.ok) throw new Error("Unable to read devices for user " + userId + ": " + response.status);
   const body = await response.json();
-  return (body.documents || []).filter(doc => {
+  const eligible = (body.documents || []).filter(doc => {
     const enabled = doc.fields?.blogNotificationsEnabled?.booleanValue === true;
     const tokenValue = doc.fields?.token?.stringValue;
     return tokenValue && (!blogOnly || enabled);
   });
+  // A token can briefly exist in more than one device document during token refresh.
+  // Send only once per distinct FCM token.
+  const uniqueTokens = new Map();
+  for (const device of eligible) uniqueTokens.set(readString(device, "token"), device);
+  return [...uniqueTokens.values()];
 }
 async function setPushStatus(env, documentName, status) {
   const name = documentName.replace(/^projects\/marco-rx6-v2\/databases\/\(default\)\/documents\//, "");
@@ -466,18 +471,62 @@ async function pollAppUpdate(env) {
   await saveAppUpdateCursor(env, release.tag);
   return { queued: users.length, baseline: false, version: release.tag };
 }
+async function claimPending(env, notification) {
+  // Firestore updateTime is a compare-and-set guard: overlapping cron executions
+  // cannot both claim and send the same pending notification.
+  if (!notification.updateTime) {
+    console.warn("Cannot claim notification without Firestore updateTime", notification.name);
+    return false;
+  }
+  const documentPath = notification.name.split("/documents/")[1];
+  const params = new URLSearchParams();
+  params.append("updateMask.fieldPaths", "pushStatus");
+  params.append("updateMask.fieldPaths", "pushAttemptAt");
+  params.set("currentDocument.updateTime", notification.updateTime);
+  const response = await fetch(
+    "https://firestore.googleapis.com/v1/projects/marco-rx6-v2/databases/(default)/documents/" +
+      documentPath + "?" + params.toString(),
+    {
+      method: "PATCH",
+      headers: {
+        authorization: "Bearer " + await accessToken(env),
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ fields: {
+        pushStatus: { stringValue: "sending" },
+        pushAttemptAt: { timestampValue: new Date().toISOString() }
+      } })
+    }
+  );
+  if (response.ok) return true;
+  if (response.status === 409 || response.status === 412) return false;
+  throw new Error("Unable to claim notification: " + response.status + " " + (await response.text()).slice(0, 300));
+}
 async function deliverPending(env) {
   const pending = await queryGroup(env, "notifications", "pushStatus", "EQUAL", { stringValue: "pending" }, MAX_PENDING_PER_RUN);
-  let sent = 0, skipped = 0;
-  for (const notification of pending) {
+  // Recover messages left in "sending" by a crashed Worker after a 10-minute lease.
+  const sending = await queryGroup(env, "notifications", "pushStatus", "EQUAL", { stringValue: "sending" }, MAX_PENDING_PER_RUN);
+  const staleBefore = Date.now() - 10 * 60 * 1000;
+  const staleSending = sending.filter(item => {
+    const attemptedAt = item.fields?.pushAttemptAt?.timestampValue;
+    return attemptedAt && Date.parse(attemptedAt) < staleBefore;
+  });
+  const candidates = [...pending, ...staleSending].slice(0, MAX_PENDING_PER_RUN);
+  let sent = 0, skipped = 0, claimed = 0, duplicatesPrevented = 0;
+  for (const notification of candidates) {
     try {
+      if (!(await claimPending(env, notification))) {
+        duplicatesPrevented++;
+        continue;
+      }
+      claimed++;
       const result = await sendOne(env, notification);
       if (result === "sent") sent++; else skipped++;
     } catch (error) {
       console.error("Notification delivery failed:", error.message);
     }
   }
-  return { sent, skipped, checked: pending.length };
+  return { sent, skipped, checked: candidates.length, claimed, duplicatesPrevented, staleRecovered: staleSending.length };
 }
 export default {
   async fetch(request) {
@@ -486,7 +535,7 @@ export default {
       return Response.json({
         service: "marco-rx6-notifications",
         status: "ready",
-        build: "notifications-official-site-update-2026-11-23"
+        build: "notifications-deduplicated-push-2026-11-23"
       });
     }
     return new Response("Use the scheduled trigger.", { status: 200 });
