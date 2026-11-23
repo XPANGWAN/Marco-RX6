@@ -1,233 +1,326 @@
-<!-- MARCO RX6 | Project README -->
+<!-- MARCO RX6 | Official project guide -->
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/XPANGWAN/Marco-RX6/main/app/src/main/res/drawable/marco_rx6_dragon.png" width="180" alt="MARCO RX6 dragon logo" />
-  <h1>MARCO RX6</h1>
-  <p><strong>Your games. Your library. Your control.</strong></p>
-  <p dir="rtl"><strong>ألعابك. مكتبتك. وتحكمك الكامل.</strong></p>
-  <p>
-    <a href="https://github.com/XPANGWAN/Marco-RX6/releases/latest"><img src="https://img.shields.io/github/v/release/XPANGWAN/Marco-RX6?style=for-the-badge&color=1677ff&label=LATEST%20RELEASE" alt="Latest release"></a>
-    <a href="https://github.com/XPANGWAN/Marco-RX6"><img src="https://img.shields.io/github/stars/XPANGWAN/Marco-RX6?style=for-the-badge&color=silver" alt="GitHub stars"></a>
-    <img src="https://img.shields.io/badge/ANDROID-8.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 8.0 or later">
-    <img src="https://img.shields.io/badge/KOTLIN-2.x-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin">
-  </p>
-  <p>
-    <a href="https://marcorx6app.dpdns.org/#download"><strong>⬇ OFFICIAL WEBSITE DOWNLOAD</strong></a>
-    &nbsp; • &nbsp;
-    <a href="https://github.com/XPANGWAN/Marco-RX6/releases/latest"><strong>GITHUB RELEASES</strong></a>
-    &nbsp; • &nbsp;
-    <a href="https://t.me/MARCO_RX1"><strong>TELEGRAM</strong></a>
-    &nbsp; • &nbsp;
-    <a href="https://youtube.com/@marco_rx7"><strong>YOUTUBE</strong></a>
-  </p>
+
+# MARCO RX6
+
+### Your game library. Organized in one place.
+
+**استكشف ألعابك، نظّم مكتبتك، وتحكّم بتجربتك.**
+
+<p>
+  <a href="https://marcorx6app.dpdns.org/#download"><strong>OFFICIAL DOWNLOAD</strong></a>
+  &nbsp; · &nbsp;
+  <a href="https://github.com/XPANGWAN/Marco-RX6/releases/latest"><strong>LATEST RELEASE</strong></a>
+  &nbsp; · &nbsp;
+  <a href="https://t.me/MARCO_RX1"><strong>TELEGRAM COMMUNITY</strong></a>
+  &nbsp; · &nbsp;
+  <a href="https://youtube.com/@marco_rx7"><strong>YOUTUBE</strong></a>
+</p>
+
+<p>
+  <img src="https://img.shields.io/github/v/release/XPANGWAN/Marco-RX6?style=flat-square&label=Latest%20release&color=777777" alt="Latest release">
+  <img src="https://img.shields.io/badge/Android-8.0%2B-777777?style=flat-square&logo=android&logoColor=white" alt="Android 8.0 or later">
+  <img src="https://img.shields.io/badge/Languages-4-777777?style=flat-square" alt="Four languages">
+  <img src="https://img.shields.io/github/license/XPANGWAN/Marco-RX6?style=flat-square&color=777777" alt="License">
+</p>
+
 </div>
 
 ---
 
-## ✦ Discover MARCO RX6
+## About MARCO RX6
 
-MARCO RX6 is an Android game-library companion designed to help you explore, organize, and manage a game catalog from one customizable place. Browse artwork and game information, keep your favorites close, and use the integrated tools for downloads and publishing workflows.
+**MARCO RX6** is an Android companion app for discovering and organizing a PlayStation game catalog. It brings game browsing, search, details, favorites, downloads, notifications, and selected account tools together in one interface.
 
-> **Not an emulator:** MARCO RX6 organizes game information and links. It does not run games or include built-in emulators.
+Whether you are browsing the catalog as a guest or using an account, MARCO helps you find game information and keep the items you care about organized.
 
-## ◈ Inside the app
+> **Please note:** MARCO RX6 is a game-library and download-management companion. It is not a PlayStation emulator, does not run console games, and does not provide PlayStation Network access or online play.
 
-| Experience | What you can do |
+## Explore the app
+
+| Feature | What it does |
 |---|---|
-| 🎮 **Game library** | Explore the catalog by platform, search, filter, and sort entries. |
-| 🖼️ **Game details** | View cover artwork, information, detail pages, and related links. |
-| ⭐ **Favorites & ratings** | Keep a personal favorites list and rate games when signed in. |
-| 👤 **Account access** | Continue as a guest or sign in with Google or email and password. |
-| ☁️ **Google Drive** | Upload and manage game-cover files through Drive integration. |
-| ✍️ **Blogger publishing** | Authorized administrators can create, edit, and publish Blogger posts. |
-| 📥 **Download manager** | Track downloads and use pause, resume, and cancel controls. |
-| 🔔 **Notifications** | Follow download activity and app alerts. |
-| 🎨 **Personalization** | Adjust supported language, appearance, colors, typography, and settings. |
+| **Game library** | Browse the available catalog and explore games by PlayStation platform. |
+| **Search and filters** | Find titles more easily and narrow the catalog by platform and available categories. |
+| **Game details** | Open a game's information page, view available artwork and media, and discover related titles. |
+| **Favorites** | Keep selected games in a personal favorites list for quick access. |
+| **Ratings** | View and submit game ratings where the feature is available. |
+| **Download manager** | Follow download activity and use supported controls such as pause, resume, and cancel. |
+| **Notifications** | Receive supported app alerts, including game-related notifications and update announcements. |
+| **Accounts** | Use guest access or sign in with Google or email, where available. |
+| **Google Drive tools** | Use the integrated Drive features for supported file upload and download workflows. |
+| **Blogger tools** | Authorized administrators can create, edit, and publish game posts. |
+| **Personalization** | Choose a supported language and adjust the available appearance and display settings. |
 
-### Supported catalog
+### Supported platforms and catalog sections
 
-- **PlayStation 2 (PS2)**
-- **PlayStation 3 (PS3)**
-- **PlayStation 4 (PS4)**
-- **PlayStation 5 (PS5)**
+The catalog covers these PlayStation generations:
 
-### Languages
+- **PS1**
+- **PS2**
+- **PS3**
+- **PS4**
+- **PS5**
 
-Arabic · English · French · Spanish
+Available sections depend on the platform and the catalog content. They can include games, Arabic games, add-ons or DLC, avatars, themes, applications and tools, and emulators.
 
-Arabic includes right-to-left (RTL) interface support.
+**Catalog note:** The app displays catalog information and links supplied by its configured sources. The availability of an individual title or download can change.
 
-## ◈ Screenshots
+## Languages and accessibility
+
+MARCO RX6 supports four interface languages:
+
+- العربية — Arabic, with right-to-left layout support
+- English
+- Français — French
+- Español — Spanish
+
+The app also provides supported light and dark appearance options. The exact settings available may vary by app version.
+
+## Download MARCO RX6
 
 <div align="center">
 
-**App screenshots are coming next.**
+### Get the latest version
 
-The screenshot gallery will be added here when the project images are ready.
+<a href="https://marcorx6app.dpdns.org/#download"><strong>Download from the official MARCO website</strong></a>
+
+<br>
+
+<a href="https://github.com/XPANGWAN/Marco-RX6/releases/latest"><strong>View the latest GitHub release and APK files</strong></a>
 
 </div>
 
-## ⬇ Get MARCO RX6
+Choose the APK package that matches your device:
 
-<div align="center">
-  <h3>MARCO RX6 V8.32</h3>
-  <p><a href="https://marcorx6app.dpdns.org/#download"><strong>⬇ Download from the Official MARCO RX6 Website</strong></a></p>
-  <p>Or choose a direct GitHub APK package that matches your Android device.</p>
-  <a href="https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.32/app-arm64-v8a-release.apk"><img src="https://img.shields.io/badge/ARM64-Download-1677ff?style=for-the-badge&logo=android&logoColor=white" alt="Download ARM64 APK"></a>
-  <a href="https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.32/app-armeabi-v7a-release.apk"><img src="https://img.shields.io/badge/ARM32-Download-777777?style=for-the-badge&logo=android&logoColor=white" alt="Download ARM32 APK"></a>
-  <a href="https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.32/app-universal-release.apk"><img src="https://img.shields.io/badge/UNIVERSAL-Download-333333?style=for-the-badge&logo=android&logoColor=white" alt="Download Universal APK"></a>
-  <p><a href="https://github.com/XPANGWAN/Marco-RX6/releases">All releases and version history →</a></p>
-</div>
-
-| Package | Recommended for |
+| APK package | Intended device |
 |---|---|
-| ARM64 | Most modern Android phones |
-| ARM32 | Compatible 32-bit ARM devices |
-| Universal | General compatibility when unsure |
+| **ARM64** | Most modern Android phones and tablets |
+| **ARM32** | Compatible 32-bit ARM devices |
+| **Universal** | A combined package for general compatibility |
 
-**Minimum requirement:** Android 8.0 (API 26) or later.
+**Minimum Android version:** Android 8.0 (API 26).
 
-## ◈ Community
+### Installation
 
-- **Telegram:** [MARCO RX6 Community](https://t.me/MARCO_RX1)
-- **YouTube:** [MARCO Channel](https://youtube.com/@marco_rx7)
-- **Issues and feedback:** [Open a GitHub issue](https://github.com/XPANGWAN/Marco-RX6/issues)
+1. Open the official download page or the latest GitHub release.
+2. Download the APK variant compatible with your device.
+3. Open the downloaded APK and follow Android's installation prompts.
+4. If Android asks for permission to install apps from that source, allow it for your browser or file manager, then continue.
+5. Open MARCO RX6.
 
-## ◈ Developer corner
+To update an existing installation, install the newer official APK over the current version. Keep the existing app installed; Android should retain app data when the package signature is compatible. Always download releases from the official links above.
 
-| Project detail | Value |
+## Notifications
+
+MARCO includes notification features for supported events, such as app updates and game-related activity.
+
+- Allow notification permission when Android asks, or enable it in Android Settings.
+- Notification preferences can be managed from the app's notification settings when available.
+- Tapping an update notification is intended to take you to the official MARCO download page.
+
+Notification delivery can depend on device settings, network connectivity, and Android background restrictions.
+
+## Community and support
+
+- **Telegram:** [MARCO community](https://t.me/MARCO_RX1)
+- **YouTube:** [MARCO channel](https://youtube.com/@marco_rx7)
+- **Bug reports and suggestions:** [GitHub Issues](https://github.com/XPANGWAN/Marco-RX6/issues)
+- **Official website:** [marcorx6app.dpdns.org](https://marcorx6app.dpdns.org/)
+
+When reporting a problem, include your app version, Android version, device model, and clear steps to reproduce the issue. Do not post passwords, access tokens, private keys, or other confidential information.
+
+## Project information
+
+| Item | Details |
 |---|---|
-| Current release | V8.32 |
-| Version code | 49 |
-| Application ID | `com.marcorx6.library` |
-| Primary language | Kotlin |
+| Application name | MARCO RX6 |
+| Android application ID | `com.marcorx6.library` |
+| Current source version | 8.42 |
+| Version code | 59 |
 | Minimum Android | 8.0 (API 26) |
 | Compile / target SDK | 36 |
+| Main development language | Kotlin |
+| Main repository branch | `main` |
 
-**Core integrations and libraries:** Android SDK, AndroidX, WorkManager, Firebase Authentication, Cloud Firestore, Firebase Cloud Messaging, Google Sign-In, Blogger API, Google Drive API, and ML Kit.
+The project integrates Android platform components and services including Firebase Authentication, Cloud Firestore, Firebase Cloud Messaging, Google Sign-In, Google Drive, Blogger, and WorkManager.
 
-### Project documentation
+### Developer documentation
 
 - [Architecture overview](docs/ARCHITECTURE.md)
-- [V8.32 release notes](docs/RELEASE_NOTES_V8.32.md)
+- [Release notes](docs/)
 - [Release quality checklist](docs/RELEASE_QUALITY_CHECKLIST.md)
-- [Privacy policy](https://2simo.github.io/Marco-RX6/privacy-policy.html)
-- [Account deletion](https://2simo.github.io/Marco-RX6/delete-account.html)
-- [Android build workflow](https://github.com/XPANGWAN/Marco-RX6/actions/workflows/build-apk.yml)
+- [Android build workflow](.github/workflows/build-apk.yml)
+- [Privacy policy](docs/privacy-policy.html)
+- [Account deletion information](docs/delete-account.html)
 
-### Security
+## Privacy and security
 
-Never commit service-account keys, signing keystores, passwords, OAuth client secrets, or other private credentials. Store build and signing secrets in GitHub Actions secrets.
+- Review the [privacy policy](docs/privacy-policy.html) to learn about app data practices.
+- Use the in-app account options and [account deletion information](docs/delete-account.html) for account-related requests.
+- Never commit service-account files, signing keystores, passwords, OAuth secrets, or personal access tokens to the repository.
+- Download the app only from the official MARCO website or this GitHub repository.
 
 ---
 
 <div align="center">
-  <strong>MARCO RX6</strong><br>
-  <sub>Built with focus. Improved with every release.</sub><br>
-  <sub>صُنع باهتمام، ويتطور مع كل إصدار.</sub>
+
+**MARCO RX6**
+
+*Your library, clearly organized.*
+
+**مكتبتك، مرتّبة بوضوح.**
+
 </div>
 
 ---
 
-## 🇸🇦 العربية
+# الدليل باللغة العربية
 
 <div dir="rtl" align="right">
 
-# اكتشف MARCO RX6
+## ما هو MARCO RX6؟
 
-**ألعابك. مكتبتك. وتحكمك الكامل.**
+**MARCO RX6** تطبيق لنظام Android يساعدك على استكشاف كتالوج ألعاب PlayStation وتنظيمه من مكان واحد. يجمع التطبيق بين تصفح الألعاب والبحث عنها وعرض تفاصيلها وإضافتها إلى المفضلة ومتابعة التنزيلات واستقبال الإشعارات، إلى جانب مجموعة من الأدوات المرتبطة بالحسابات والإدارة.
 
-MARCO RX6 تطبيق Android يساعدك على استكشاف كتالوج الألعاب وتنظيمه وإدارة مكتبـتك من مكان واحد قابل للتخصيص. يمكنك تصفح الأغلفة ومعلومات الألعاب، والاحتفاظ بالمفضلة، واستخدام الأدوات المدمجة للتنزيل والنشر.
+يمكنك استخدام التطبيق كزائر أو تسجيل الدخول للاستفادة من الميزات التي تتطلب حساباً.
 
-> **مهم — ليس محاكي ألعاب:** ينظم MARCO RX6 معلومات الألعاب وروابطها فقط؛ لا يشغّل الألعاب ولا يتضمن محاكيات مدمجة.
+> **تنبيه مهم:** MARCO RX6 تطبيق لإدارة مكتبة الألعاب ومعلوماتها وروابطها. ليس محاكي PlayStation، ولا يشغّل ألعاب أجهزة PlayStation، ولا يوفر خدمة PlayStation Network أو اللعب عبر الإنترنت.
 
-## ◈ داخل التطبيق
+## أهم مزايا التطبيق
 
-| التجربة | ما الذي يمكنك فعله؟ |
+| الميزة | شرح مبسّط |
 |---|---|
-| 🎮 **مكتبة الألعاب** | تصفح الكتالوج حسب المنصة، وابحث عن الألعاب وصفِّ النتائج ورتّبها. |
-| 🖼️ **تفاصيل الألعاب** | اعرض أغلفة الألعاب ومعلوماتها وصفحات التفاصيل والروابط المرتبطة. |
-| ⭐ **المفضلة والتقييمات** | احتفظ بقائمة ألعابك المفضلة وقيّم الألعاب عند تسجيل الدخول. |
-| 👤 **الحسابات** | تابع كزائر أو سجّل الدخول باستخدام Google أو البريد الإلكتروني وكلمة المرور. |
-| ☁️ **Google Drive** | ارفع ملفات أغلفة الألعاب وأدرها من خلال تكامل Google Drive. |
-| ✍️ **النشر عبر Blogger** | يمكن للمشرفين المخوّلين إنشاء منشورات Blogger وتعديلها ونشرها. |
-| 📥 **مدير التنزيلات** | تابع التنزيلات واستخدم خيارات الإيقاف المؤقت والاستئناف والإلغاء. |
-| 🔔 **الإشعارات** | تابع نشاط التنزيلات وتنبيهات التطبيق. |
-| 🎨 **التخصيص** | خصّص اللغة والمظهر والألوان والخط والإعدادات المتاحة. |
+| **مكتبة الألعاب** | تصفح كتالوج الألعاب واستكشف العناوين حسب منصة PlayStation. |
+| **البحث والتصفية** | ابحث عن لعبة محددة وضيّق النتائج حسب المنصة والتصنيفات المتاحة. |
+| **تفاصيل الألعاب** | اطّلع على معلومات اللعبة وصورها ووسائطها المتاحة، واكتشف ألعاباً مشابهة. |
+| **المفضلة** | أضف الألعاب التي تهمك إلى قائمة خاصة للوصول إليها بسرعة. |
+| **التقييمات** | شاهد تقييمات الألعاب وأرسل تقييمك عندما تكون الميزة متاحة. |
+| **مدير التنزيلات** | تابع عمليات التنزيل واستخدم الخيارات المدعومة مثل الإيقاف المؤقت والاستئناف والإلغاء. |
+| **الإشعارات** | استقبل التنبيهات المدعومة، بما فيها إشعارات الألعاب وإعلانات تحديث التطبيق. |
+| **الحسابات** | استخدم التطبيق كزائر أو سجّل الدخول عبر Google أو البريد الإلكتروني، حسب الخيارات المتاحة. |
+| **أدوات Google Drive** | استخدم ميزات Drive المدعومة لرفع الملفات وتنزيلها. |
+| **أدوات Blogger** | يستطيع المشرفون المخوّلون إنشاء منشورات الألعاب وتعديلها ونشرها. |
+| **التخصيص** | اختر لغة التطبيق واضبط خيارات المظهر والعرض المتاحة. |
 
-### كتالوج المنصات
+### منصات PlayStation وأقسام الكتالوج
 
-- **PlayStation 2 (PS2)**
-- **PlayStation 3 (PS3)**
-- **PlayStation 4 (PS4)**
-- **PlayStation 5 (PS5)**
+يدعم الكتالوج أجيال المنصات التالية:
 
-### اللغات
+- **PS1**
+- **PS2**
+- **PS3**
+- **PS4**
+- **PS5**
 
-العربية · الإنجليزية · الفرنسية · الإسبانية
+تختلف الأقسام المتاحة حسب المنصة ومحتوى الكتالوج، وقد تشمل: الألعاب، والألعاب العربية، والإضافات (DLC)، والصور الرمزية، والثيمات، والتطبيقات والأدوات، والمحاكيات.
 
-تدعم الواجهة العربية اتجاه الكتابة من اليمين إلى اليسار (RTL).
+**ملاحظة:** يعرض التطبيق معلومات الألعاب والروابط التي توفرها مصادره المتصلة. وقد يتغير توفر لعبة أو رابط تنزيل في أي وقت.
 
-## ◈ لقطات الشاشة
+## اللغات والمظهر
+
+يدعم MARCO RX6 أربع لغات:
+
+- العربية، مع دعم اتجاه الكتابة من اليمين إلى اليسار.
+- الإنجليزية.
+- الفرنسية.
+- الإسبانية.
+
+كما يوفر خيارات للمظهر الفاتح والداكن، وفق الإعدادات المتاحة في إصدار التطبيق.
+
+## تنزيل التطبيق وتثبيته
 
 <div align="center">
 
-**ستُضاف لقطات الشاشة الحقيقية للتطبيق قريباً.**
+### احصل على أحدث إصدار
 
-سيُضاف معرض الصور هنا فور تجهيز لقطات واجهات التطبيق.
+<a href="https://marcorx6app.dpdns.org/#download"><strong>التحميل من موقع MARCO الرسمي</strong></a>
+
+<br>
+
+<a href="https://github.com/XPANGWAN/Marco-RX6/releases/latest"><strong>عرض أحدث إصدار وملفات APK على GitHub</strong></a>
 
 </div>
 
-## ⬇ احصل على MARCO RX6
+اختر الحزمة المناسبة لجهازك:
 
-<div align="center">
-  <h3>MARCO RX6 V8.32</h3>
-  <p><a href="https://marcorx6app.dpdns.org/#download"><strong>⬇ التحميل من الموقع الرسمي لـ MARCO RX6</strong></a></p>
-  <p>أو اختر حزمة APK مباشرة من GitHub بما يناسب جهاز Android لديك.</p>
-  <a href="https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.32/app-arm64-v8a-release.apk"><img src="https://img.shields.io/badge/ARM64-تحميل-1677ff?style=for-the-badge&logo=android&logoColor=white" alt="تحميل ARM64 APK"></a>
-  <a href="https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.32/app-armeabi-v7a-release.apk"><img src="https://img.shields.io/badge/ARM32-تحميل-777777?style=for-the-badge&logo=android&logoColor=white" alt="تحميل ARM32 APK"></a>
-  <a href="https://github.com/XPANGWAN/Marco-RX6/releases/download/V8.32/app-universal-release.apk"><img src="https://img.shields.io/badge/UNIVERSAL-تحميل-333333?style=for-the-badge&logo=android&logoColor=white" alt="تحميل Universal APK"></a>
-  <p><a href="https://github.com/XPANGWAN/Marco-RX6/releases">جميع الإصدارات وسجل النسخ ←</a></p>
-</div>
-
-| الحزمة | مناسبة لـ |
+| نوع الحزمة | الأجهزة المناسبة |
 |---|---|
-| ARM64 | معظم هواتف Android الحديثة |
-| ARM32 | الأجهزة المتوافقة مع معمارية ARM ذات 32 بت |
-| Universal | توافق عام عند عدم معرفة معمارية الجهاز |
+| **ARM64** | معظم هواتف وأجهزة Android الحديثة. |
+| **ARM32** | الأجهزة المتوافقة مع معمارية ARM ذات 32 بت. |
+| **Universal** | حزمة عامة للتوافق مع أنواع متعددة من الأجهزة. |
 
-**الحد الأدنى للتشغيل:** Android 8.0 (API 26) أو أحدث.
+**الحد الأدنى للتشغيل:** Android 8.0 (API 26).
 
-## ◈ المجتمع والدعم
+### خطوات التثبيت
 
-- **Telegram:** [مجتمع MARCO RX6](https://t.me/MARCO_RX1)
+1. افتح صفحة التحميل الرسمية أو صفحة أحدث إصدار على GitHub.
+2. نزّل ملف APK المتوافق مع جهازك.
+3. افتح الملف واتبع تعليمات التثبيت التي يعرضها Android.
+4. إذا طلب النظام السماح بالتثبيت من هذا المصدر، فعّل الإذن للمتصفح أو مدير الملفات ثم تابع.
+5. افتح تطبيق MARCO RX6.
+
+**لتحديث التطبيق:** ثبّت ملف APK الأحدث فوق النسخة الحالية. لا تحذف التطبيق أولاً؛ يفترض أن يحتفظ Android ببيانات التطبيق ما دام توقيع الحزمة متوافقاً. احرص دائماً على تنزيل التحديث من الروابط الرسمية.
+
+## الإشعارات
+
+يدعم MARCO إشعارات لبعض الأحداث، مثل توفر تحديث للتطبيق والنشاط المرتبط بالألعاب.
+
+- اسمح للتطبيق بإرسال الإشعارات عندما يطلب Android ذلك، أو فعّل الإذن من إعدادات النظام.
+- يمكنك إدارة تفضيلات الإشعارات من إعداداتها داخل التطبيق عندما تكون متاحة.
+- من المفترض أن ينقلك الضغط على إشعار تحديث التطبيق إلى صفحة التحميل الرسمية لـ MARCO.
+
+قد يتأثر وصول الإشعارات بإعدادات الجهاز والاتصال بالإنترنت وقيود تشغيل التطبيقات في الخلفية.
+
+## المجتمع والدعم
+
+- **Telegram:** [مجتمع MARCO](https://t.me/MARCO_RX1)
 - **YouTube:** [قناة MARCO](https://youtube.com/@marco_rx7)
-- **المشكلات والاقتراحات:** [افتح طلباً على GitHub](https://github.com/XPANGWAN/Marco-RX6/issues)
+- **المشكلات والاقتراحات:** [إرسال بلاغ عبر GitHub](https://github.com/XPANGWAN/Marco-RX6/issues)
+- **الموقع الرسمي:** [marcorx6app.dpdns.org](https://marcorx6app.dpdns.org/)
 
-## ◈ معلومات المطوّر والمشروع
+عند الإبلاغ عن مشكلة، اذكر رقم إصدار التطبيق وإصدار Android وطراز الجهاز والخطوات التي أدت إلى المشكلة. لا تنشر كلمات المرور أو رموز الوصول أو المفاتيح الخاصة أو أي بيانات سرية.
 
-| تفاصيل المشروع | القيمة |
+## معلومات المشروع
+
+| العنصر | التفاصيل |
 |---|---|
-| الإصدار الحالي المذكور | V8.32 |
-| رقم الإصدار | 49 |
-| معرّف التطبيق | `com.marcorx6.library` |
-| لغة التطوير الأساسية | Kotlin |
+| اسم التطبيق | MARCO RX6 |
+| معرّف تطبيق Android | `com.marcorx6.library` |
+| إصدار المصدر الحالي | 8.42 |
+| رمز الإصدار | 59 |
 | الحد الأدنى لـ Android | 8.0 (API 26) |
 | Compile / Target SDK | 36 |
+| لغة التطوير الأساسية | Kotlin |
+| الفرع الرئيسي للمشروع | `main` |
 
-**التكاملات والمكتبات الأساسية:** Android SDK وAndroidX وWorkManager وFirebase Authentication وCloud Firestore وFirebase Cloud Messaging وGoogle Sign-In وBlogger API وGoogle Drive API وML Kit.
+يتكامل المشروع مع مكونات وخدمات Android، ومنها Firebase Authentication وCloud Firestore وFirebase Cloud Messaging وGoogle Sign-In وGoogle Drive وBlogger وWorkManager.
 
-### وثائق المشروع
+### وثائق المطورين
 
-- [نظرة عامة على معمارية المشروع](docs/ARCHITECTURE.md)
-- [ملاحظات إصدار V8.32](docs/RELEASE_NOTES_V8.32.md)
+- [نظرة عامة على معمارية التطبيق](docs/ARCHITECTURE.md)
+- [ملاحظات الإصدارات](docs/)
 - [قائمة التحقق من جودة الإصدار](docs/RELEASE_QUALITY_CHECKLIST.md)
-- [سياسة الخصوصية](https://2simo.github.io/Marco-RX6/privacy-policy.html)
-- [حذف الحساب](https://2simo.github.io/Marco-RX6/delete-account.html)
-- [سير عمل بناء Android](https://github.com/XPANGWAN/Marco-RX6/actions/workflows/build-apk.yml)
+- [سير عمل بناء Android](.github/workflows/build-apk.yml)
+- [سياسة الخصوصية](docs/privacy-policy.html)
+- [معلومات حذف الحساب](docs/delete-account.html)
 
-### الأمان
+## الخصوصية والأمان
 
-لا ترفع مفاتيح حسابات الخدمة أو ملفات توقيع التطبيق أو كلمات المرور أو أسرار OAuth أو أي بيانات اعتماد خاصة إلى المستودع. احفظ أسرار البناء والتوقيع في GitHub Actions Secrets.
+- اقرأ [سياسة الخصوصية](docs/privacy-policy.html) لمعرفة كيفية تعامل التطبيق مع البيانات.
+- راجع خيارات الحساب داخل التطبيق و[معلومات حذف الحساب](docs/delete-account.html) للطلبات المتعلقة بالحساب.
+- لا ترفع ملفات حسابات الخدمة أو مفاتيح توقيع التطبيق أو كلمات المرور أو أسرار OAuth أو رموز الوصول الشخصية إلى المستودع.
+- نزّل التطبيق من موقع MARCO الرسمي أو من مستودع GitHub هذا فقط.
+
+---
+
+<div align="center">
+
+**MARCO RX6**
+
+*مكتبتك، مرتّبة بوضوح.*
+
+</div>
 
 </div>
