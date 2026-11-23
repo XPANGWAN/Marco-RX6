@@ -667,6 +667,27 @@ class LanguageTranslatorTest {
     }
 
     @Test
+    fun translatesAppUpdatePushTitleAndNotificationChannelIntoAllSupportedLanguages() {
+        val title = "تحديث جديد متاح لـ MARCO"
+        assertEquals("A new MARCO update is available", LanguageTranslator.translate(title, "en"))
+        assertEquals("Une nouvelle mise à jour de MARCO est disponible", LanguageTranslator.translate(title, "fr"))
+        assertEquals("Hay una nueva actualización de MARCO disponible", LanguageTranslator.translate(title, "es"))
+        assertEquals(title, LanguageTranslator.translate(title, "ar"))
+
+        val channel = "إشعارات MARCO"
+        assertEquals("MARCO notifications", LanguageTranslator.translate(channel, "en"))
+        assertEquals("Notifications MARCO", LanguageTranslator.translate(channel, "fr"))
+        assertEquals("Notificaciones de MARCO", LanguageTranslator.translate(channel, "es"))
+        assertEquals(channel, LanguageTranslator.translate(channel, "ar"))
+
+        val description = "رسائل ومتابعون وتحديثات الألعاب"
+        assertEquals("Messages, followers and game updates", LanguageTranslator.translate(description, "en"))
+        assertEquals("Messages, abonnés et mises à jour des jeux", LanguageTranslator.translate(description, "fr"))
+        assertEquals("Mensajes, seguidores y actualizaciones de juegos", LanguageTranslator.translate(description, "es"))
+        assertEquals(description, LanguageTranslator.translate(description, "ar"))
+    }
+
+    @Test
     fun translatesIndependentPushNotificationSettingsIntoAllSupportedLanguages() {
         val appUpdates = "إشعارات تحديثات التطبيق"
         assertEquals("App update notifications", LanguageTranslator.translate(appUpdates, "en"))
