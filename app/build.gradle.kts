@@ -10,12 +10,9 @@ android {
     namespace = "com.marcorx6.library"
     compileSdk = 36
 
-    buildFeatures {
-        buildConfig = true
-    }
+    buildFeatures { buildConfig = true }
 
-    // MARCO 8.37: guest push registration and independent notification preferences.
-    // Keep a Universal APK as a compatibility fallback.
+    // MARCO 8.38: guest push notification verification release.
     splits {
         abi {
             isEnable = true
@@ -30,20 +27,14 @@ android {
         applicationId = "com.marcorx6.library"
         minSdk = 26
         targetSdk = 36
-        versionCode = 54
-        versionName = "8.37"
-
-        // Phone APKs target ARM devices; omit x86 emulator/desktop native binaries.
-        ndk {
-            abiFilters += setOf("arm64-v8a", "armeabi-v7a")
-        }
+        versionCode = 55
+        versionName = "8.38"
+        ndk { abiFilters += setOf("arm64-v8a", "armeabi-v7a") }
     }
 
     signingConfigs {
         create("release") {
-            storeFile = file(
-                System.getenv("KEYSTORE_FILE") ?: "release.jks"
-            )
+            storeFile = file(System.getenv("KEYSTORE_FILE") ?: "release.jks")
             storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
             keyAlias = System.getenv("KEY_ALIAS") ?: "marcorx6"
             keyPassword = System.getenv("KEY_PASSWORD") ?: ""
@@ -52,20 +43,15 @@ android {
 
     buildTypes {
         getByName("debug") {
-            // CI debug uses the registered release certificate for the same OAuth pair.
-            // Local builds retain the normal Android debug keystore.
             if (System.getenv("MARCO_DEBUG_USE_RELEASE_KEY") == "true") {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
-
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
-            )
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 
@@ -73,14 +59,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-
 }
 
-// Kotlin 2.x compiler configuration (replaces deprecated kotlinOptions).
 kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-    }
+    compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
 }
 
 dependencies {
