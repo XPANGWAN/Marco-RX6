@@ -406,7 +406,7 @@ async function getLatestRelease() {
   if (!tag || !/^https:\/\/github\.com\/XPANGWAN\/Marco-RX6\/releases\/tag\//i.test(url)) {
     throw new Error("GitHub releases feed has no valid latest release entry");
   }
-  return { tag: decodeURIComponent(tag), name: (title || decodeURIComponent(tag)).slice(0, 100), url };
+  return { tag: decodeURIComponent(tag), name: (title || decodeURIComponent(tag)).slice(0, 100), url: "https://marcorx6app.dpdns.org/#download" };
 }
 async function getAppUpdateCursor(env) {
   const result = await google(env, "notificationControl/appUpdates");
