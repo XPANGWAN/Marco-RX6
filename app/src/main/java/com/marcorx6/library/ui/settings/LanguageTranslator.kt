@@ -45,6 +45,8 @@ internal object LanguageTranslator {
             "الخصوصية والتنزيلات" to listOf("PRIVACY & DOWNLOADS", "CONFIDENTIALITÉ ET TÉLÉCHARGEMENTS", "PRIVACIDAD Y DESCARGAS"),
             "اللغة والمجتمع" to listOf("LANGUAGE & COMMUNITY", "LANGUE ET COMMUNAUTÉ", "IDIOMA Y COMUNIDAD"),
             "إشعارات التطبيق" to listOf("APP NOTIFICATIONS", "NOTIFICATIONS DE L’APPLICATION", "NOTIFICACIONES DE LA APLICACIÓN"),
+            "الإشعارات مفعّلة. يراقب خادم MARCO المدونة ويرسل إليك تنبيهاً عند نشر لعبة جديدة." to listOf("Notifications are enabled. MARCO’s server monitors the blog and will alert you when a new game is published.", "Les notifications sont activées. Le serveur MARCO surveille le blog et vous avertira lorsqu’un nouveau jeu sera publié.", "Las notificaciones están activadas. El servidor de MARCO supervisa el blog y te avisará cuando se publique un juego nuevo."),
+            "الإشعارات متوقفة. فعّلها ليصلك تنبيه عند نشر لعبة جديدة." to listOf("Notifications are off. Enable them to receive an alert when a new game is published.", "Les notifications sont désactivées. Activez-les pour recevoir une alerte lorsqu’un nouveau jeu sera publié.", "Las notificaciones están desactivadas. Actívalas para recibir un aviso cuando se publique un juego nuevo."),
             "الحساب والصلاحيات" to listOf("ACCOUNT & PERMISSIONS", "COMPTE ET AUTORISATIONS", "CUENTA Y PERMISOS"),
             "التخصيص والتخزين" to listOf("PERSONALIZATION & STORAGE", "PERSONNALISATION ET STOCKAGE", "PERSONALIZACIÓN Y ALMACENAMIENTO"),
             "MARCO  /  البحث الذكي" to listOf("MARCO  /  SMART SEARCH", "MARCO  /  RECHERCHE INTELLIGENTE", "MARCO  /  BÚSQUEDA INTELIGENTE"),
