@@ -486,7 +486,7 @@ export default {
       return Response.json({
         service: "marco-rx6-notifications",
         status: "ready",
-        build: "notifications-app-update-2026-11-22"
+        build: "notifications-official-site-update-2026-11-23"
       });
     }
     return new Response("Use the scheduled trigger.", { status: 200 });
