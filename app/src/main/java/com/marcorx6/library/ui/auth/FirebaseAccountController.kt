@@ -1276,11 +1276,11 @@ internal class FirebaseAccountController(
         AppDiagnostics.setScreen("Notifications")
         AppDiagnostics.recordAction("Open notifications")
         val user = authRepository.currentUser
-        if (user == null || user.isAnonymous) {
-            toast("سجّل الدخول لمتابعة إشعارات حسابك.")
-            show()
+        if (user == null) {
+            toast("جارٍ تجهيز جلسة الإشعارات. حاول مرة أخرى بعد لحظات.")
             return
         }
+        val isGuest = user.isAnonymous
         notificationsListener?.remove()
         val dark = isDarkMode()
         val page = LinearLayout(activity).apply {
@@ -1318,7 +1318,7 @@ internal class FirebaseAccountController(
             list.removeAllViews()
             val filtered = allItems.filter { item ->
                 when (selectedSection) {
-                    "game" -> item.getString("type") == "game"
+                    "game" -> item.getString("type") in setOf("game", "blog_game")
                     "follow" -> item.getString("type") == "follow"
                     "message" -> item.getString("type") == "message"
                     "system" -> item.getString("type") in setOf("system", "app_update")
@@ -1576,8 +1576,10 @@ internal class FirebaseAccountController(
             })
         }
         addTab("الألعاب الجديدة", "game")
-        addTab("المتابعون", "follow")
-        addTab("الرسائل", "message")
+        if (!isGuest) {
+            addTab("المتابعون", "follow")
+            addTab("الرسائل", "message")
+        }
         addTab("تنبيهات النظام", "system")
         val tabScroller = android.widget.HorizontalScrollView(activity).apply {
             isHorizontalScrollBarEnabled = false
