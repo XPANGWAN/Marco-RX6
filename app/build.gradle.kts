@@ -12,7 +12,7 @@ android {
 
     buildFeatures { buildConfig = true }
 
-    // MARCO 8.40: deduplicate release push notifications and localize push text.
+    // MARCO 8.41: verify the app-update notification flow with a newer release.
     splits {
         abi {
             isEnable = true
@@ -27,8 +27,8 @@ android {
         applicationId = "com.marcorx6.library"
         minSdk = 26
         targetSdk = 36
-        versionCode = 57
-        versionName = "8.40"
+        versionCode = 58
+        versionName = "8.41"
         ndk { abiFilters += setOf("arm64-v8a", "armeabi-v7a") }
     }
 
