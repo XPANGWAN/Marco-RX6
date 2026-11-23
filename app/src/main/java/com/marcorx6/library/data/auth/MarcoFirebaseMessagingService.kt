@@ -53,7 +53,7 @@ class MarcoFirebaseMessagingService : FirebaseMessagingService() {
         // handed Blogger URLs to the browser, so the app never opened from game alerts.
         val releaseUrl = data["releaseUrl"].orEmpty()
         val isTrustedReleaseUrl = data["type"] == "app_update" &&
-            releaseUrl.startsWith("https://github.com/XPANGWAN/Marco-RX6/releases/")
+            releaseUrl == "https://marcorx6app.dpdns.org/#download"
         val openApp = if (isTrustedReleaseUrl) {
             Intent(Intent.ACTION_VIEW, Uri.parse(releaseUrl)).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
