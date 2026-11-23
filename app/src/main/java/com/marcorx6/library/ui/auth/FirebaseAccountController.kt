@@ -1470,7 +1470,7 @@ internal class FirebaseAccountController(
                             }
                             "app_update" -> {
                                 val releaseUrl = item.getString("releaseUrl").orEmpty()
-                                if (releaseUrl.startsWith("https://github.com/XPANGWAN/Marco-RX6/releases/")) {
+                                if (releaseUrl == "https://marcorx6app.dpdns.org/#download") {
                                     try {
                                         activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(releaseUrl)))
                                     } catch (_: Exception) {
